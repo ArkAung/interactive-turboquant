@@ -452,7 +452,9 @@
   }
   .primer-cell .ph { font-size: 18px; font-weight: 600; margin: 0 0 6px; color: var(--text); }
   .primer-cell .pb { font-size: 14.5px; color: var(--text-dim); line-height: 1.55; margin-bottom: 12px; }
-  .primer-cell .plot { height: 200px; }
+  .primer-cell .plot { height: 240px; }
+  .primer-cell > .plot + .controls { margin-top: 12px; }
+  .primer-cell .readout { margin-top: 10px; }
   .primer-cell .readout {
     margin-top: 10px; font-family: "JetBrains Mono", monospace;
     font-size: 11px; color: var(--text-dim); letter-spacing: 0.04em;
@@ -560,7 +562,7 @@
         <b>arrow from the origin</b>. A <i>d-dimensional vector</i> is an arrow in $d$-space — unreachable
         to picture past 3, but the rules stay the same. Drag the tip.
       </div>
-      <div class="plot" style="height: 220px;"><canvas id="pr-vec-cv"></canvas></div>
+      <div class="plot" style="height: 260px;"><canvas id="pr-vec-cv"></canvas></div>
       <div class="readout">
         <span><span class="k">coords</span><b id="pr-vec-co">[0.70, 0.50]</b></span>
         <span><span class="k">length</span><b id="pr-vec-len">0.86</b></span>
@@ -577,7 +579,7 @@
         $= \|x\|\|y\|\cos\theta$. When the arrows align, it is big; perpendicular, it is zero; opposite, negative. Drag
         either arrow.
       </div>
-      <div class="plot" style="height: 240px;"><canvas id="pr-dot-cv"></canvas></div>
+      <div class="plot" style="height: 280px;"><canvas id="pr-dot-cv"></canvas></div>
       <div class="readout">
         <span><span class="k">‖x‖</span><b id="pr-dot-lx">1.00</b></span>
         <span><span class="k">‖y‖</span><b id="pr-dot-ly">1.00</b></span>
@@ -595,7 +597,7 @@
         would cancel. <b>Squaring</b> makes every miss positive and punishes big misses quadratically &mdash;
         so the best guess becomes the <b>average</b>. Move the guess; watch the MSE.
       </div>
-      <div class="plot" style="height: 180px;"><canvas id="pr-mse-cv"></canvas></div>
+      <div class="plot" style="height: 220px;"><canvas id="pr-mse-cv"></canvas></div>
       <div class="controls" style="margin-top:10px;">
         <div class="ctrl"><label>Guess</label><input id="pr-mse-g" type="range" min="-3" max="3" step="0.01" value="0"><span class="val" id="pr-mse-gv">0.00</span></div>
       </div>
@@ -616,7 +618,7 @@
         Shots can scatter wildly and still be unbiased &mdash; as long as the <i>center</i> lands on the bullseye.
         Click <i>fire 50 shots</i>.
       </div>
-      <div class="plot" style="height: 240px;"><canvas id="pr-bias-cv"></canvas></div>
+      <div class="plot" style="height: 280px;"><canvas id="pr-bias-cv"></canvas></div>
       <div class="controls" style="margin-top:10px;">
         <div class="ctrl">
           <label>Mode</label>
@@ -644,7 +646,7 @@
         <b>rotation preserves everything</b> we care about. It just changes the <i>basis</i>
         you are reading the coordinates in. Spin the shape.
       </div>
-      <div class="plot" style="height: 240px;"><canvas id="pr-rot-cv"></canvas></div>
+      <div class="plot" style="height: 280px;"><canvas id="pr-rot-cv"></canvas></div>
       <div class="controls" style="margin-top:10px;">
         <div class="ctrl"><label>Angle θ</label><input id="pr-rot-a" type="range" min="-180" max="180" step="1" value="0"><span class="val" id="pr-rot-av">0°</span></div>
       </div>
@@ -664,7 +666,7 @@
         flip, a uniform roll, or anything else. This is <b>why</b> a rotated coordinate behaves like
         a Gaussian.
       </div>
-      <div class="plot" style="height: 200px;"><canvas id="pr-clt-cv"></canvas></div>
+      <div class="plot" style="height: 240px;"><canvas id="pr-clt-cv"></canvas></div>
       <div class="controls" style="margin-top:10px;">
         <div class="ctrl"><label>Terms in sum <code>n</code></label><input id="pr-clt-n" type="range" min="1" max="60" step="1" value="1"><span class="val" id="pr-clt-nv">1</span></div>
         <div class="ctrl"><label>Source</label>
@@ -691,7 +693,7 @@
         In 100-D, almost every coordinate is tiny &mdash; close to $\pm 1/\sqrt{d}$. This is <b>measure
         concentration</b>, the single fact that makes TurboQuant tick.
       </div>
-      <div class="plot" style="height: 200px;"><canvas id="pr-hd-cv"></canvas></div>
+      <div class="plot" style="height: 240px;"><canvas id="pr-hd-cv"></canvas></div>
       <div class="controls" style="margin-top:10px;">
         <div class="ctrl"><label>Dim <code>d</code></label><input id="pr-hd-d" type="range" min="2" max="200" step="1" value="2"><span class="val" id="pr-hd-dv">2</span></div>
       </div>
@@ -710,7 +712,7 @@
         The <i>gap</i> between levels is your worst-case error. Doubling bits quarters the gap &mdash; the source
         of the magic &ldquo;$4^{-b}$&rdquo; you will see later.
       </div>
-      <div class="plot" style="height: 110px;"><canvas id="pr-q1-cv"></canvas></div>
+      <div class="plot" style="height: 140px;"><canvas id="pr-q1-cv"></canvas></div>
       <div class="controls" style="margin-top:10px;">
         <div class="ctrl"><label>Bits <code>b</code></label><input id="pr-q1-b" type="range" min="1" max="5" step="1" value="2"><span class="val" id="pr-q1-bv">2</span></div>
       </div>
