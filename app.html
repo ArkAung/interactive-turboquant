@@ -107,24 +107,24 @@
     font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.22em;
     color: var(--mute); font-weight: 500; margin: 0 0 10px 2px;
   }
-  nav.toc ol { list-style: none; padding: 0; margin: 0; counter-reset: tocn; }
-  nav.toc li { counter-increment: tocn; position: relative; }
+  nav.toc ol { list-style: none; padding: 0; margin: 0; }
+  nav.toc li { position: relative; }
   nav.toc a {
     display: flex; gap: 12px; padding: 7px 10px; border-left: 2px solid transparent;
     color: var(--text-dim); text-decoration: none;
     font-family: "JetBrains Mono", monospace;
-    font-size: 11.5px; letter-spacing: 0.03em; line-height: 1.35;
+    font-size: 12px; letter-spacing: 0.03em; line-height: 1.35;
     text-transform: uppercase;
     transition: background .12s, color .12s, border-color .12s;
   }
-  nav.toc a::before {
-    content: counter(tocn, decimal-leading-zero);
-    color: var(--mute-2); font-family: "JetBrains Mono", monospace; font-size: 10px;
-    flex: 0 0 auto; padding-top: 1px;
+  nav.toc a .n {
+    color: var(--mute-2); font-family: "JetBrains Mono", monospace; font-size: 10.5px;
+    flex: 0 0 28px; padding-top: 1px;
   }
   nav.toc a:hover { background: rgba(125,227,199,0.04); color: var(--accent); border-left-color: var(--accent-soft); }
+  nav.toc a:hover .n { color: var(--accent-soft); }
   nav.toc a.active { background: rgba(125,227,199,0.07); color: var(--accent); border-left-color: var(--accent); }
-  nav.toc a.active::before { color: var(--accent); }
+  nav.toc a.active .n { color: var(--accent); }
   nav.toc hr { border: none; border-top: 1px dashed var(--line); margin: 20px 0; }
   nav.toc small { font-family: "JetBrains Mono", monospace; font-size: 10.5px; letter-spacing: 0.05em; color: var(--mute); text-transform: uppercase; line-height: 1.6; }
 
@@ -489,18 +489,18 @@
 <nav class="toc">
   <div class="brand">◈ TURBOQUANT</div>
   <ol>
-    <li><a href="#hero">The promise</a></li>
-    <li><a href="#primer">Primer — jargon decoder</a></li>
-    <li><a href="#problem">Vector quantization</a></li>
-    <li><a href="#naive">Why naive fails</a></li>
-    <li><a href="#rotation">The rotation trick</a></li>
-    <li><a href="#concentration">Why rotation works</a></li>
-    <li><a href="#codebook">The universal codebook</a></li>
-    <li><a href="#pipeline">TurboQuant-MSE</a></li>
-    <li><a href="#bias">The inner-product bias</a></li>
-    <li><a href="#qjl">QJL — the un-biaser</a></li>
-    <li><a href="#bounds">Shannon's floor</a></li>
-    <li><a href="#impact">Why it matters</a></li>
+    <li><a href="#hero"><span class="n">▸</span><span>The promise</span></a></li>
+    <li><a href="#primer"><span class="n">§0</span><span>Primer — jargon decoder</span></a></li>
+    <li><a href="#problem"><span class="n">§1</span><span>Vector quantization</span></a></li>
+    <li><a href="#naive"><span class="n">§2</span><span>Why naive fails</span></a></li>
+    <li><a href="#rotation"><span class="n">§3</span><span>The rotation trick</span></a></li>
+    <li><a href="#concentration"><span class="n">§4</span><span>Why rotation works</span></a></li>
+    <li><a href="#codebook"><span class="n">§5</span><span>The universal codebook</span></a></li>
+    <li><a href="#pipeline"><span class="n">§6</span><span>TurboQuant-MSE</span></a></li>
+    <li><a href="#bias"><span class="n">§7</span><span>The inner-product bias</span></a></li>
+    <li><a href="#qjl"><span class="n">§8</span><span>QJL — the un-biaser</span></a></li>
+    <li><a href="#bounds"><span class="n">§9</span><span>Shannon's floor</span></a></li>
+    <li><a href="#impact"><span class="n">§10</span><span>Why it matters</span></a></li>
   </ol>
   <hr>
   <small>Every chart is live — drag the sliders, press the buttons. Numbers are computed in your browser from first principles.</small>
