@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.python-version
+
+# Source papers (large binaries, not our work)
+*.pdf
+
+# IDE / local
+.claude/
+.DS_Store
+
+# Build
+dist/
+build/
+*.egg-info/

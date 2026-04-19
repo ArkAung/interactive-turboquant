@@ -1,0 +1,2858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TurboQuant — A First-Principles Walk-through</title>
+<script>
+  window.MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']]
+    },
+    options: { renderActions: { addMenu: [0, '', ''] } }
+  };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Monochrome tactical HUD palette */
+    --ink: #000000;
+    --panel: #06090a;
+    --panel2: #0b1113;
+    --panel3: #0f1618;
+    --line: #1a2427;
+    --line-bright: #2a3a3f;
+    --text: #d4e4e0;
+    --text-dim: #9ab5ae;
+    --mute: #5a7a73;
+    --mute-2: #3a4f4a;
+    --accent: #7de3c7;         /* mint — primary accent */
+    --accent-soft: #4fa990;
+    --accent-glow: rgba(125,227,199,0.14);
+    --ocean: #5eead4;           /* secondary accent */
+    --warn: #fcd34d;            /* amber — highlight/bounds */
+    --err: #fb7185;             /* coral — error/residual */
+    --blue: #a5c4ff;            /* cool — quantized */
+    /* Semantic aliases so existing code keeps working */
+    --bg: var(--ink);
+    --bg2: var(--panel2);
+    --card: var(--panel);
+    --card2: var(--panel3);
+    --border: var(--line);
+    --orig: var(--accent);
+    --rot:  var(--ocean);
+    --quant: var(--blue);
+    --gold: var(--warn);
+    --red:  var(--err);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--ink); color: var(--text); }
+
+  body {
+    font-family: "Space Grotesk", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 15.5px; line-height: 1.62;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% -10%, rgba(125,227,199,0.04), transparent 60%),
+      linear-gradient(180deg, #02050600 0%, #02050600 100%),
+      var(--ink);
+    background-attachment: fixed;
+  }
+
+  /* Global grid overlay — the signature HUD background */
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image:
+      linear-gradient(rgba(125,227,199,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(125,227,199,0.035) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(ellipse 70% 80% at 50% 50%, #000 50%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 70% 80% at 50% 50%, #000 50%, transparent 100%);
+  }
+  body::after {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background: repeating-linear-gradient(0deg, rgba(125,227,199,0.015) 0 1px, transparent 1px 3px);
+    mix-blend-mode: screen;
+  }
+
+  code, .mono, pre { font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+
+  /* Layout */
+  .wrap { position: relative; z-index: 1; display: grid; grid-template-columns: 260px minmax(0, 1fr); max-width: 1440px; margin: 0 auto; }
+  nav.toc {
+    position: sticky; top: 0; align-self: start; height: 100vh;
+    padding: 28px 20px 28px 22px;
+    border-right: 1px solid var(--line);
+    overflow-y: auto;
+    background: linear-gradient(180deg, rgba(6,9,10,0.85) 0%, rgba(6,9,10,0.95) 100%);
+    backdrop-filter: blur(6px);
+  }
+  nav.toc .brand {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 0.25em; color: var(--accent);
+    text-transform: uppercase; margin-bottom: 4px;
+  }
+  nav.toc .brand-sub {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9.5px; letter-spacing: 0.3em; color: var(--mute);
+    text-transform: uppercase; margin-bottom: 18px;
+    padding-bottom: 12px; border-bottom: 1px dashed var(--line);
+  }
+  nav.toc h2 {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.22em;
+    color: var(--mute); font-weight: 500; margin: 0 0 10px 2px;
+  }
+  nav.toc ol { list-style: none; padding: 0; margin: 0; counter-reset: tocn; }
+  nav.toc li { counter-increment: tocn; position: relative; }
+  nav.toc a {
+    display: flex; gap: 12px; padding: 7px 10px; border-left: 2px solid transparent;
+    color: var(--text-dim); text-decoration: none;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11.5px; letter-spacing: 0.03em; line-height: 1.35;
+    text-transform: uppercase;
+    transition: background .12s, color .12s, border-color .12s;
+  }
+  nav.toc a::before {
+    content: counter(tocn, decimal-leading-zero);
+    color: var(--mute-2); font-family: "JetBrains Mono", monospace; font-size: 10px;
+    flex: 0 0 auto; padding-top: 1px;
+  }
+  nav.toc a:hover { background: rgba(125,227,199,0.04); color: var(--accent); border-left-color: var(--accent-soft); }
+  nav.toc a.active { background: rgba(125,227,199,0.07); color: var(--accent); border-left-color: var(--accent); }
+  nav.toc a.active::before { color: var(--accent); }
+  nav.toc hr { border: none; border-top: 1px dashed var(--line); margin: 20px 0; }
+  nav.toc small { font-family: "JetBrains Mono", monospace; font-size: 10.5px; letter-spacing: 0.05em; color: var(--mute); text-transform: uppercase; line-height: 1.6; }
+
+  main { padding: 48px 56px 120px 56px; min-width: 0; position: relative; }
+  @media (max-width: 900px) {
+    .wrap { grid-template-columns: 1fr; }
+    nav.toc { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--line); }
+    main { padding: 24px 18px 80px; }
+  }
+
+  /* Typography */
+  h1 {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 44px; line-height: 1.1; letter-spacing: -0.025em;
+    margin: 0 0 12px; font-weight: 700; color: var(--text);
+  }
+  h1 .accent {
+    background: linear-gradient(90deg, var(--accent) 0%, var(--ocean) 55%, var(--warn) 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  h2 {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 30px; line-height: 1.15; letter-spacing: -0.015em;
+    margin: 0 0 12px; font-weight: 600; color: var(--text);
+  }
+  h3 {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px; margin: 28px 0 10px;
+    color: var(--accent); font-weight: 500;
+    text-transform: uppercase; letter-spacing: 0.18em;
+  }
+  h3::before { content: "▸ "; color: var(--accent-soft); }
+
+  p { margin: 0 0 14px; color: var(--text); }
+  .lede { font-size: 19px; line-height: 1.55; color: #b9d0c9; max-width: 780px; }
+  small, .small { font-size: 12.5px; color: var(--text-dim); }
+
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.3em;
+    color: var(--accent); font-weight: 500;
+    margin-bottom: 16px; padding: 3px 10px 3px 0;
+  }
+  .eyebrow::before {
+    content: ""; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 0 2px rgba(125,227,199,0.15), 0 0 10px var(--accent);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+
+  a { color: var(--accent); text-decoration: none; border-bottom: 1px dashed rgba(125,227,199,0.3); }
+  a:hover { border-bottom-color: var(--accent); }
+  hr { border: none; border-top: 1px dashed var(--line); margin: 40px 0; }
+
+  /* Section */
+  section {
+    padding: 72px 0 32px; border-bottom: 1px dashed var(--line);
+    scroll-margin-top: 0; position: relative;
+  }
+  section:first-of-type { padding-top: 24px; }
+  section:last-of-type { border-bottom: none; }
+
+  /* Panels (cards) with corner brackets */
+  .card, .panel {
+    background: linear-gradient(180deg, var(--panel) 0%, var(--panel2) 100%);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 20px 22px; margin: 16px 0;
+    position: relative;
+  }
+  .card::before, .card::after, .panel::before, .panel::after {
+    content: ""; position: absolute; width: 10px; height: 10px;
+    border-color: var(--accent); border-style: solid; pointer-events: none;
+  }
+  .card::before, .panel::before { top: -1px; left: -1px; border-width: 1px 0 0 1px; }
+  .card::after,  .panel::after  { top: -1px; right: -1px; border-width: 1px 1px 0 0; }
+  .card > i.cbr, .panel > i.cbr {
+    position: absolute; width: 10px; height: 10px; border-color: var(--accent); border-style: solid; pointer-events: none;
+  }
+  .card > i.cbr.bl, .panel > i.cbr.bl { bottom: -1px; left: -1px; border-width: 0 0 1px 1px; }
+  .card > i.cbr.br, .panel > i.cbr.br { bottom: -1px; right: -1px; border-width: 0 1px 1px 0; }
+
+  .card.accent  { border-top: 1px solid var(--warn); }
+  .card.accent::before, .card.accent::after { border-color: var(--warn); }
+  .card.accent > i.cbr { border-color: var(--warn); }
+
+  .card.insight { border-top: 1px solid var(--accent); background: linear-gradient(180deg, rgba(125,227,199,0.05) 0%, var(--panel2) 80%); }
+  .card.caution { border-top: 1px solid var(--err); background: linear-gradient(180deg, rgba(251,113,133,0.05) 0%, var(--panel2) 80%); }
+  .card.caution::before, .card.caution::after { border-color: var(--err); }
+  .card.caution > i.cbr { border-color: var(--err); }
+
+  /* Panel header used inside cards */
+  .panel-hd {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; margin: -4px 0 12px 0;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--mute);
+    padding-bottom: 8px; border-bottom: 1px dashed var(--line);
+  }
+  .panel-hd .tag { color: var(--accent); }
+  .panel-hd .stat { color: var(--text-dim); }
+
+  /* Pills */
+  .pill {
+    display: inline-block; padding: 2px 9px; border-radius: 2px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase;
+    border: 1px solid var(--line-bright); color: var(--text-dim); margin-right: 6px;
+  }
+  .pill.orig  { color: var(--accent); border-color: rgba(125,227,199,0.40); background: rgba(125,227,199,0.05); }
+  .pill.rot   { color: var(--ocean);  border-color: rgba(94,234,212,0.40);  background: rgba(94,234,212,0.04); }
+  .pill.quant { color: var(--blue);   border-color: rgba(165,196,255,0.40); background: rgba(165,196,255,0.04); }
+  .pill.err   { color: var(--err);    border-color: rgba(251,113,133,0.40); background: rgba(251,113,133,0.04); }
+  .pill.gold  { color: var(--warn);   border-color: rgba(252,211,77,0.40);  background: rgba(252,211,77,0.04); }
+
+  /* Controls */
+  .controls { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; margin: 10px 0 16px; }
+  .ctrl {
+    display: flex; gap: 10px; align-items: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--mute);
+  }
+  .ctrl label { color: var(--text-dim); }
+  .ctrl .val {
+    color: var(--accent); font-family: "JetBrains Mono", monospace;
+    min-width: 38px; text-align: right;
+    padding: 1px 7px; border: 1px solid var(--line); border-radius: 1px;
+    background: rgba(125,227,199,0.04);
+    font-size: 11px; letter-spacing: 0.03em;
+  }
+  input[type=range] {
+    appearance: none; -webkit-appearance: none;
+    width: 160px; height: 2px; background: var(--line-bright); border-radius: 0; outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 12px; height: 12px; background: var(--accent); cursor: pointer;
+    transform: rotate(45deg); /* diamond */
+    box-shadow: 0 0 8px rgba(125,227,199,0.6);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 12px; height: 12px; background: var(--accent); border: none; cursor: pointer;
+    transform: rotate(45deg);
+    box-shadow: 0 0 8px rgba(125,227,199,0.6);
+  }
+  button {
+    background: transparent; color: var(--text-dim);
+    border: 1px solid var(--line-bright);
+    padding: 7px 14px; border-radius: 2px; cursor: pointer;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    transition: background .15s, border-color .15s, color .15s;
+  }
+  button:hover { background: rgba(125,227,199,0.06); border-color: var(--accent-soft); color: var(--accent); }
+  button.primary { border-color: var(--accent); color: var(--accent); }
+  button.primary:hover { background: rgba(125,227,199,0.1); }
+  select {
+    background: var(--panel); color: var(--text-dim);
+    border: 1px solid var(--line-bright); padding: 6px 10px; border-radius: 2px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+  }
+
+  /* Plots */
+  .plot {
+    position: relative; background: #04080a;
+    border: 1px solid var(--line); border-radius: 2px; overflow: hidden;
+  }
+  .plot::before, .plot::after {
+    content: ""; position: absolute; width: 8px; height: 8px;
+    border-color: var(--accent-soft); border-style: solid; pointer-events: none;
+  }
+  .plot::before { top: 0; left: 0; border-width: 1px 0 0 1px; }
+  .plot::after  { bottom: 0; right: 0; border-width: 0 1px 1px 0; }
+  .plot canvas { display: block; width: 100%; height: 100%; }
+  .plot .legend {
+    position: absolute; top: 10px; right: 12px; background: rgba(4,8,10,0.88);
+    padding: 6px 10px; border-radius: 1px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px; letter-spacing: 0.06em;
+    color: var(--text-dim);
+    border: 1px solid var(--line);
+  }
+  .plot .legend .sw { display: inline-block; width: 9px; height: 9px; vertical-align: middle; margin-right: 6px; }
+  .plot .caption {
+    position: absolute; top: 10px; left: 12px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--mute);
+  }
+  .plot .caption .t { color: var(--accent); }
+
+  .plot-grid { display: grid; gap: 16px; }
+  .plot-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+  .plot-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  @media (max-width: 780px) {
+    .plot-grid.cols-2, .plot-grid.cols-3 { grid-template-columns: 1fr; }
+  }
+
+  /* Metric strip — telemetry readouts */
+  .metrics { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0; }
+  .metric {
+    flex: 1 1 140px;
+    background: linear-gradient(180deg, var(--panel2), var(--panel));
+    border: 1px solid var(--line);
+    border-left: 2px solid var(--accent-soft);
+    border-radius: 0; padding: 10px 14px;
+    position: relative;
+  }
+  .metric .label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.25em;
+    color: var(--mute);
+  }
+  .metric .value {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 22px; color: var(--text); margin-top: 3px;
+    letter-spacing: -0.01em;
+  }
+  .metric .value.orig  { color: var(--accent); }
+  .metric .value.rot   { color: var(--ocean); }
+  .metric .value.quant { color: var(--blue); }
+  .metric .value.err   { color: var(--err); }
+  .metric .value.gold  { color: var(--warn); }
+
+  /* Formula block */
+  .formula {
+    background: #04080a;
+    border: 1px solid var(--line); border-left: 2px solid var(--accent-soft);
+    border-radius: 0; padding: 14px 18px; margin: 14px 0; overflow-x: auto;
+    position: relative;
+  }
+  .formula::before {
+    content: "EQ"; position: absolute; top: 6px; right: 10px;
+    font-family: "JetBrains Mono", monospace; font-size: 9px;
+    letter-spacing: 0.2em; color: var(--mute);
+  }
+
+  .kbd {
+    font-family: "JetBrains Mono", monospace; font-size: 11px;
+    padding: 1px 6px; border-radius: 1px;
+    background: var(--panel2); border: 1px solid var(--line-bright); color: var(--accent);
+  }
+
+  /* Hero */
+  header.hero { padding: 20px 0 10px; position: relative; }
+  header.hero p.lede { max-width: 820px; }
+  .refs { display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0 8px; }
+  .refs .ref {
+    display: block; padding: 12px 14px; border: 1px solid var(--line);
+    border-radius: 2px; text-decoration: none;
+    background: linear-gradient(180deg, var(--panel2), var(--panel));
+    flex: 1 1 280px; min-width: 0; position: relative;
+  }
+  .refs .ref::before {
+    content: "▸"; color: var(--accent-soft); font-size: 11px;
+    position: absolute; top: 12px; right: 12px;
+  }
+  .refs .ref .t { color: var(--text); font-weight: 600; font-size: 13.5px; margin-bottom: 4px; }
+  .refs .ref .s {
+    color: var(--text-dim); font-size: 10.5px;
+    font-family: "JetBrains Mono", monospace; letter-spacing: 0.05em;
+  }
+  .refs .ref:hover { background: rgba(125,227,199,0.04); border-color: var(--accent-soft); }
+
+  /* Steps pipeline */
+  .steps {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; margin: 18px 0;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 2px; overflow: hidden;
+  }
+  .steps .step { padding: 14px 14px; border-right: 1px dashed var(--line); position: relative; }
+  .steps .step:last-child { border-right: none; }
+  .steps .step .n {
+    font-family: "JetBrains Mono", monospace;
+    color: var(--accent); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
+  }
+  .steps .step .t { font-weight: 600; font-size: 13.5px; margin: 6px 0 6px; color: var(--text); }
+  .steps .step .d { font-size: 11.5px; color: var(--text-dim); line-height: 1.5; }
+  @media (max-width: 780px) {
+    .steps { grid-template-columns: 1fr 1fr; }
+    .steps .step { border-bottom: 1px dashed var(--line); }
+  }
+
+  /* Inline math fallback */
+  .math { font-family: "STIX Two Math", "Cambria Math", serif; font-style: italic; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px dashed var(--line); }
+  th {
+    color: var(--mute); font-weight: 500;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.18em;
+  }
+  td { font-size: 13px; }
+  td.mono { font-family: "JetBrains Mono", monospace; color: var(--accent); }
+
+  /* Footnote */
+  footer {
+    color: var(--mute); font-size: 11.5px; padding: 30px 0 60px; text-align: center;
+    font-family: "JetBrains Mono", monospace; letter-spacing: 0.22em; text-transform: uppercase;
+    border-top: 1px dashed var(--line); margin-top: 40px;
+  }
+
+  /* Primer mini-demo grid */
+  .primer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 18px 0; }
+  @media (max-width: 860px) { .primer-grid { grid-template-columns: 1fr; } }
+  .primer-cell { background: var(--panel); border: 1px solid var(--line); border-radius: 2px; padding: 16px 18px; position: relative; }
+  .primer-cell::before, .primer-cell::after {
+    content: ""; position: absolute; width: 8px; height: 8px;
+    border-color: var(--accent-soft); border-style: solid; pointer-events: none;
+  }
+  .primer-cell::before { top: -1px; left: -1px; border-width: 1px 0 0 1px; }
+  .primer-cell::after  { top: -1px; right: -1px; border-width: 1px 1px 0 0; }
+  .primer-cell .pt {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.22em;
+    color: var(--accent); margin-bottom: 4px;
+  }
+  .primer-cell .ph { font-size: 17px; font-weight: 600; margin: 0 0 6px; color: var(--text); }
+  .primer-cell .pb { font-size: 13.5px; color: var(--text-dim); line-height: 1.55; margin-bottom: 12px; }
+  .primer-cell .plot { height: 200px; }
+  .primer-cell .readout {
+    margin-top: 10px; font-family: "JetBrains Mono", monospace;
+    font-size: 11px; color: var(--text-dim); letter-spacing: 0.04em;
+    display: flex; gap: 14px; flex-wrap: wrap;
+  }
+  .primer-cell .readout b { color: var(--accent); font-weight: 500; }
+  .primer-cell .readout .k { color: var(--mute); text-transform: uppercase; letter-spacing: 0.18em; font-size: 10px; margin-right: 4px; }
+
+  /* Glossary inline pop — reusable */
+  .gloss {
+    border-bottom: 1px dotted var(--accent-soft);
+    cursor: help; color: var(--accent);
+  }
+
+  /* Status strip (optional) */
+  .status-strip {
+    display: flex; gap: 18px; flex-wrap: wrap;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--mute); margin: 10px 0 4px;
+  }
+  .status-strip .s { display: flex; align-items: center; gap: 6px; }
+  .status-strip .s::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 6px var(--accent);
+  }
+  .status-strip .s.warn::before { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
+  .status-strip .s.err::before  { background: var(--err);  box-shadow: 0 0 6px var(--err);  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav class="toc">
+  <div class="brand">◈ TURBOQUANT</div>
+  <ol>
+    <li><a href="#hero">The promise</a></li>
+    <li><a href="#primer">Primer — jargon decoder</a></li>
+    <li><a href="#problem">Vector quantization</a></li>
+    <li><a href="#naive">Why naive fails</a></li>
+    <li><a href="#rotation">The rotation trick</a></li>
+    <li><a href="#concentration">Why rotation works</a></li>
+    <li><a href="#codebook">The universal codebook</a></li>
+    <li><a href="#pipeline">TurboQuant-MSE</a></li>
+    <li><a href="#bias">The inner-product bias</a></li>
+    <li><a href="#qjl">QJL — the un-biaser</a></li>
+    <li><a href="#bounds">Shannon's floor</a></li>
+    <li><a href="#impact">Why it matters</a></li>
+  </ol>
+  <hr>
+  <small>Every chart is live — drag the sliders, press the buttons. Numbers are computed in your browser from first principles.</small>
+</nav>
+
+<main>
+
+<!-- ======================= HERO ======================= -->
+<header class="hero" id="hero">
+  <div class="eyebrow">A first-principles walk-through</div>
+  <h1>Compressing AI vectors to&nbsp;<span class="accent">3 bits per number</span><br>without losing accuracy.</h1>
+  <p class="lede">
+    Modern language models store enormous tables of high-dimensional vectors — KV caches, embeddings, attention keys.
+    TurboQuant is a surprisingly elegant recipe that compresses each coordinate of these vectors to <b>2–4 bits</b>, with
+    <b>provably</b> near-optimal distortion, <b>zero</b> memory overhead for scale factors, and <b>no</b> training or
+    calibration. This page walks through <i>why</i> it works, starting from the bottom.
+  </p>
+  <div class="refs">
+    <a class="ref" href="https://arxiv.org/abs/2504.19874" target="_blank">
+      <div class="t">TurboQuant: Online VQ with Near-optimal Distortion</div>
+      <div class="s">Zandieh, Daliri, Hadian, Mirrokni · 2025 · arXiv:2504.19874</div>
+    </a>
+    <a class="ref" href="https://arxiv.org/abs/2502.02617" target="_blank">
+      <div class="t">PolarQuant: Quantizing KV Caches with Polar Transformation</div>
+      <div class="s">Han, Kacham, Karbasi, Mirrokni, Zandieh · 2025 · arXiv:2502.02617</div>
+    </a>
+    <a class="ref" href="https://arxiv.org/abs/2406.03482" target="_blank">
+      <div class="t">QJL: 1-Bit Quantized JL Transform</div>
+      <div class="s">Zandieh, Daliri, Han · 2024 · arXiv:2406.03482</div>
+    </a>
+  </div>
+  <p class="small" style="margin-top:18px">
+    The single idea you will take away:
+    <b>in high dimensions, a random rotation turns every vector into a "nice" one</b> — so you can pre-compute one
+    universal codebook and use it forever. Everything else is bookkeeping.
+  </p>
+</header>
+
+<!-- ======================= SECTION: PRIMER ======================= -->
+<section id="primer">
+  <div class="eyebrow">§0 · Primer — Jargon Decoder</div>
+  <h2>Seven words you need to feel, not just read.</h2>
+  <p class="lede">
+    TurboQuant leans on a small handful of concepts. Every one of them has an honest,
+    physical meaning. Play with each mini-demo below until the word <i>clicks</i> — then the
+    rest of this page is almost a formality.
+  </p>
+
+  <div class="primer-grid">
+
+    <!-- 0.1 Vector -->
+    <div class="primer-cell" id="pr-vec">
+      <div class="pt">§0.1 · Vector</div>
+      <div class="ph">A list of numbers. <span style="color:var(--mute)">An arrow in space.</span></div>
+      <div class="pb">
+        A vector is just an ordered list: <code>[0.3, −1.2]</code>. Geometrically it is an
+        <b>arrow from the origin</b>. A <i>d-dimensional vector</i> is an arrow in $d$-space — unreachable
+        to picture past 3, but the rules stay the same. Drag the tip.
+      </div>
+      <div class="plot" style="height: 220px;"><canvas id="pr-vec-cv"></canvas></div>
+      <div class="readout">
+        <span><span class="k">coords</span><b id="pr-vec-co">[0.70, 0.50]</b></span>
+        <span><span class="k">length</span><b id="pr-vec-len">0.86</b></span>
+      </div>
+    </div>
+
+    <!-- 0.2 Length & Inner product -->
+    <div class="primer-cell" id="pr-dot">
+      <div class="pt">§0.2 · Length ‖x‖ &amp; Inner Product ⟨x,y⟩</div>
+      <div class="ph">How much of one vector &ldquo;points along&rdquo; another.</div>
+      <div class="pb">
+        <b>Length</b> = $\sqrt{x_1^2+x_2^2+\dots}$ &mdash; the arrow's ruler reading.
+        <b>Inner product</b> $\langle x,y\rangle = x_1 y_1 + x_2 y_2 + \dots$
+        $= \|x\|\|y\|\cos\theta$. When the arrows align, it is big; perpendicular, it is zero; opposite, negative. Drag
+        either arrow.
+      </div>
+      <div class="plot" style="height: 240px;"><canvas id="pr-dot-cv"></canvas></div>
+      <div class="readout">
+        <span><span class="k">‖x‖</span><b id="pr-dot-lx">1.00</b></span>
+        <span><span class="k">‖y‖</span><b id="pr-dot-ly">1.00</b></span>
+        <span><span class="k">⟨x,y⟩</span><b id="pr-dot-ip">0.00</b></span>
+        <span><span class="k">angle</span><b id="pr-dot-ang">90°</b></span>
+      </div>
+    </div>
+
+    <!-- 0.3 MSE -->
+    <div class="primer-cell" id="pr-mse">
+      <div class="pt">§0.3 · Mean Squared Error</div>
+      <div class="ph">Why we <i>square</i> the mistake.</div>
+      <div class="pb">
+        &ldquo;Error&rdquo; is how far off you are. If we just averaged the sign, positive and negative errors
+        would cancel. <b>Squaring</b> makes every miss positive and punishes big misses quadratically &mdash;
+        so the best guess becomes the <b>average</b>. Move the guess; watch the MSE.
+      </div>
+      <div class="plot" style="height: 180px;"><canvas id="pr-mse-cv"></canvas></div>
+      <div class="controls" style="margin-top:10px;">
+        <div class="ctrl"><label>Guess</label><input id="pr-mse-g" type="range" min="-3" max="3" step="0.01" value="0"><span class="val" id="pr-mse-gv">0.00</span></div>
+      </div>
+      <div class="readout">
+        <span><span class="k">mean of data</span><b id="pr-mse-mean">0.00</b></span>
+        <span><span class="k">MSE at guess</span><b id="pr-mse-val">1.00</b></span>
+        <span><span class="k">MSE at mean</span><b id="pr-mse-min">1.00</b></span>
+      </div>
+    </div>
+
+    <!-- 0.4 Unbiased vs biased -->
+    <div class="primer-cell" id="pr-bias">
+      <div class="pt">§0.4 · Unbiased vs Biased Estimator</div>
+      <div class="ph">Noisy is fine. <i>Systematically wrong</i> is not.</div>
+      <div class="pb">
+        An <b>estimator</b> is a recipe that produces a guess $\hat\theta$ for a truth $\theta$. It is
+        <b>unbiased</b> if the <i>average</i> of the guesses equals $\theta$: $\mathbb{E}[\hat\theta]=\theta$.
+        Shots can scatter wildly and still be unbiased &mdash; as long as the <i>center</i> lands on the bullseye.
+        Click <i>fire 50 shots</i>.
+      </div>
+      <div class="plot" style="height: 240px;"><canvas id="pr-bias-cv"></canvas></div>
+      <div class="controls" style="margin-top:10px;">
+        <div class="ctrl">
+          <label>Mode</label>
+          <select id="pr-bias-mode">
+            <option value="unbiased">Unbiased — noisy</option>
+            <option value="biased">Biased — systematically off</option>
+          </select>
+        </div>
+        <button id="pr-bias-fire">Fire 50 shots</button>
+        <button id="pr-bias-clear">Clear</button>
+      </div>
+      <div class="readout">
+        <span><span class="k">shots</span><b id="pr-bias-n">0</b></span>
+        <span><span class="k">mean of shots</span><b id="pr-bias-mean">—</b></span>
+        <span><span class="k">bias</span><b id="pr-bias-bias">—</b></span>
+      </div>
+    </div>
+
+    <!-- 0.5 Rotation -->
+    <div class="primer-cell" id="pr-rot">
+      <div class="pt">§0.5 · Rotation</div>
+      <div class="ph">A rigid spin &mdash; preserves lengths and angles.</div>
+      <div class="pb">
+        A <b>rotation matrix</b> $R$ spins space. Crucially: $\|Rx\|=\|x\|$ and $\langle Rx,Ry\rangle=\langle x,y\rangle$ &mdash;
+        <b>rotation preserves everything</b> we care about. It just changes the <i>basis</i>
+        you are reading the coordinates in. Spin the shape.
+      </div>
+      <div class="plot" style="height: 240px;"><canvas id="pr-rot-cv"></canvas></div>
+      <div class="controls" style="margin-top:10px;">
+        <div class="ctrl"><label>Angle θ</label><input id="pr-rot-a" type="range" min="-180" max="180" step="1" value="0"><span class="val" id="pr-rot-av">0°</span></div>
+      </div>
+      <div class="readout">
+        <span><span class="k">‖x‖ before → after</span><b id="pr-rot-len">1.41 → 1.41</b></span>
+        <span><span class="k">preserved?</span><b id="pr-rot-ok">yes</b></span>
+      </div>
+    </div>
+
+    <!-- 0.6 CLT -->
+    <div class="primer-cell" id="pr-clt">
+      <div class="pt">§0.6 · Where bell-curves come from (CLT)</div>
+      <div class="ph">Add up many small randoms → Gaussian. Always.</div>
+      <div class="pb">
+        The <b>Central Limit Theorem</b>: sum many independent random numbers and their
+        distribution <i>always</i> converges to a bell curve. It doesn't matter if each piece is a coin
+        flip, a uniform roll, or anything else. This is <b>why</b> a rotated coordinate behaves like
+        a Gaussian.
+      </div>
+      <div class="plot" style="height: 200px;"><canvas id="pr-clt-cv"></canvas></div>
+      <div class="controls" style="margin-top:10px;">
+        <div class="ctrl"><label>Terms in sum <code>n</code></label><input id="pr-clt-n" type="range" min="1" max="60" step="1" value="1"><span class="val" id="pr-clt-nv">1</span></div>
+        <div class="ctrl"><label>Source</label>
+          <select id="pr-clt-src">
+            <option value="coin">±1 coin</option>
+            <option value="uniform">uniform [−1,1]</option>
+            <option value="expo">exponential (skewed)</option>
+          </select>
+        </div>
+        <button id="pr-clt-go">Resample 20k</button>
+      </div>
+      <div class="readout">
+        <span><span class="k">source shape</span><b id="pr-clt-src2">±1 coin</b></span>
+        <span><span class="k">converged?</span><b id="pr-clt-conv">no — n too small</b></span>
+      </div>
+    </div>
+
+    <!-- 0.7 High-D concentration -->
+    <div class="primer-cell" id="pr-hd">
+      <div class="pt">§0.7 · Life in many dimensions</div>
+      <div class="ph">Every point on a sphere looks &ldquo;average&rdquo;.</div>
+      <div class="pb">
+        Pick a random point on a unit sphere in $d$ dimensions. In 2-D almost any coordinate is possible.
+        In 100-D, almost every coordinate is tiny &mdash; close to $\pm 1/\sqrt{d}$. This is <b>measure
+        concentration</b>, the single fact that makes TurboQuant tick.
+      </div>
+      <div class="plot" style="height: 200px;"><canvas id="pr-hd-cv"></canvas></div>
+      <div class="controls" style="margin-top:10px;">
+        <div class="ctrl"><label>Dim <code>d</code></label><input id="pr-hd-d" type="range" min="2" max="200" step="1" value="2"><span class="val" id="pr-hd-dv">2</span></div>
+      </div>
+      <div class="readout">
+        <span><span class="k">std of x₁</span><b id="pr-hd-typ">≈ 0.71</b></span>
+        <span><span class="k">1/√d</span><b id="pr-hd-isqd">0.71</b></span>
+      </div>
+    </div>
+
+    <!-- 0.8 Quantization in one dim -->
+    <div class="primer-cell" id="pr-q1">
+      <div class="pt">§0.8 · Quantization, in one dimension</div>
+      <div class="ph">Snap every number to the nearest of $2^b$ levels.</div>
+      <div class="pb">
+        This is what &ldquo;$b$ bits per number&rdquo; means. With $b=2$ you get 4 levels, $b=3$ gives 8.
+        The <i>gap</i> between levels is your worst-case error. Doubling bits quarters the gap &mdash; the source
+        of the magic &ldquo;$4^{-b}$&rdquo; you will see later.
+      </div>
+      <div class="plot" style="height: 110px;"><canvas id="pr-q1-cv"></canvas></div>
+      <div class="controls" style="margin-top:10px;">
+        <div class="ctrl"><label>Bits <code>b</code></label><input id="pr-q1-b" type="range" min="1" max="5" step="1" value="2"><span class="val" id="pr-q1-bv">2</span></div>
+      </div>
+      <div class="readout">
+        <span><span class="k">levels</span><b id="pr-q1-L">4</b></span>
+        <span><span class="k">gap Δ</span><b id="pr-q1-g">0.667</b></span>
+        <span><span class="k">max error</span><b id="pr-q1-e">0.333</b></span>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="card insight">
+    <div class="panel-hd"><span class="tag">■ CHEAT SHEET</span><span class="stat">Keep these 7 ideas in your pocket</span></div>
+    <p style="margin:0"><b>Vector</b>: list of numbers / arrow. <b>Length</b>: $\sqrt{\sum x_i^2}$.
+    <b>Inner product</b>: how aligned two vectors are. <b>MSE</b>: average squared miss.
+    <b>Unbiased</b>: noisy is OK, lopsided is not &mdash; average of guesses = truth.
+    <b>Rotation</b>: lossless reshuffle of coordinates. <b>CLT</b>: sum of many randoms → Gaussian.</p>
+  </div>
+</section>
+
+<!-- ======================= SECTION: PROBLEM ======================= -->
+<section id="problem">
+  <div class="eyebrow">§1 · Setup</div>
+  <h2>What is vector quantization, really?</h2>
+  <p>
+    You have a vector $\mathbf{x}\in\mathbb{R}^d$ — say $d{=}1536$ floats from an OpenAI embedding.
+    You want to store it using just $b$ bits per coordinate (total $b\cdot d$ bits), then later recover an approximation
+    $\tilde{\mathbf{x}}$ that is <i>close</i> to $\mathbf{x}$. "Close" is measured by
+  </p>
+  <div class="formula">
+    <b>MSE distortion</b> &nbsp; $D_{\text{mse}} = \mathbb{E}\big[\,\|\mathbf{x} - \tilde{\mathbf{x}}\|_2^2\,\big]$
+    &nbsp;&nbsp;&nbsp;or&nbsp;&nbsp;&nbsp;
+    <b>inner-product error</b> &nbsp; $D_{\text{prod}} = \mathbb{E}\big[\,|\langle\mathbf{y},\mathbf{x}\rangle - \langle\mathbf{y},\tilde{\mathbf{x}}\rangle|^2\,\big]$
+  </div>
+  <p>
+    The second one matters because attention scores and nearest-neighbor queries are all <i>inner products</i>.
+    We would like the estimator to be <i>unbiased</i>: $\mathbb{E}[\langle\mathbf{y},\tilde{\mathbf{x}}\rangle] = \langle\mathbf{y},\mathbf{x}\rangle$.
+  </p>
+  <div class="card insight">
+    <div class="panel-hd"><span class="tag">■ DECODER · KEY WORDS</span><span class="stat">plain English</span></div>
+    <p class="small" style="margin:0 0 6px"><b>MSE distortion</b>: averaged squared miss between the true vector and its reconstruction &mdash; primer §0.3.</p>
+    <p class="small" style="margin:0 0 6px"><b>Inner product</b> $\langle y, x\rangle$: how much the two vectors point the same way &mdash; primer §0.2. This is the thing attention actually computes.</p>
+    <p class="small" style="margin:0 0 6px"><b>Estimator</b>: a rule (here: quantize, then decode) that spits out an approximation $\hat s$ of some true number $s$.</p>
+    <p class="small" style="margin:0"><b>Unbiased estimator</b>: across many queries, the <i>average</i> of $\hat s$ equals $s$. The individual shots can be noisy; the <i>cluster center</i> lands on truth. Primer §0.4 is this idea, with a bullseye.</p>
+  </div>
+
+  <h3>The world's most obvious quantizer</h3>
+  <p>
+    For each coordinate, pick the closest of $2^b$ evenly-spaced levels in $[-1, 1]$.
+    That is $b$ bits per number, done. Play with it below.
+  </p>
+
+  <div class="card">
+    <div class="controls">
+      <div class="ctrl"><label>Bits&nbsp;<code>b</code></label><input id="p1-b" type="range" min="1" max="6" value="3"><span class="val" id="p1-b-v">3</span></div>
+      <div class="ctrl"><label>Dimension&nbsp;<code>d</code></label><input id="p1-d" type="range" min="8" max="128" step="8" value="64"><span class="val" id="p1-d-v">64</span></div>
+      <div class="ctrl"><label>Input:</label>
+        <select id="p1-input">
+          <option value="random">random unit vector (uniform)</option>
+          <option value="spike" selected>adversarial: one spike coordinate</option>
+          <option value="gaussian">random Gaussian</option>
+          <option value="sparse">few large coords (sparse)</option>
+        </select>
+      </div>
+      <button id="p1-resample">Resample</button>
+    </div>
+    <div class="plot" style="height:240px"><canvas id="p1-plot"></canvas>
+      <div class="legend">
+        <span class="sw" style="background:var(--orig)"></span>original $x_i$ &nbsp;
+        <span class="sw" style="background:var(--quant)"></span>quantized $\tilde{x}_i$
+      </div>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="label">‖x − x̃‖² / ‖x‖²</div><div class="value err" id="p1-mse">—</div></div>
+      <div class="metric"><div class="label">levels per coord</div><div class="value quant" id="p1-levels">—</div></div>
+      <div class="metric"><div class="label">bits used</div><div class="value" id="p1-bits">—</div></div>
+    </div>
+  </div>
+  <p class="small">
+    Try the <b>spike</b> input. The naive quantizer is catastrophic: it puts all its budget into
+    evenly covering $[-1,1]$, yet almost all the energy lives in a single coordinate. The spike is
+    off the grid; the zeros don't need that many levels; bits are wasted.
+  </p>
+</section>
+
+<!-- ======================= SECTION: NAIVE FAILS ======================= -->
+<section id="naive">
+  <div class="eyebrow">§2 · Worst-case vectors hurt</div>
+  <h2>The adversarial coordinate, and why production systems pay a tax</h2>
+  <p>
+    A real embedding rarely looks perfectly flat. Trained models famously produce <i>outlier channels</i> —
+    a handful of coordinates whose magnitudes dwarf the rest. Any fixed $[-L, L]$ grid either clips the outliers
+    or wastes resolution on the bulk. So production quantizers — GPTQ, AWQ, KIVI, KVQuant — do the natural thing:
+    <b>compute $(\min, \max)$ (or zero-point & scale) for every small block</b> and store those in full precision
+    as side information.
+  </p>
+
+  <div class="card caution">
+    <b style="color:var(--err)">The catch.</b>
+    Storing a <span class="mono">float16</span> scale + zero-point for every 16–64-element block adds
+    <b>1–2 extra bits per quantized number</b>. At a 3-bit budget that is a <i>33–66% overhead</i>.
+    You are compressing, but dragging a pile of bookkeeping along with it.
+    TurboQuant's explicit goal is to <i>eliminate this overhead while still handling worst-case vectors.</i>
+  </div>
+
+  <p>
+    The <i>data-oblivious</i> requirement makes it even harder: we want a procedure that works for any vector without
+    first looking at a training set. No fine-tuning. No dataset-specific calibration. Just a fixed recipe.
+    How can a fixed recipe possibly do well against a spike vector?
+  </p>
+</section>
+
+<!-- ======================= SECTION: ROTATION ======================= -->
+<section id="rotation">
+  <div class="eyebrow">§3 · The core trick</div>
+  <h2>Multiply by a random rotation. Watch the spike dissolve.</h2>
+  <p>
+    Pick a random orthogonal matrix $\boldsymbol{\Pi}\in\mathbb{R}^{d\times d}$ — concretely, generate a Gaussian
+    matrix, then run QR decomposition to orthonormalize it. Now replace $\mathbf{x}$ with
+    $\mathbf{y} = \boldsymbol{\Pi}\mathbf{x}$. Because $\boldsymbol{\Pi}$ is a rotation it preserves every geometric
+    property we care about:
+  </p>
+  <div class="formula">
+    $\|\boldsymbol{\Pi}\mathbf{x}\|_2 = \|\mathbf{x}\|_2$ &nbsp;·&nbsp;
+    $\langle \boldsymbol{\Pi}\mathbf{x},\,\boldsymbol{\Pi}\mathbf{y}\rangle = \langle\mathbf{x},\mathbf{y}\rangle$
+    &nbsp;·&nbsp;
+    $\boldsymbol{\Pi}^{\!\top}\boldsymbol{\Pi} = \mathbf{I}$
+  </div>
+  <p>
+    So rotating, quantizing, then rotating back is lossless at the rotation step. The quantization error we pay
+    is only on the rotated vector's coordinates. <b>And that is exactly where rotation buys us something.</b>
+  </p>
+
+  <div class="card">
+    <div class="controls">
+      <div class="ctrl"><label>Dimension&nbsp;<code>d</code></label><input id="r-d" type="range" min="8" max="128" step="4" value="64"><span class="val" id="r-d-v">64</span></div>
+      <div class="ctrl"><label>Input:</label>
+        <select id="r-input">
+          <option value="spike" selected>spike (adversarial)</option>
+          <option value="sparse">5 large coords</option>
+          <option value="outlier">1 outlier + bulk</option>
+          <option value="gaussian">Gaussian (already flat)</option>
+        </select>
+      </div>
+      <button id="r-rotate">Draw fresh rotation Π</button>
+    </div>
+    <div class="plot-grid cols-2">
+      <div>
+        <div class="small" style="margin-bottom:6px;color:var(--orig)"><b>before</b> — $|x_i|$ (Cartesian)</div>
+        <div class="plot" style="height:180px"><canvas id="r-before"></canvas></div>
+      </div>
+      <div>
+        <div class="small" style="margin-bottom:6px;color:var(--rot)"><b>after</b> — $|(\boldsymbol{\Pi}\mathbf{x})_i|$</div>
+        <div class="plot" style="height:180px"><canvas id="r-after"></canvas></div>
+      </div>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="label">max |xᵢ| / ‖x‖</div><div class="value orig" id="r-before-max">—</div></div>
+      <div class="metric"><div class="label">max |(Πx)ᵢ| / ‖x‖</div><div class="value rot" id="r-after-max">—</div></div>
+      <div class="metric"><div class="label">‖x‖ (preserved)</div><div class="value gold" id="r-norm">—</div></div>
+    </div>
+  </div>
+
+  <div class="card insight">
+    <b style="color:var(--orig)">The "aha" in one sentence.</b>
+    A rotation does not create or destroy information — it <i>redistributes</i> it.
+    An adversarial vector with all its mass in one coordinate is, after rotation, a <i>typical</i> vector with
+    mass spread evenly. The quantizer only sees the typical vector.
+  </div>
+</section>
+
+<!-- ======================= SECTION: CONCENTRATION ======================= -->
+<section id="concentration">
+  <div class="eyebrow">§4 · Why the rotation works</div>
+  <h2>Coordinates of random unit vectors are nearly Gaussian.</h2>
+  <p>
+    Here is the gorgeous fact that makes the whole paper tick. Sample a point uniformly from the sphere
+    $\mathbb{S}^{d-1}$. What is the distribution of a single coordinate $x_j$? Lemma 1 of the paper gives the exact
+    density:
+  </p>
+  <div class="formula">
+    $f_X(x) \;=\; \dfrac{\Gamma(d/2)}{\sqrt{\pi}\,\Gamma((d-1)/2)}\,(1-x^2)^{(d-3)/2}\,,\quad x\in[-1,1]$
+    <br><small>— a scaled/shifted Beta distribution.</small>
+  </div>
+  <p>
+    As $d$ grows this distribution looks more and more like a narrow bell curve. In fact by the central limit theorem
+    (and a slightly subtle argument about independence on the sphere) it converges to
+    $\mathcal{N}\!\left(0,\,\tfrac{1}{d}\right)$.
+    <b>Rotating any fixed $\mathbf{x}$ with a random $\boldsymbol{\Pi}$ is equivalent to sampling a random point on a
+    sphere of the same radius</b> — so $(\boldsymbol{\Pi}\mathbf{x})_j$ inherits this near-Gaussian distribution,
+    no matter what $\mathbf{x}$ was.
+  </p>
+
+  <div class="card">
+    <div class="controls">
+      <div class="ctrl"><label>Dimension&nbsp;<code>d</code></label><input id="c-d" type="range" min="3" max="256" value="32"><span class="val" id="c-d-v">32</span></div>
+      <div class="ctrl"><label>Samples</label><input id="c-n" type="range" min="1000" max="30000" step="1000" value="10000"><span class="val" id="c-n-v">10000</span></div>
+      <button id="c-resample">Resample</button>
+    </div>
+    <div class="plot" style="height:260px"><canvas id="c-plot"></canvas>
+      <div class="legend">
+        <span class="sw" style="background:var(--rot)"></span>empirical histogram &nbsp;
+        <span class="sw" style="background:var(--gold)"></span>Beta PDF (exact) &nbsp;
+        <span class="sw" style="background:var(--orig)"></span>$\mathcal{N}(0, 1/d)$ approximation
+      </div>
+    </div>
+    <p class="small">
+      Ramp $d$ from 3 to 256. At $d{=}3$ the Beta density is wildly non-Gaussian (actually a semicircle-ish shape);
+      by $d{=}30$ it is already a Gaussian to the eye. And <b>distinct coordinates are almost independent</b>
+      (stronger than just uncorrelated — this is a real theorem about points on the sphere).
+    </p>
+  </div>
+
+  <div class="card insight">
+    <b style="color:var(--orig)">Consequence for quantization.</b>
+    Every coordinate of the rotated vector has the <i>same, known</i> distribution. We can solve the scalar
+    quantization problem for $\mathcal{N}(0, 1/d)$ <b>once</b>, store the optimal codebook, and reuse it for every
+    coordinate of every vector forever. No per-block scale factors. Zero overhead.
+  </div>
+</section>
+
+<!-- ======================= SECTION: CODEBOOK ======================= -->
+<section id="codebook">
+  <div class="eyebrow">§5 · The universal codebook</div>
+  <h2>Lloyd–Max: the optimal partition of a known distribution.</h2>
+  <p>
+    Problem: given a PDF $f_X$, partition $\mathbb{R}$ into $2^b$ cells with centroids $c_1 \le \dots \le c_{2^b}$
+    to minimize expected squared error $\int (x - c_{i(x)})^2 f_X(x)\,dx$. The solution (<a
+    href="#" onclick="return false">Lloyd 1982, Max 1960</a>) alternates two steps:
+  </p>
+  <ul>
+    <li><b>Assignment:</b> each centroid owns the Voronoi cell around it — boundaries are midpoints between adjacent centroids.</li>
+    <li><b>Update:</b> each centroid moves to the conditional mean of its cell: $c_k \leftarrow \mathbb{E}[X \mid X \in \text{cell}_k]$.</li>
+  </ul>
+  <p>
+    Repeat until stable. Because we know $f_X$ analytically (the Beta density above), we compute these once,
+    for $b=1,2,3,4,5,6$, and bake them into a tiny lookup table.
+  </p>
+
+  <div class="card">
+    <div class="controls">
+      <div class="ctrl"><label>Bits&nbsp;<code>b</code></label><input id="cb-b" type="range" min="1" max="5" value="2"><span class="val" id="cb-b-v">2</span></div>
+      <div class="ctrl"><label>Dimension&nbsp;<code>d</code></label><input id="cb-d" type="range" min="8" max="256" step="8" value="64"><span class="val" id="cb-d-v">64</span></div>
+      <div class="ctrl"><button id="cb-step">▶ 1 Lloyd step</button> <button id="cb-converge">▶▶ converge</button> <button id="cb-reset">reset</button></div>
+    </div>
+    <div class="plot" style="height:260px"><canvas id="cb-plot"></canvas>
+      <div class="legend">
+        <span class="sw" style="background:var(--gold)"></span>Gaussian $\mathcal{N}(0,1/d)$ &nbsp;
+        <span class="sw" style="background:var(--quant)"></span>centroids $c_k$ &nbsp;
+        <span class="sw" style="background:var(--err)"></span>bin boundaries
+      </div>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="label">iteration</div><div class="value" id="cb-iter">0</div></div>
+      <div class="metric"><div class="label">MSE per coord</div><div class="value err" id="cb-mse">—</div></div>
+      <div class="metric"><div class="label">Shannon bound 1/4^b / d</div><div class="value gold" id="cb-sh">—</div></div>
+    </div>
+  </div>
+  <p class="small">
+    For moderate $d$, the paper's explicit centroids (normalized by $\sqrt{d}$) match what you see:
+    $b{=}1\!:\pm\sqrt{2/\pi}$, &nbsp; $b{=}2\!:\{\pm 0.453,\pm 1.510\}$, &nbsp; etc.
+    Theorem 1 proves the resulting per-coordinate MSE is $\lesssim \tfrac{\sqrt{3}\pi}{2d}\cdot 4^{-b}$,
+    within a factor of $\approx 2.7$ of Shannon's information-theoretic minimum $\tfrac{1}{d}\cdot 4^{-b}$.
+  </p>
+</section>
+
+<!-- ======================= SECTION: PIPELINE ======================= -->
+<section id="pipeline">
+  <div class="eyebrow">§6 · End-to-end pipeline</div>
+  <h2>Putting it together: TurboQuant-MSE.</h2>
+  <div class="steps">
+    <div class="step"><div class="n">STEP 1</div><div class="t">Rotate</div><div class="d">$\mathbf{y} = \boldsymbol{\Pi}\mathbf{x}$. Same $\boldsymbol{\Pi}$ reused for every vector.</div></div>
+    <div class="step"><div class="n">STEP 2</div><div class="t">Round each coord</div><div class="d">For each $j$, $\texttt{idx}_j = \arg\min_k |y_j - c_k|$. Stores $b$ bits.</div></div>
+    <div class="step"><div class="n">STEP 3</div><div class="t">Store</div><div class="d">Total: $b\!\cdot\!d$ bits. <b>No scales, no zero-points.</b></div></div>
+    <div class="step"><div class="n">STEP 4</div><div class="t">Look up</div><div class="d">$\tilde{y}_j = c_{\texttt{idx}_j}$ from the universal codebook.</div></div>
+    <div class="step"><div class="n">STEP 5</div><div class="t">Rotate back</div><div class="d">$\tilde{\mathbf{x}} = \boldsymbol{\Pi}^{\!\top}\tilde{\mathbf{y}}$. Done.</div></div>
+  </div>
+
+  <div class="card">
+    <div class="controls">
+      <div class="ctrl"><label>Bits&nbsp;<code>b</code></label><input id="pipe-b" type="range" min="1" max="5" value="3"><span class="val" id="pipe-b-v">3</span></div>
+      <div class="ctrl"><label>Dimension&nbsp;<code>d</code></label><input id="pipe-d" type="range" min="16" max="128" step="8" value="64"><span class="val" id="pipe-d-v">64</span></div>
+      <div class="ctrl"><label>Input:</label>
+        <select id="pipe-input">
+          <option value="spike" selected>adversarial spike</option>
+          <option value="outlier">outlier channel</option>
+          <option value="random">random unit</option>
+          <option value="gaussian">Gaussian</option>
+        </select>
+      </div>
+      <button id="pipe-resample">Resample</button>
+    </div>
+    <div class="plot-grid cols-3">
+      <div>
+        <div class="small" style="color:var(--orig)"><b>x</b> (original)</div>
+        <div class="plot" style="height:140px"><canvas id="pipe-a"></canvas></div>
+      </div>
+      <div>
+        <div class="small" style="color:var(--rot)"><b>Πx</b> (rotated — nearly Gaussian)</div>
+        <div class="plot" style="height:140px"><canvas id="pipe-rot"></canvas></div>
+      </div>
+      <div>
+        <div class="small" style="color:var(--quant)"><b>quantized Πx</b> (snap to codebook)</div>
+        <div class="plot" style="height:140px"><canvas id="pipe-c"></canvas></div>
+      </div>
+    </div>
+    <div class="plot-grid cols-2" style="margin-top:10px">
+      <div>
+        <div class="small" style="color:var(--quant)"><b>x̃ = Πᵀ·quant(Πx)</b> (recovered)</div>
+        <div class="plot" style="height:140px"><canvas id="pipe-rec"></canvas></div>
+      </div>
+      <div>
+        <div class="small" style="color:var(--err)"><b>error</b> x − x̃</div>
+        <div class="plot" style="height:140px"><canvas id="pipe-e"></canvas></div>
+      </div>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="label">‖x − x̃‖² / ‖x‖²</div><div class="value err" id="pipe-mse">—</div></div>
+      <div class="metric"><div class="label">naïve (no rotation)</div><div class="value" id="pipe-naive">—</div></div>
+      <div class="metric"><div class="label">Shannon floor 1/4^b</div><div class="value gold" id="pipe-floor">—</div></div>
+      <div class="metric"><div class="label">compression factor</div><div class="value orig" id="pipe-ratio">—</div></div>
+    </div>
+  </div>
+  <p class="small">
+    Try <i>spike</i> with and without rotation by toggling the input. Naïve quantization (no rotation) is
+    catastrophic; TurboQuant's rotated version is uniformly excellent regardless of the input distribution.
+    This is the practical payoff.
+  </p>
+</section>
+
+<!-- ======================= SECTION: BIAS ======================= -->
+<section id="bias">
+  <div class="eyebrow">§7 · A subtle problem</div>
+  <h2>MSE-optimal quantizers are biased for inner products.</h2>
+
+  <div class="card insight">
+    <div class="panel-hd"><span class="tag">■ RECALL · §0.4</span><span class="stat">Bullseye test</span></div>
+    <p style="margin:0">
+      &ldquo;<b>Unbiased</b>&rdquo; is the bullseye-scatter picture from the primer: shots may wander, but their
+      <i>average</i> lands on the truth. &ldquo;<b>Biased</b>&rdquo; means the cluster center is parked somewhere <i>else</i> —
+      no amount of averaging saves you. Everything in this section is about: <i>our attention scores are a
+      cluster that is systematically parked too low</i>.
+    </p>
+  </div>
+
+  <p>
+    Attention does not want $\tilde{\mathbf{x}}$; it wants $\langle \mathbf{q}, \mathbf{k}\rangle$. And it turns
+    out that an MSE-optimal quantizer, while minimizing pointwise squared error, systematically
+    <i>underestimates</i> inner products. The reason is that rounding toward a centroid biases the vector
+    length — the projection onto any query direction shrinks by a predictable factor.
+  </p>
+  <p class="small" style="max-width:780px">
+    <b>Where does $2/\pi$ come from?</b> &nbsp;For a standard Gaussian $g$, $\mathbb{E}[|g|]=\sqrt{2/\pi}$ &mdash;
+    the &ldquo;half-normal&rdquo; mean. The 1-bit MSE codebook rounds each rotated coordinate to $\pm\sqrt{2/\pi}/\sqrt d$;
+    when you dot-product that reconstruction back against $\mathbf{y}$, you pick up another $\sqrt{2/\pi}$ factor
+    in expectation. Multiply: $2/\pi \approx 0.637$. That is the entire bias, from first principles.
+  </p>
+  <p>
+    The easiest case to see: $b{=}1$. The optimal MSE codebook is
+    $\{-\sqrt{2/\pi}/\sqrt{d},\,+\sqrt{2/\pi}/\sqrt{d}\}$, so
+    $Q(\mathbf{x}) = \sqrt{2/(\pi d)}\cdot \operatorname{sign}(\boldsymbol{\Pi}\mathbf{x})$. A calculation gives
+  </p>
+  <div class="formula">
+    $\mathbb{E}\big[\langle\mathbf{y},\tilde{\mathbf{x}}\rangle\big] \;=\; \dfrac{2}{\pi}\cdot\langle\mathbf{y},\mathbf{x}\rangle \;\ne\; \langle\mathbf{y},\mathbf{x}\rangle.$
+  </div>
+  <p>That $2/\pi \approx 0.637$ is a multiplicative <b>bias</b>. It shrinks as $b$ grows, but it never goes to zero cleanly — and for low-bit, high-dimensional settings (exactly where you want to be) the bias is painfully real.</p>
+
+  <div class="card">
+    <div class="controls">
+      <div class="ctrl"><label>Bits&nbsp;<code>b</code></label><input id="bias-b" type="range" min="1" max="5" value="1"><span class="val" id="bias-b-v">1</span></div>
+      <div class="ctrl"><label>Dimension&nbsp;<code>d</code></label><input id="bias-d" type="range" min="16" max="256" step="8" value="128"><span class="val" id="bias-d-v">128</span></div>
+      <div class="ctrl"><label>Trials</label><input id="bias-n" type="range" min="500" max="10000" step="500" value="3000"><span class="val" id="bias-n-v">3000</span></div>
+      <button id="bias-run">Run</button>
+    </div>
+    <div class="plot" style="height:220px"><canvas id="bias-plot"></canvas>
+      <div class="legend">
+        <span class="sw" style="background:var(--quant)"></span>$\langle\mathbf{y},\tilde{\mathbf{x}}\rangle / \langle\mathbf{y},\mathbf{x}\rangle$ &nbsp;
+        <span class="sw" style="background:var(--gold)"></span>mean &nbsp;
+        <span class="sw" style="background:var(--orig)"></span>unbiased target = 1
+      </div>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="label">measured mean ratio</div><div class="value quant" id="bias-mean">—</div></div>
+      <div class="metric"><div class="label">theory at b=1: 2/π</div><div class="value gold" id="bias-theory">0.6366</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= SECTION: QJL ======================= -->
+<section id="qjl">
+  <div class="eyebrow">§8 · The un-biaser</div>
+  <h2>QJL — squeezing unbiased inner products out of 1 bit per coordinate.</h2>
+
+  <div class="card insight">
+    <div class="panel-hd"><span class="tag">■ INTUITION</span><span class="stat">Un-bias by construction</span></div>
+    <p style="margin:0 0 6px">
+      Step back: the bias we just measured is a <i>known</i> number, $\sqrt{2/\pi}$ per application of sign-then-dot.
+      If it is known, we can <b>cancel it</b>. That is exactly what QJL does — it multiplies by $\sqrt{\pi/2}/d$ on the
+      decode side so the shrinkage cancels exactly. The quantization stays lossy (it is still 1 bit!), but the
+      <i>average</i> estimate lands on the bullseye.
+    </p>
+    <p style="margin:0" class="small">
+      This is the primer's &ldquo;noisy but unbiased&rdquo; picture literally playing out: each individual estimate can
+      be far off, but 3000 of them average to the right answer.
+    </p>
+  </div>
+
+  <p>
+    The Quantized Johnson-Lindenstrauss transform is the second ingredient. Let
+    $\mathbf{S}\in\mathbb{R}^{d\times d}$ have i.i.d. $\mathcal{N}(0,1)$ entries (a fresh random Gaussian matrix).
+    Define the 1-bit encoding and its decoder
+  </p>
+  <div class="formula">
+    $Q_{\text{jl}}(\mathbf{x}) \;=\; \operatorname{sign}(\mathbf{S}\mathbf{x}) \in\{-1,+1\}^d,\quad
+    Q_{\text{jl}}^{-1}(\mathbf{z}) \;=\; \dfrac{\sqrt{\pi/2}}{d}\cdot\mathbf{S}^{\!\top}\mathbf{z}.$
+  </div>
+  <p>
+    One bit per coordinate. No scales, no side info — same as before. But this one is
+    <b>unbiased</b> for inner products, exactly:
+  </p>
+  <div class="formula">
+    $\mathbb{E}\big[\langle \mathbf{y}, Q_{\text{jl}}^{-1}(Q_{\text{jl}}(\mathbf{x}))\rangle\big] \;=\; \langle\mathbf{y},\mathbf{x}\rangle.$
+  </div>
+  <p>
+    The magic that makes it work: for a standard Gaussian $g$, $\mathbb{E}[|g|]=\sqrt{2/\pi}$. The
+    $\sqrt{\pi/2}$ pre-factor cancels that shrinkage exactly, leaving a clean, unbiased estimator whose variance
+    is $\le \tfrac{\pi}{2d}\|\mathbf{y}\|^2$ (Lemma 4 in the paper).
+  </p>
+
+  <div class="card">
+    <div class="controls">
+      <div class="ctrl"><label>Dimension&nbsp;<code>d</code></label><input id="qjl-d" type="range" min="16" max="1024" step="16" value="256"><span class="val" id="qjl-d-v">256</span></div>
+      <div class="ctrl"><label>Trials</label><input id="qjl-n" type="range" min="500" max="10000" step="500" value="3000"><span class="val" id="qjl-n-v">3000</span></div>
+      <button id="qjl-run">Run</button>
+    </div>
+    <div class="plot" style="height:220px"><canvas id="qjl-plot"></canvas>
+      <div class="legend">
+        <span class="sw" style="background:var(--quant)"></span>QJL (unbiased) &nbsp;
+        <span class="sw" style="background:var(--err)"></span>MSE-1bit (biased) &nbsp;
+        <span class="sw" style="background:var(--orig)"></span>truth = 1
+      </div>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="label">QJL mean</div><div class="value quant" id="qjl-mean">—</div></div>
+      <div class="metric"><div class="label">MSE-1bit mean</div><div class="value err" id="qjl-mean2">—</div></div>
+      <div class="metric"><div class="label">QJL std</div><div class="value" id="qjl-std">—</div></div>
+    </div>
+  </div>
+
+  <h3>Putting it all together: TurboQuant-prod</h3>
+  <p>For a $b$-bit inner-product quantizer:</p>
+  <ol>
+    <li>Rotate $\mathbf{x}\to \boldsymbol{\Pi}\mathbf{x}$ as before.</li>
+    <li>Apply $b{-}1$-bit MSE-optimal quantization. Call the result $\tilde{\mathbf{y}}_{\text{mse}}$.</li>
+    <li>Compute the <b>residual</b> $\mathbf{r} = \boldsymbol{\Pi}\mathbf{x} - \tilde{\mathbf{y}}_{\text{mse}}$ and quantize it with a single bit of QJL: store $\operatorname{sign}(\mathbf{S}\mathbf{r})$ and the residual norm $\|\mathbf{r}\|$.</li>
+    <li>Decode: $\tilde{\mathbf{x}} = \boldsymbol{\Pi}^{\!\top}\big(\tilde{\mathbf{y}}_{\text{mse}} + \|\mathbf{r}\|\cdot \tfrac{\sqrt{\pi/2}}{d}\mathbf{S}^{\!\top}\operatorname{sign}(\mathbf{S}\mathbf{r})\big)$.</li>
+  </ol>
+  <p>
+    The first stage nails the magnitude; the 1 bit of QJL on the leftover residual provides the un-biasing.
+    Total cost: still $b$ bits per coordinate. Inner products are exactly unbiased, and the variance is
+    provably small (Theorem 2).
+  </p>
+</section>
+
+<!-- ======================= SECTION: BOUNDS ======================= -->
+<section id="bounds">
+  <div class="eyebrow">§9 · Hitting Shannon's floor</div>
+  <h2>How close is TurboQuant to the theoretical best?</h2>
+  <p>
+    Using Shannon's lossy source-coding theorem (via Yao's minimax principle) the paper proves that
+    <b>no</b> quantizer — randomized, adaptive, data-dependent, anything — can do better than
+    $D_{\text{mse}} \ge 4^{-b}$ for worst-case inputs on the unit sphere.
+    TurboQuant's upper bound is $\tfrac{\sqrt{3}\pi}{2}\cdot 4^{-b}$, which is <b>within a factor of ≈ 2.7</b>
+    of this information-theoretic floor — and the factor shrinks below 1.5 at $b{=}1$.
+  </p>
+
+  <div class="card">
+    <div class="controls">
+      <div class="ctrl"><label>Dimension&nbsp;<code>d</code></label><input id="bd-d" type="range" min="16" max="512" step="16" value="128"><span class="val" id="bd-d-v">128</span></div>
+      <div class="ctrl"><label>Samples / b</label><input id="bd-n" type="range" min="100" max="2000" step="100" value="500"><span class="val" id="bd-n-v">500</span></div>
+      <button id="bd-run">Recompute</button>
+    </div>
+    <div class="plot" style="height:320px"><canvas id="bd-plot"></canvas>
+      <div class="legend">
+        <span class="sw" style="background:var(--orig)"></span>TurboQuant-MSE measured &nbsp;
+        <span class="sw" style="background:var(--err)"></span>upper bound $\tfrac{\sqrt{3}\pi}{2}\cdot 4^{-b}$ &nbsp;
+        <span class="sw" style="background:var(--gold)"></span>Shannon lower bound $4^{-b}$
+      </div>
+    </div>
+  </div>
+  <p class="small">
+    The plot is on a log scale — the three curves have the <i>same slope</i> ($\propto 4^{-b}$).
+    They differ only by a small constant. Measured, upper-bound, and lower-bound march down in parallel.
+  </p>
+
+  <h3>The exponential improvement over older methods</h3>
+  <p>
+    Prior data-oblivious quantizers like uniform rounding or scalar sketches give error that decays
+    <i>polynomially</i> in the bit budget (e.g. $\mathcal{O}(1/b)$). TurboQuant's $4^{-b}$ is <b>exponentially</b>
+    better in bit-width, which is what lets KV caches go from 16-bit → 3-bit with zero downstream quality loss.
+  </p>
+</section>
+
+<!-- ======================= SECTION: IMPACT ======================= -->
+<section id="impact">
+  <div class="eyebrow">§10 · Why this is a big deal</div>
+  <h2>Concrete wins in LLM inference and vector search.</h2>
+  <div class="plot-grid cols-2">
+    <div class="card">
+      <h3 style="margin-top:0">KV cache compression</h3>
+      <p class="small">
+        Using Llama-3.1-8B on LongBench and Needle-in-a-Haystack, the paper reports:
+      </p>
+      <table>
+        <tr><th>Method</th><th>KV bits/ch</th><th>NiaH</th></tr>
+        <tr><td>Full cache (FP16)</td><td class="mono">16</td><td class="mono">0.997</td></tr>
+        <tr><td>SnapKV</td><td class="mono">—</td><td class="mono">0.858</td></tr>
+        <tr><td>KIVI</td><td class="mono">3</td><td class="mono">0.981</td></tr>
+        <tr><td>PolarQuant</td><td class="mono">3.9</td><td class="mono">0.995</td></tr>
+        <tr><td><b>TurboQuant</b></td><td class="mono">3.5</td><td class="mono">0.997</td></tr>
+      </table>
+      <p class="small">Same quality at <b>4.5×</b> compression — and at 2.5 bits it is still within a point.</p>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">Near-neighbor search</h3>
+      <p class="small">Indexing time on 100K vectors, 4-bit quantization (from the paper):</p>
+      <table>
+        <tr><th>Method</th><th>d=200</th><th>d=1536</th><th>d=3072</th></tr>
+        <tr><td>Product Quantization</td><td class="mono">37 s</td><td class="mono">240 s</td><td class="mono">494 s</td></tr>
+        <tr><td>RabitQ</td><td class="mono">597 s</td><td class="mono">2267 s</td><td class="mono">3957 s</td></tr>
+        <tr><td><b>TurboQuant</b></td><td class="mono">0.0007 s</td><td class="mono">0.0013 s</td><td class="mono">0.0021 s</td></tr>
+      </table>
+      <p class="small">Six orders of magnitude faster indexing — and higher recall to boot. Because there is no
+      codebook to learn and no scales to fit: just rotate and round.</p>
+    </div>
+  </div>
+
+  <h3>Zoomed-out summary — all three papers together</h3>
+  <ol>
+    <li><b>QJL (2024).</b> Take the sign of a random Gaussian projection. One bit per coordinate, unbiased inner product, zero overhead. The un-biaser primitive.</li>
+    <li><b>PolarQuant (Feb 2025).</b> After random pre-conditioning, convert to polar coordinates. Radii are concentrated; angles are concentrated around $\pi/4$. Quantize those well-concentrated distributions independently. An alternative geometry that also avoids side-info.</li>
+    <li><b>TurboQuant (Apr 2025).</b> Unifies and strengthens the above: pre-rotation + Beta coordinates + optimal Lloyd-Max codebook (for MSE) + QJL on residual (for unbiasedness). Provably near-Shannon, fully GPU-parallel, online.</li>
+  </ol>
+
+  <div class="card insight">
+    <b style="color:var(--orig)">The whole trick, in one line.</b>
+    Random rotations make every vector "look Gaussian" in its coordinates — so one fixed, optimal codebook
+    works for all of them. That collapses the vector-quantization problem into the best-studied scalar one.
+  </div>
+</section>
+
+<footer>
+  Built as a first-principles walk-through. Every number, histogram, and bound here is computed live in your
+  browser. Source: Zandieh et al., TurboQuant (arXiv:2504.19874) · Han et al., PolarQuant (arXiv:2502.02617)
+  · Zandieh et al., QJL (arXiv:2406.03482).
+</footer>
+
+</main>
+</div>
+
+<script>
+/* ================================================================
+   Math utilities
+   ================================================================ */
+function gauss() {
+  // Box-Muller
+  let u = Math.random(), v = Math.random();
+  if (u < 1e-12) u = 1e-12;
+  return Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v);
+}
+function gaussVec(d) {
+  const x = new Float64Array(d);
+  for (let i=0;i<d;i++) x[i] = gauss();
+  return x;
+}
+function norm2(x){ let s=0; for (let i=0;i<x.length;i++) s+=x[i]*x[i]; return Math.sqrt(s); }
+function unitVec(d){
+  const x = gaussVec(d); const n = norm2(x);
+  for (let i=0;i<d;i++) x[i] /= n; return x;
+}
+function dot(a,b){ let s=0; for (let i=0;i<a.length;i++) s+=a[i]*b[i]; return s; }
+
+/* Random rotation via Gram-Schmidt on Gaussian matrix. Returns matrix as array of row Float64Arrays. */
+function randomRotation(d) {
+  const rows = [];
+  for (let i=0;i<d;i++) {
+    let v = gaussVec(d);
+    for (let j=0;j<i;j++) {
+      let c = dot(v, rows[j]);
+      for (let k=0;k<d;k++) v[k] -= c * rows[j][k];
+    }
+    let n = norm2(v);
+    if (n < 1e-12) { i--; continue; } // extremely rare
+    for (let k=0;k<d;k++) v[k] /= n;
+    rows.push(v);
+  }
+  return rows;
+}
+function matVec(R, x) {
+  const d = x.length; const y = new Float64Array(d);
+  for (let i=0;i<d;i++) { let s=0; const r=R[i]; for (let j=0;j<d;j++) s+=r[j]*x[j]; y[i]=s; }
+  return y;
+}
+function matTVec(R, y) {
+  const d = y.length; const x = new Float64Array(d);
+  for (let j=0;j<d;j++) {
+    let s=0; for (let i=0;i<d;i++) s += R[i][j] * y[i];
+    x[j] = s;
+  }
+  return x;
+}
+
+/* Gaussian PDF */
+function gaussPDF(x, sigma) {
+  return Math.exp(-x*x/(2*sigma*sigma))/(sigma*Math.sqrt(2*Math.PI));
+}
+
+/* Log-Gamma via Lanczos (good enough for Beta PDF) */
+function lgamma(z) {
+  const g=7, c=[0.99999999999980993,676.5203681218851,-1259.1392167224028,
+    771.32342877765313,-176.61502916214059,12.507343278686905,-0.13857109526572012,
+    9.9843695780195716e-6,1.5056327351493116e-7];
+  if (z < 0.5) return Math.log(Math.PI/Math.sin(Math.PI*z)) - lgamma(1-z);
+  z -= 1; let x = c[0];
+  for (let i=1;i<g+2;i++) x += c[i]/(z+i);
+  const t = z + g + 0.5;
+  return 0.5*Math.log(2*Math.PI) + (z+0.5)*Math.log(t) - t + Math.log(x);
+}
+function betaCoordPDF(x, d) {
+  if (x <= -1 || x >= 1) return 0;
+  const lognorm = lgamma(d/2) - 0.5*Math.log(Math.PI) - lgamma((d-1)/2);
+  return Math.exp(lognorm + (d-3)/2 * Math.log(1 - x*x));
+}
+
+/* Lloyd-Max for Gaussian with std sigma, b bits, numerical integration */
+function lloydGauss(b, sigma, iters) {
+  const K = 1 << b;
+  let centroids = [];
+  for (let i=0;i<K;i++) centroids.push((2*(i+0.5)/K - 1) * 3 * sigma);
+  const N = 400, R = 5 * sigma;
+  for (let it=0; it<iters; it++) {
+    const bnds = [-R];
+    for (let k=0;k<K-1;k++) bnds.push(0.5*(centroids[k]+centroids[k+1]));
+    bnds.push(R);
+    for (let k=0;k<K;k++) {
+      let num=0, den=0;
+      const a=bnds[k], c=bnds[k+1];
+      const dx = (c-a)/N;
+      for (let i=0;i<N;i++) {
+        const x = a + dx*(i+0.5);
+        const p = gaussPDF(x, sigma);
+        num += x*p*dx; den += p*dx;
+      }
+      if (den > 1e-18) centroids[k] = num/den;
+    }
+  }
+  centroids.sort((a,b)=>a-b);
+  return centroids;
+}
+function lloydMSE(centroids, sigma) {
+  const K = centroids.length;
+  const bnds = [-10*sigma];
+  for (let k=0;k<K-1;k++) bnds.push(0.5*(centroids[k]+centroids[k+1]));
+  bnds.push(10*sigma);
+  let mse = 0, N = 600;
+  for (let k=0;k<K;k++) {
+    const a=bnds[k], c=bnds[k+1];
+    const dx=(c-a)/N;
+    for (let i=0;i<N;i++) {
+      const x = a+dx*(i+0.5);
+      const p = gaussPDF(x, sigma);
+      mse += (x-centroids[k])**2 * p * dx;
+    }
+  }
+  return mse;
+}
+function quantizeWithCodebook(y, centroids) {
+  // returns new Float64Array of nearest centroid for each y[i]
+  const d = y.length; const q = new Float64Array(d);
+  const K = centroids.length;
+  for (let i=0;i<d;i++) {
+    // linear search (codebook small)
+    let best=0, bd=Math.abs(y[i]-centroids[0]);
+    for (let k=1;k<K;k++) { const e=Math.abs(y[i]-centroids[k]); if (e<bd){bd=e;best=k;} }
+    q[i] = centroids[best];
+  }
+  return q;
+}
+
+/* Uniform quantization on [-1, 1] with 2^b levels */
+function quantUniform(y, b, lo, hi) {
+  lo = lo===undefined ? -1 : lo;
+  hi = hi===undefined ?  1 : hi;
+  const K = 1<<b; const out = new Float64Array(y.length);
+  const step = (hi-lo)/(K-1);
+  for (let i=0;i<y.length;i++) {
+    let v = y[i];
+    let k = Math.round((v-lo)/step);
+    if (k<0) k=0; if (k>K-1) k=K-1;
+    out[i] = lo + k*step;
+  }
+  return out;
+}
+
+/* Input vector generators (unit norm) */
+function makeInput(type, d) {
+  let x = new Float64Array(d);
+  if (type === "spike") {
+    x[0] = 1;
+  } else if (type === "sparse") {
+    const k = Math.min(5, d);
+    for (let i=0;i<k;i++) x[i] = Math.random()*2-1;
+  } else if (type === "outlier") {
+    x[0] = 3;
+    for (let i=1;i<d;i++) x[i] = gauss()*0.3;
+  } else if (type === "gaussian") {
+    for (let i=0;i<d;i++) x[i] = gauss();
+  } else { /* random unit */
+    for (let i=0;i<d;i++) x[i] = gauss();
+  }
+  const n = norm2(x);
+  for (let i=0;i<d;i++) x[i] /= n;
+  return x;
+}
+
+/* ================================================================
+   Canvas / plot helpers
+   ================================================================ */
+function setupCanvas(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = Math.floor(rect.width * dpr);
+  canvas.height = Math.floor(rect.height * dpr);
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, w: rect.width, h: rect.height };
+}
+
+function drawAxes(ctx, w, h, pad, opts) {
+  ctx.save();
+  ctx.strokeStyle = "#24243a";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.l, h-pad.b); ctx.lineTo(w-pad.r, h-pad.b);
+  ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, h-pad.b);
+  ctx.stroke();
+  if (opts && opts.title) {
+    ctx.fillStyle = "#8a8aa6"; ctx.font = "11px ui-monospace, Menlo, monospace";
+    ctx.fillText(opts.title, pad.l+6, pad.t+12);
+  }
+  ctx.restore();
+}
+
+function drawBars(canvas, data, opts) {
+  const { ctx, w, h } = setupCanvas(canvas);
+  ctx.clearRect(0,0,w,h);
+  const pad = { l: 28, r: 10, t: 10, b: 18 };
+  const ymax = opts.ymax || Math.max(1e-6, ...data.map(Math.abs));
+  const n = data.length;
+  const bw = (w - pad.l - pad.r) / n;
+  drawAxes(ctx, w, h, pad);
+  // zero line
+  const zeroY = h - pad.b - (0 - (-ymax))/(2*ymax) * (h - pad.t - pad.b);
+  ctx.strokeStyle = "#20202e"; ctx.beginPath(); ctx.moveTo(pad.l, zeroY); ctx.lineTo(w-pad.r, zeroY); ctx.stroke();
+  ctx.fillStyle = opts.color || "#60a5fa";
+  for (let i=0;i<n;i++) {
+    const v = data[i];
+    const x = pad.l + i * bw + 1;
+    const plotH = h - pad.t - pad.b;
+    const y = pad.t + (ymax - v)/(2*ymax) * plotH;
+    const hh = Math.abs(v) * plotH / (2*ymax);
+    const top = v >= 0 ? pad.t + (ymax - v)/(2*ymax) * plotH : zeroY;
+    ctx.fillRect(x, top, Math.max(1, bw-2), hh);
+  }
+  // axis labels
+  ctx.fillStyle = "#6a6a80"; ctx.font = "10px ui-monospace, Menlo, monospace";
+  ctx.fillText((+ymax).toFixed(3), 2, pad.t + 8);
+  ctx.fillText((-ymax).toFixed(3), 2, h - pad.b - 1);
+  if (opts.label) ctx.fillText(opts.label, pad.l+4, h - pad.b - 3);
+}
+
+function drawBarsSigned(canvas, data, opts) {
+  const { ctx, w, h } = setupCanvas(canvas);
+  ctx.clearRect(0,0,w,h);
+  const pad = { l: 30, r: 10, t: 10, b: 20 };
+  const absmax = opts.ymax || Math.max(1e-6, ...data.map(v=>Math.abs(v)));
+  const n = data.length;
+  const plotW = w - pad.l - pad.r;
+  const plotH = h - pad.t - pad.b;
+  const bw = plotW / n;
+  ctx.strokeStyle = "#24243a";
+  ctx.lineWidth = 1;
+  // axis
+  ctx.beginPath(); ctx.moveTo(pad.l, h-pad.b); ctx.lineTo(w-pad.r, h-pad.b);
+  ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, h-pad.b); ctx.stroke();
+  const zeroY = pad.t + plotH/2;
+  ctx.strokeStyle = "#1f1f2e";
+  ctx.beginPath(); ctx.moveTo(pad.l, zeroY); ctx.lineTo(w-pad.r, zeroY); ctx.stroke();
+  ctx.fillStyle = opts.color || "#60a5fa";
+  for (let i=0;i<n;i++) {
+    const v = data[i];
+    const xx = pad.l + i*bw + 1;
+    const hh = Math.abs(v)/absmax * (plotH/2);
+    if (v >= 0) ctx.fillRect(xx, zeroY - hh, Math.max(1, bw-2), hh);
+    else ctx.fillRect(xx, zeroY, Math.max(1, bw-2), hh);
+  }
+  ctx.fillStyle = "#6a6a80"; ctx.font = "10px ui-monospace, Menlo, monospace";
+  ctx.fillText("+"+absmax.toPrecision(2), 2, pad.t + 10);
+  ctx.fillText(""+(-absmax).toPrecision(2), 2, h - pad.b - 1);
+  if (opts.label) ctx.fillText(opts.label, pad.l+6, pad.t+10);
+}
+
+/* Draw histogram + analytic overlays on a shared x range */
+function drawHistPDF(canvas, samples, pdfFuncs, xmin, xmax, opts) {
+  opts = opts || {};
+  const { ctx, w, h } = setupCanvas(canvas);
+  ctx.clearRect(0,0,w,h);
+  const pad = { l: 42, r: 12, t: 20, b: 28 };
+  const plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
+  const nbins = opts.nbins || 60;
+  const counts = new Array(nbins).fill(0);
+  const bw = (xmax - xmin)/nbins;
+  for (const v of samples) {
+    let k = Math.floor((v - xmin)/bw);
+    if (k<0||k>=nbins) continue;
+    counts[k]++;
+  }
+  const density = counts.map(c => c / (samples.length * bw));
+  // ymax: max of density or pdfs
+  let ymax = Math.max(...density);
+  for (const f of pdfFuncs) {
+    for (let i=0;i<100;i++) {
+      const x = xmin + (xmax-xmin)*i/99;
+      ymax = Math.max(ymax, f.fn(x));
+    }
+  }
+  ymax *= 1.1;
+  // axis
+  ctx.strokeStyle = "#24243a"; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, h-pad.b); ctx.lineTo(w-pad.r, h-pad.b); ctx.stroke();
+  // histogram bars
+  ctx.fillStyle = opts.color || "rgba(167,139,250,0.55)";
+  for (let i=0;i<nbins;i++) {
+    const xx = pad.l + (i/nbins)*plotW;
+    const ww = plotW/nbins;
+    const hh = density[i]/ymax * plotH;
+    ctx.fillRect(xx+0.5, h-pad.b - hh, ww-1, hh);
+  }
+  // pdfs
+  for (const f of pdfFuncs) {
+    ctx.strokeStyle = f.color; ctx.lineWidth = 2;
+    ctx.beginPath();
+    let first = true;
+    for (let i=0;i<=200;i++) {
+      const x = xmin + (xmax-xmin)*i/200;
+      const y = f.fn(x);
+      const px = pad.l + (x-xmin)/(xmax-xmin) * plotW;
+      const py = h - pad.b - y/ymax * plotH;
+      if (first) { ctx.moveTo(px, py); first=false; } else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+  }
+  // tick labels
+  ctx.fillStyle = "#6a6a80"; ctx.font = "10px ui-monospace, Menlo, monospace";
+  ctx.fillText(xmin.toFixed(2), pad.l-4, h-pad.b+14);
+  ctx.fillText(xmax.toFixed(2), w-pad.r-30, h-pad.b+14);
+  ctx.fillText("0", pad.l-14, h-pad.b);
+  ctx.fillText(ymax.toPrecision(2), pad.l-36, pad.t+8);
+  if (opts.title) {
+    ctx.fillStyle = "#b0b0c4"; ctx.font = "12px ui-monospace, Menlo, monospace";
+    ctx.fillText(opts.title, pad.l, pad.t-6);
+  }
+}
+
+/* Draw vertical lines (centroids, boundaries) on top of an existing plot-like canvas */
+function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
+  const { ctx, w, h } = setupCanvas(canvas);
+  ctx.clearRect(0,0,w,h);
+  const pad = { l: 42, r: 12, t: 20, b: 28 };
+  const plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
+  const xmin = -4*sigma, xmax = 4*sigma;
+  // axis
+  ctx.strokeStyle = "#24243a"; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, h-pad.b); ctx.lineTo(w-pad.r, h-pad.b); ctx.stroke();
+  // PDF
+  const pdfMax = gaussPDF(0, sigma);
+  ctx.strokeStyle = "#fbbf24"; ctx.lineWidth = 2;
+  ctx.fillStyle = "rgba(251,191,36,0.1)";
+  ctx.beginPath();
+  ctx.moveTo(pad.l, h-pad.b);
+  for (let i=0;i<=200;i++) {
+    const x = xmin + (xmax-xmin)*i/200;
+    const y = gaussPDF(x, sigma);
+    const px = pad.l + (x-xmin)/(xmax-xmin) * plotW;
+    const py = h - pad.b - y/pdfMax * plotH*0.85;
+    ctx.lineTo(px, py);
+  }
+  ctx.lineTo(w-pad.r, h-pad.b); ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  for (let i=0;i<=200;i++) {
+    const x = xmin + (xmax-xmin)*i/200;
+    const y = gaussPDF(x, sigma);
+    const px = pad.l + (x-xmin)/(xmax-xmin) * plotW;
+    const py = h - pad.b - y/pdfMax * plotH*0.85;
+    if (i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+  }
+  ctx.stroke();
+  // boundaries
+  ctx.strokeStyle = "#f472b6"; ctx.lineWidth = 1; ctx.setLineDash([4,4]);
+  for (let k=0;k<centroids.length-1;k++) {
+    const b = 0.5*(centroids[k]+centroids[k+1]);
+    const px = pad.l + (b-xmin)/(xmax-xmin)*plotW;
+    ctx.beginPath(); ctx.moveTo(px, pad.t); ctx.lineTo(px, h-pad.b); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  // centroids as blue dots
+  ctx.fillStyle = "#60a5fa";
+  for (const c of centroids) {
+    const px = pad.l + (c-xmin)/(xmax-xmin)*plotW;
+    const py = h - pad.b - gaussPDF(c, sigma)/pdfMax * plotH*0.85;
+    ctx.beginPath(); ctx.arc(px, py, 5, 0, 2*Math.PI); ctx.fill();
+    // x-axis tick
+    ctx.fillRect(px-0.5, h-pad.b, 1, 5);
+  }
+  // tick labels
+  ctx.fillStyle = "#6a6a80"; ctx.font = "10px ui-monospace, Menlo, monospace";
+  ctx.fillText(xmin.toPrecision(2), pad.l-10, h-pad.b+14);
+  ctx.fillText(xmax.toPrecision(2), w-pad.r-30, h-pad.b+14);
+  if (opts && opts.title) {
+    ctx.fillStyle = "#b0b0c4"; ctx.font = "12px ui-monospace, Menlo, monospace";
+    ctx.fillText(opts.title, pad.l, pad.t-6);
+  }
+}
+
+/* ================================================================
+   §1 PROBLEM: naive per-coord uniform quantization
+   ================================================================ */
+(function(){
+  const cB = document.getElementById("p1-b");
+  const cD = document.getElementById("p1-d");
+  const cI = document.getElementById("p1-input");
+  const btn = document.getElementById("p1-resample");
+  const bV = document.getElementById("p1-b-v");
+  const dV = document.getElementById("p1-d-v");
+  const canvas = document.getElementById("p1-plot");
+  const mMse = document.getElementById("p1-mse");
+  const mLv  = document.getElementById("p1-levels");
+  const mBits= document.getElementById("p1-bits");
+  let currentX = null;
+  function reshuffle() {
+    const d = +cD.value;
+    currentX = makeInput(cI.value, d);
+    render();
+  }
+  function render() {
+    const d = +cD.value, b = +cB.value;
+    bV.textContent = b; dV.textContent = d;
+    const x = currentX;
+    // draw original + quantized
+    const { ctx, w, h } = setupCanvas(canvas);
+    ctx.clearRect(0,0,w,h);
+    const pad = { l: 30, r: 12, t: 10, b: 22 };
+    const plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
+    const bw = plotW / d;
+    const absmax = Math.max(...x.map(v => Math.abs(v)), 0.05) * 1.05;
+    const xtilde = quantUniform(x, b, -absmax, absmax); // scale-fair uniform
+    ctx.strokeStyle = "#24243a";
+    ctx.beginPath(); ctx.moveTo(pad.l, pad.t+plotH/2); ctx.lineTo(w-pad.r, pad.t+plotH/2); ctx.stroke();
+    // grid lines at quantization levels
+    ctx.strokeStyle = "#1e1e2a"; ctx.lineWidth = 1;
+    const K = 1<<b;
+    for (let k=0;k<K;k++) {
+      const val = -absmax + 2*absmax*k/(K-1);
+      const py = pad.t + plotH/2 - val/absmax * plotH/2;
+      ctx.beginPath(); ctx.moveTo(pad.l, py); ctx.lineTo(w-pad.r, py); ctx.stroke();
+    }
+    // bars: original (green) and quantized (blue) side by side
+    for (let i=0;i<d;i++) {
+      const x0 = pad.l + i*bw + 1;
+      const hOrig = Math.abs(x[i])/absmax * (plotH/2);
+      const hQ = Math.abs(xtilde[i])/absmax * (plotH/2);
+      const zero = pad.t + plotH/2;
+      // original (thin mint)
+      ctx.fillStyle = "#6ee7b7";
+      const origBarW = Math.max(1, bw*0.42);
+      const origX = x0;
+      ctx.fillRect(origX, x[i]>=0 ? zero - hOrig : zero, origBarW, hOrig);
+      // quantized (blue)
+      ctx.fillStyle = "rgba(96,165,250,0.85)";
+      const qBarW = Math.max(1, bw*0.42);
+      const qX = x0 + origBarW + 1;
+      ctx.fillRect(qX, xtilde[i]>=0 ? zero - hQ : zero, qBarW, hQ);
+    }
+    // compute error
+    let err=0, nn=0;
+    for (let i=0;i<d;i++) { err += (x[i]-xtilde[i])**2; nn += x[i]*x[i]; }
+    mMse.textContent = (err/nn).toFixed(4);
+    mLv.textContent = K;
+    mBits.textContent = (b*d);
+  }
+  cB.oninput = render;
+  cD.oninput = reshuffle;
+  cI.onchange = reshuffle;
+  btn.onclick = reshuffle;
+  reshuffle();
+})();
+
+/* ================================================================
+   §3 ROTATION — coordinate bars before/after
+   ================================================================ */
+(function(){
+  const cD = document.getElementById("r-d");
+  const cI = document.getElementById("r-input");
+  const btn = document.getElementById("r-rotate");
+  const dV = document.getElementById("r-d-v");
+  const bmax = document.getElementById("r-before-max");
+  const amax = document.getElementById("r-after-max");
+  const nrm  = document.getElementById("r-norm");
+  const cA = document.getElementById("r-before");
+  const cB = document.getElementById("r-after");
+  let R = null, x = null;
+  function refresh() {
+    const d = +cD.value; dV.textContent = d;
+    x = makeInput(cI.value, d);
+    R = randomRotation(d);
+    render();
+  }
+  function render() {
+    const d = +cD.value;
+    const y = matVec(R, x);
+    // scale by sqrt(d) so we see "coord magnitude × sqrt(d)" for nice scaling
+    const before = Array.from(x).map(v => Math.abs(v));
+    const after  = Array.from(y).map(v => Math.abs(v));
+    const ymaxBefore = Math.max(...before, 0.001);
+    const ymaxAfter  = Math.max(...after,  0.001);
+    const ymax = Math.max(ymaxBefore, ymaxAfter);
+    drawBars(cA, before.map(v=>v), { ymax: ymax, color: "rgba(110,231,183,0.9)", label: "|xᵢ|" });
+    drawBars(cB, after.map(v=>v),  { ymax: ymax, color: "rgba(167,139,250,0.9)", label: "|(Πx)ᵢ|" });
+    bmax.textContent = ymaxBefore.toFixed(3);
+    amax.textContent = ymaxAfter.toFixed(3);
+    nrm.textContent  = norm2(x).toFixed(4) + " → " + norm2(y).toFixed(4);
+  }
+  cD.oninput = refresh;
+  cI.onchange = refresh;
+  btn.onclick = () => { const d = +cD.value; R = randomRotation(d); render(); };
+  refresh();
+  window.addEventListener("resize", () => render());
+})();
+
+/* ================================================================
+   §4 CONCENTRATION — coord distribution on sphere
+   ================================================================ */
+(function(){
+  const cD = document.getElementById("c-d");
+  const cN = document.getElementById("c-n");
+  const btn = document.getElementById("c-resample");
+  const dV = document.getElementById("c-d-v");
+  const nV = document.getElementById("c-n-v");
+  const canvas = document.getElementById("c-plot");
+  let cachedSamples = [], cachedD = 0;
+
+  function sample() {
+    const d = +cD.value, n = +cN.value;
+    cachedSamples = [];
+    for (let i=0;i<n;i++) {
+      const v = unitVec(d);
+      cachedSamples.push(v[0]);
+    }
+    cachedD = d;
+  }
+  function draw() {
+    const d = +cD.value, n = +cN.value;
+    dV.textContent = d; nV.textContent = n;
+    const sigma = 1/Math.sqrt(cachedD);
+    const xmin = Math.max(-1, -5*sigma);
+    const xmax = Math.min( 1,  5*sigma);
+    drawHistPDF(canvas, cachedSamples, [
+      { fn: x => betaCoordPDF(x, cachedD), color: "#fbbf24" },
+      { fn: x => gaussPDF(x, sigma), color: "#6ee7b7" }
+    ], xmin, xmax, { title: "coord x₀ of uniform random unit vector", nbins: 80 });
+  }
+  function resample() { sample(); draw(); }
+  cD.oninput = resample;
+  cN.oninput = resample;
+  btn.onclick = resample;
+  resample();
+  window.addEventListener("resize", draw);
+})();
+
+/* ================================================================
+   §5 LLOYD-MAX — codebook visualization, iterative
+   ================================================================ */
+(function(){
+  const cB = document.getElementById("cb-b");
+  const cD = document.getElementById("cb-d");
+  const bStep = document.getElementById("cb-step");
+  const bConv = document.getElementById("cb-converge");
+  const bRst = document.getElementById("cb-reset");
+  const bV = document.getElementById("cb-b-v");
+  const dV = document.getElementById("cb-d-v");
+  const canvas = document.getElementById("cb-plot");
+  const mIter = document.getElementById("cb-iter");
+  const mMse = document.getElementById("cb-mse");
+  const mSh = document.getElementById("cb-sh");
+  let centroids = [];
+  let iter = 0;
+
+  function sigma(){ return 1/Math.sqrt(+cD.value); }
+
+  function init() {
+    const b = +cB.value; const K = 1<<b;
+    const s = sigma();
+    centroids = [];
+    for (let i=0;i<K;i++) centroids.push(((2*(i+0.5)/K - 1) * 3) * s);
+    iter = 0;
+    render();
+  }
+  function oneStep() {
+    const s = sigma();
+    const K = centroids.length;
+    const bnds = [-10*s];
+    for (let k=0;k<K-1;k++) bnds.push(0.5*(centroids[k]+centroids[k+1]));
+    bnds.push(10*s);
+    const N = 400;
+    for (let k=0;k<K;k++) {
+      const a=bnds[k], c=bnds[k+1];
+      const dx=(c-a)/N;
+      let num=0, den=0;
+      for (let i=0;i<N;i++) {
+        const x=a+dx*(i+0.5);
+        const p=gaussPDF(x,s);
+        num += x*p*dx; den += p*dx;
+      }
+      if (den > 1e-20) centroids[k] = num/den;
+    }
+    centroids.sort((a,b)=>a-b);
+    iter++;
+    render();
+  }
+  function converge() { for (let i=0;i<40;i++) oneStep(); }
+  function render() {
+    const b = +cB.value, d = +cD.value;
+    bV.textContent = b; dV.textContent = d;
+    const s = sigma();
+    drawCentroidPlot(canvas, centroids, s, null, { title: `b=${b}, d=${d}, σ = 1/√d ≈ ${s.toFixed(3)}` });
+    mIter.textContent = iter;
+    const mse = lloydMSE(centroids, s);
+    mMse.textContent = mse.toExponential(3);
+    mSh.textContent = (Math.pow(4,-b)/d).toExponential(3);
+  }
+  cB.oninput = init;
+  cD.oninput = init;
+  bStep.onclick = oneStep;
+  bConv.onclick = converge;
+  bRst.onclick = init;
+  init();
+  window.addEventListener("resize", () => render());
+})();
+
+/* ================================================================
+   §6 PIPELINE — full TurboQuant-MSE
+   ================================================================ */
+(function(){
+  const cB = document.getElementById("pipe-b");
+  const cD = document.getElementById("pipe-d");
+  const cI = document.getElementById("pipe-input");
+  const btn = document.getElementById("pipe-resample");
+  const bV = document.getElementById("pipe-b-v");
+  const dV = document.getElementById("pipe-d-v");
+  const cA = document.getElementById("pipe-a");
+  const cB2 = document.getElementById("pipe-rot");
+  const cC = document.getElementById("pipe-c");
+  const cDd = document.getElementById("pipe-rec");
+  const cE = document.getElementById("pipe-e");
+  const mMse = document.getElementById("pipe-mse");
+  const mNv = document.getElementById("pipe-naive");
+  const mFlr = document.getElementById("pipe-floor");
+  const mRt = document.getElementById("pipe-ratio");
+  let x = null, R = null;
+
+  function refresh() {
+    const d = +cD.value;
+    x = makeInput(cI.value, d);
+    R = randomRotation(d);
+    render();
+  }
+  function render() {
+    const d = +cD.value, b = +cB.value;
+    bV.textContent = b; dV.textContent = d;
+    const y = matVec(R, x);
+    const sig = 1/Math.sqrt(d);
+    const centroids = lloydGauss(b, sig, 20);
+    const yhat = quantizeWithCodebook(y, centroids);
+    const xhat = matTVec(R, yhat);
+    const err = new Float64Array(d);
+    let e2 = 0, n2 = 0;
+    for (let i=0;i<d;i++) { err[i] = x[i]-xhat[i]; e2 += err[i]*err[i]; n2 += x[i]*x[i]; }
+    const ymax = Math.max(...x.map(Math.abs), ...y.map(Math.abs)) * 1.05;
+    drawBarsSigned(cA,  Array.from(x),    { ymax: ymax, color: "rgba(110,231,183,0.9)", label: "x" });
+    drawBarsSigned(cB2, Array.from(y),    { ymax: ymax, color: "rgba(167,139,250,0.9)", label: "Πx" });
+    drawBarsSigned(cC,  Array.from(yhat), { ymax: ymax, color: "rgba(96,165,250,0.95)", label: "quant(Πx)" });
+    drawBarsSigned(cDd, Array.from(xhat), { ymax: ymax, color: "rgba(96,165,250,0.85)", label: "Πᵀ·quant" });
+    drawBarsSigned(cE,  Array.from(err),  { ymax: Math.max(1e-4, Math.max(...err.map(Math.abs))*1.1), color: "rgba(244,114,182,0.95)", label: "error" });
+    mMse.textContent = (e2/n2).toExponential(3);
+    // naive uniform for comparison
+    const absmax = Math.max(...x.map(Math.abs), 1e-3);
+    const xtnaive = quantUniform(x, b, -absmax, absmax);
+    let e2n=0; for (let i=0;i<d;i++) e2n += (x[i]-xtnaive[i])**2;
+    mNv.textContent = (e2n/n2).toExponential(3);
+    mFlr.textContent = Math.pow(4,-b).toExponential(3);
+    mRt.textContent = (32/b).toFixed(1) + "×";
+  }
+  cB.oninput = render;
+  cD.oninput = refresh;
+  cI.onchange = refresh;
+  btn.onclick = refresh;
+  refresh();
+  window.addEventListener("resize", () => render());
+})();
+
+/* ================================================================
+   §7 BIAS — MSE-opt quantizer is biased for inner products
+   Button-triggered; slider only updates label.
+   ================================================================ */
+(function(){
+  const cB = document.getElementById("bias-b");
+  const cD = document.getElementById("bias-d");
+  const cN = document.getElementById("bias-n");
+  const btn = document.getElementById("bias-run");
+  const bV = document.getElementById("bias-b-v");
+  const dV = document.getElementById("bias-d-v");
+  const nV = document.getElementById("bias-n-v");
+  const canvas = document.getElementById("bias-plot");
+  const mM = document.getElementById("bias-mean");
+  const mT = document.getElementById("bias-theory");
+
+  function labels() {
+    bV.textContent = cB.value; dV.textContent = cD.value; nV.textContent = cN.value;
+  }
+
+  function run() {
+    labels();
+    const b = +cB.value, d = +cD.value, n = +cN.value;
+    const sig = 1/Math.sqrt(d);
+    const centroids = lloydGauss(b, sig, 20);
+    const R = randomRotation(d);
+    const ratios = [];
+    for (let t=0;t<n;t++) {
+      const x = unitVec(d);
+      const y = unitVec(d);
+      const yx = dot(x, y);
+      if (Math.abs(yx) < 0.02) continue;
+      const rx = matVec(R, x);
+      const qy = quantizeWithCodebook(rx, centroids);
+      const xh = matTVec(R, qy);
+      ratios.push(dot(y, xh) / yx);
+    }
+    let m=0; for (const r of ratios) m+=r; m /= ratios.length;
+    mM.textContent = m.toFixed(4);
+    const theoryMap = { 1: "2/π ≈ 0.637", 2: "≈ 0.88", 3: "≈ 0.97", 4: "≈ 0.99", 5: "≈ 1.00" };
+    mT.textContent = theoryMap[b] || "—";
+
+    const { ctx, w, h } = setupCanvas(canvas);
+    ctx.clearRect(0,0,w,h);
+    const pad = { l: 40, r: 14, t: 14, b: 26 };
+    const plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
+    const rmin = Math.min(0, ...ratios)*1.05;
+    const rmax = Math.max(1.4, ...ratios)*1.05;
+    const nbins = 60;
+    const counts = new Array(nbins).fill(0);
+    const bw = (rmax-rmin)/nbins;
+    for (const r of ratios) {
+      let k = Math.floor((r-rmin)/bw); if (k<0||k>=nbins) continue; counts[k]++;
+    }
+    const cmax = Math.max(...counts, 1);
+    ctx.strokeStyle = "#24243a";
+    ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, h-pad.b); ctx.lineTo(w-pad.r, h-pad.b); ctx.stroke();
+    ctx.fillStyle = "rgba(96,165,250,0.7)";
+    for (let i=0;i<nbins;i++) {
+      const xx = pad.l + i/nbins*plotW;
+      const ww = plotW/nbins;
+      const hh = counts[i]/cmax * plotH;
+      ctx.fillRect(xx+0.5, h-pad.b - hh, ww-1, hh);
+    }
+    ctx.strokeStyle = "#fbbf24"; ctx.lineWidth = 2;
+    const mx = pad.l + (m-rmin)/(rmax-rmin) * plotW;
+    ctx.beginPath(); ctx.moveTo(mx, pad.t); ctx.lineTo(mx, h-pad.b); ctx.stroke();
+    ctx.strokeStyle = "#6ee7b7"; ctx.lineWidth = 2; ctx.setLineDash([4,4]);
+    const tx = pad.l + (1-rmin)/(rmax-rmin) * plotW;
+    ctx.beginPath(); ctx.moveTo(tx, pad.t); ctx.lineTo(tx, h-pad.b); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#6a6a80"; ctx.font = "10px ui-monospace, Menlo, monospace";
+    ctx.fillText(rmin.toFixed(2), pad.l-16, h-pad.b+14);
+    ctx.fillText(rmax.toFixed(2), w-pad.r-30, h-pad.b+14);
+    ctx.fillStyle = "#fbbf24";
+    ctx.fillText("mean = "+m.toFixed(3), Math.min(w-pad.r-90, mx+6), pad.t+12);
+    ctx.fillStyle = "#6ee7b7";
+    ctx.fillText("truth = 1", Math.min(w-pad.r-60, tx+6), pad.t+26);
+  }
+  cB.oninput = labels;
+  cD.oninput = labels;
+  cN.oninput = labels;
+  btn.onclick = run;
+  labels();
+  run();
+})();
+
+/* ================================================================
+   §8 QJL — unbiasedness demo. Fresh S per trial.
+   Button-triggered.
+   ================================================================ */
+(function(){
+  const cD = document.getElementById("qjl-d");
+  const cN = document.getElementById("qjl-n");
+  const btn = document.getElementById("qjl-run");
+  const dV = document.getElementById("qjl-d-v");
+  const nV = document.getElementById("qjl-n-v");
+  const canvas = document.getElementById("qjl-plot");
+  const mQ = document.getElementById("qjl-mean");
+  const mM = document.getElementById("qjl-mean2");
+  const mS = document.getElementById("qjl-std");
+
+  function labels() { dV.textContent = cD.value; nV.textContent = cN.value; }
+
+  function run() {
+    labels();
+    const d = +cD.value, n = +cN.value;
+    // Fix (x,y) for all trials; vary S.
+    const x = unitVec(d);
+    let y = unitVec(d);
+    for (let i=0;i<d;i++) y[i] = 0.5*x[i] + 0.5*y[i];
+    const yn = norm2(y); for (let i=0;i<d;i++) y[i] /= yn;
+    const true_ip = dot(x, y);
+
+    const qjl_ratios = [];
+    const prefactor = Math.sqrt(Math.PI/2)/d;
+
+    for (let t=0;t<n;t++) {
+      let acc = 0;
+      for (let i=0;i<d;i++) {
+        let Six = 0, Siy = 0;
+        for (let j=0;j<d;j++) {
+          const s = gauss();
+          Six += s*x[j]; Siy += s*y[j];
+        }
+        acc += Siy * (Six>=0 ? 1 : -1);
+      }
+      const est = prefactor * acc;
+      qjl_ratios.push(est / true_ip);
+    }
+
+    let mQJL=0; for (const r of qjl_ratios) mQJL += r; mQJL /= qjl_ratios.length;
+    let varQ=0; for (const r of qjl_ratios) varQ += (r-mQJL)**2; varQ /= qjl_ratios.length;
+    mQ.textContent = mQJL.toFixed(4);
+    // MSE-1bit baseline: the theoretical bias (2/π) for a random rotation.
+    // We just display the theoretical value (no expensive per-trial rotation needed).
+    mM.textContent = (2/Math.PI).toFixed(4) + " (theory)";
+    mS.textContent = Math.sqrt(varQ).toFixed(4);
+
+    const { ctx, w, h } = setupCanvas(canvas);
+    ctx.clearRect(0,0,w,h);
+    const pad = { l: 40, r: 14, t: 14, b: 26 };
+    const plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
+    const rlo = Math.min(-0.2, ...qjl_ratios)*1.1;
+    const rhi = Math.max( 2.2, ...qjl_ratios)*1.05;
+    const nbins = 60;
+    const bw = (rhi-rlo)/nbins;
+    const cq = new Array(nbins).fill(0);
+    for (const r of qjl_ratios) { const k=Math.floor((r-rlo)/bw); if(k>=0&&k<nbins) cq[k]++; }
+    const cmax = Math.max(...cq, 1);
+
+    ctx.strokeStyle = "#24243a";
+    ctx.beginPath(); ctx.moveTo(pad.l,pad.t); ctx.lineTo(pad.l,h-pad.b); ctx.lineTo(w-pad.r,h-pad.b); ctx.stroke();
+
+    // MSE-1bit bias marker (theoretical)
+    ctx.strokeStyle = "#f472b6"; ctx.lineWidth = 2;
+    const mseX = pad.l + (2/Math.PI - rlo)/(rhi-rlo) * plotW;
+    ctx.beginPath(); ctx.moveTo(mseX, pad.t); ctx.lineTo(mseX, h-pad.b); ctx.stroke();
+    ctx.fillStyle = "#f472b6"; ctx.font = "10px ui-monospace, Menlo, monospace";
+    ctx.fillText("MSE-1bit mean = 2/π ≈ 0.637", mseX - 140, pad.t + 11);
+
+    // QJL histogram
+    ctx.fillStyle = "rgba(96,165,250,0.78)";
+    for (let i=0;i<nbins;i++) {
+      const xx = pad.l + i/nbins*plotW;
+      const ww = plotW/nbins;
+      const hh = cq[i]/cmax * plotH;
+      ctx.fillRect(xx+0.5, h-pad.b - hh, ww-1, hh);
+    }
+
+    // QJL mean line (gold)
+    ctx.strokeStyle = "#fbbf24"; ctx.lineWidth = 2;
+    const qx = pad.l + (mQJL-rlo)/(rhi-rlo) * plotW;
+    ctx.beginPath(); ctx.moveTo(qx, pad.t); ctx.lineTo(qx, h-pad.b); ctx.stroke();
+    ctx.fillStyle = "#fbbf24";
+    ctx.fillText("QJL mean = "+mQJL.toFixed(3), qx + 6, pad.t + 27);
+
+    // truth = 1
+    ctx.strokeStyle = "#6ee7b7"; ctx.lineWidth = 2; ctx.setLineDash([4,4]);
+    const tx = pad.l + (1-rlo)/(rhi-rlo) * plotW;
+    ctx.beginPath(); ctx.moveTo(tx, pad.t); ctx.lineTo(tx, h-pad.b); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#6ee7b7";
+    ctx.fillText("truth = 1", tx + 6, pad.t + 43);
+
+    ctx.fillStyle = "#6a6a80";
+    ctx.fillText(rlo.toFixed(2), pad.l-8, h-pad.b+14);
+    ctx.fillText(rhi.toFixed(2), w-pad.r-22, h-pad.b+14);
+  }
+  cD.oninput = labels;
+  cN.oninput = labels;
+  btn.onclick = run;
+  labels();
+  run();
+})();
+
+/* ================================================================
+   §9 BOUNDS — empirical distortion vs theory
+   ================================================================ */
+(function(){
+  const cD = document.getElementById("bd-d");
+  const cN = document.getElementById("bd-n");
+  const btn = document.getElementById("bd-run");
+  const dV = document.getElementById("bd-d-v");
+  const nV = document.getElementById("bd-n-v");
+  const canvas = document.getElementById("bd-plot");
+
+  function run() {
+    const d = +cD.value, n = +cN.value;
+    dV.textContent = d; nV.textContent = n;
+    const sig = 1/Math.sqrt(d);
+    const bs = [1,2,3,4,5];
+    const measured = []; const upper = []; const lower = [];
+    const R = randomRotation(d);
+    for (const b of bs) {
+      const centroids = lloydGauss(b, sig, 20);
+      let sum=0;
+      for (let t=0;t<n;t++) {
+        const x = unitVec(d);
+        const y = matVec(R, x);
+        const yh = quantizeWithCodebook(y, centroids);
+        let e=0; for (let i=0;i<d;i++) e += (y[i]-yh[i])**2;
+        sum += e;
+      }
+      measured.push(sum/n);
+      upper.push(Math.sqrt(3)*Math.PI/2 * Math.pow(4,-b));
+      lower.push(Math.pow(4,-b));
+    }
+    // draw log-scale plot
+    const { ctx, w, h } = setupCanvas(canvas);
+    ctx.clearRect(0,0,w,h);
+    const pad = { l: 58, r: 20, t: 22, b: 36 };
+    const plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
+    const allVals = [...measured, ...upper, ...lower];
+    const yMax = Math.max(...allVals), yMin = Math.min(...allVals);
+    const ylo = Math.log10(yMin*0.3), yhi = Math.log10(yMax*1.1);
+    function ypos(v){ return pad.t + (yhi - Math.log10(v))/(yhi-ylo) * plotH; }
+    function xpos(b){ return pad.l + (b-1)/(bs.length-1) * plotW; }
+    // grid
+    ctx.strokeStyle = "#1a1a28"; ctx.lineWidth = 1;
+    for (let k = Math.ceil(ylo); k<= Math.floor(yhi); k++) {
+      const y = ypos(Math.pow(10,k));
+      ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(w-pad.r,y); ctx.stroke();
+      ctx.fillStyle="#6a6a80"; ctx.font="10px ui-monospace, Menlo, monospace";
+      ctx.fillText("10^"+k, 6, y+3);
+    }
+    // axis
+    ctx.strokeStyle = "#24243a";
+    ctx.beginPath(); ctx.moveTo(pad.l,pad.t); ctx.lineTo(pad.l,h-pad.b); ctx.lineTo(w-pad.r,h-pad.b); ctx.stroke();
+    // x labels
+    ctx.fillStyle = "#6a6a80"; ctx.font = "11px ui-monospace, Menlo, monospace";
+    for (let i=0;i<bs.length;i++) { ctx.fillText("b="+bs[i], xpos(bs[i])-10, h-pad.b+16); }
+    // lines
+    function drawLine(vals, color) {
+      ctx.strokeStyle = color; ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      for (let i=0;i<bs.length;i++) {
+        const x = xpos(bs[i]), y = ypos(vals[i]);
+        if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+      // dots
+      ctx.fillStyle = color;
+      for (let i=0;i<bs.length;i++) {
+        const x = xpos(bs[i]), y = ypos(vals[i]);
+        ctx.beginPath(); ctx.arc(x,y,4,0,2*Math.PI); ctx.fill();
+      }
+    }
+    drawLine(upper, "#f472b6");
+    drawLine(measured, "#6ee7b7");
+    drawLine(lower, "#fbbf24");
+    ctx.fillStyle = "#b0b0c4"; ctx.font = "12px ui-monospace, Menlo, monospace";
+    ctx.fillText("MSE distortion (log scale) vs bit-width b — three parallel lines", pad.l, pad.t - 6);
+  }
+  cD.oninput = ()=>{dV.textContent=cD.value;};
+  cN.oninput = ()=>{nV.textContent=cN.value;};
+  btn.onclick = run;
+  run();
+})();
+
+/* ================================================================
+   Primer palette (HUD colors used by mini-demos)
+   ================================================================ */
+const PR = {
+  accent: "#7de3c7",
+  ocean:  "#5eead4",
+  warn:   "#fcd34d",
+  err:    "#fb7185",
+  blue:   "#a5c4ff",
+  text:   "#d4e4e0",
+  textDim:"#9ab5ae",
+  mute:   "#5a7a73",
+  line:   "#1a2427",
+  lineBr: "#2a3a3f",
+  panelBg:"#04080a",
+  font:   "11px 'JetBrains Mono', ui-monospace, Menlo, monospace",
+  fontSm: "10px 'JetBrains Mono', ui-monospace, Menlo, monospace",
+  fontLg: "13px 'JetBrains Mono', ui-monospace, Menlo, monospace",
+};
+function clearHud(ctx, w, h) {
+  ctx.fillStyle = PR.panelBg; ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle = "rgba(125,227,199,0.05)"; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x=16; x<w; x+=32) { ctx.moveTo(x,0); ctx.lineTo(x,h); }
+  for (let y=16; y<h; y+=32) { ctx.moveTo(0,y); ctx.lineTo(w,y); }
+  ctx.stroke();
+}
+
+/* ---------- §0.1 Vector ---------- */
+(function(){
+  const cv = document.getElementById("pr-vec-cv"); if (!cv) return;
+  const coOut = document.getElementById("pr-vec-co");
+  const lenOut = document.getElementById("pr-vec-len");
+  let tip = { x: 0.7, y: 0.5 }; // world units (−1.2..1.2)
+  let dragging = false;
+
+  function toPx(w,h,p){ const s = Math.min(w,h)*0.36; const cx = w/2, cy=h/2; return { x: cx + p.x*s, y: cy - p.y*s, s, cx, cy }; }
+  function fromPx(w,h,px,py){ const s = Math.min(w,h)*0.36; const cx = w/2, cy=h/2; return { x:(px-cx)/s, y:-(py-cy)/s }; }
+
+  function draw() {
+    const { ctx, w, h } = setupCanvas(cv); clearHud(ctx, w, h);
+    const P = toPx(w,h,tip);
+    // axes
+    ctx.strokeStyle = PR.lineBr; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0,P.cy); ctx.lineTo(w,P.cy); ctx.moveTo(P.cx,0); ctx.lineTo(P.cx,h); ctx.stroke();
+    // tick labels
+    ctx.fillStyle = PR.mute; ctx.font = PR.fontSm;
+    for (let t=-1; t<=1; t++) { if (t===0) continue;
+      const px = P.cx + t*P.s, py = P.cy - t*P.s;
+      ctx.fillText(t.toFixed(0), px-3, P.cy+12); ctx.fillText(t.toFixed(0), P.cx+6, py+3);
+    }
+    // origin label
+    ctx.fillStyle = PR.mute; ctx.fillText("O", P.cx-10, P.cy+12);
+    // arrow
+    const tx = P.x, ty = P.y;
+    ctx.strokeStyle = PR.accent; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(P.cx, P.cy); ctx.lineTo(tx, ty); ctx.stroke();
+    // arrowhead
+    const ang = Math.atan2(ty-P.cy, tx-P.cx);
+    ctx.fillStyle = PR.accent;
+    ctx.beginPath();
+    ctx.moveTo(tx, ty);
+    ctx.lineTo(tx - 10*Math.cos(ang-0.4), ty - 10*Math.sin(ang-0.4));
+    ctx.lineTo(tx - 10*Math.cos(ang+0.4), ty - 10*Math.sin(ang+0.4));
+    ctx.closePath(); ctx.fill();
+    // tip handle
+    ctx.fillStyle = "#04080a"; ctx.strokeStyle = PR.accent; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(tx, ty, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    // component guides
+    ctx.strokeStyle = "rgba(125,227,199,0.35)"; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx, P.cy);
+    ctx.moveTo(tx, ty); ctx.lineTo(P.cx, ty); ctx.stroke(); ctx.setLineDash([]);
+    // labels
+    ctx.fillStyle = PR.text; ctx.font = PR.font;
+    ctx.fillText("x = [" + tip.x.toFixed(2) + ", " + tip.y.toFixed(2) + "]", 12, 18);
+    ctx.fillStyle = PR.mute; ctx.fillText("drag the tip", 12, h-10);
+
+    coOut.textContent = "[" + tip.x.toFixed(2) + ", " + tip.y.toFixed(2) + "]";
+    lenOut.textContent = Math.hypot(tip.x, tip.y).toFixed(2);
+  }
+  function handle(e){
+    const r = cv.getBoundingClientRect();
+    const px = (e.touches?e.touches[0].clientX:e.clientX) - r.left;
+    const py = (e.touches?e.touches[0].clientY:e.clientY) - r.top;
+    const p = fromPx(r.width, r.height, px, py);
+    tip.x = Math.max(-1.1, Math.min(1.1, p.x));
+    tip.y = Math.max(-1.1, Math.min(1.1, p.y));
+    draw();
+  }
+  cv.addEventListener("mousedown", e => { dragging = true; handle(e); });
+  window.addEventListener("mousemove", e => { if (dragging) handle(e); });
+  window.addEventListener("mouseup", () => dragging = false);
+  cv.addEventListener("touchstart", e => { dragging = true; handle(e); e.preventDefault(); });
+  cv.addEventListener("touchmove", e => { if (dragging) handle(e); e.preventDefault(); });
+  cv.addEventListener("touchend", () => dragging = false);
+  window.addEventListener("resize", draw);
+  draw();
+})();
+
+/* ---------- §0.2 Length & Inner Product ---------- */
+(function(){
+  const cv = document.getElementById("pr-dot-cv"); if (!cv) return;
+  const lxOut = document.getElementById("pr-dot-lx");
+  const lyOut = document.getElementById("pr-dot-ly");
+  const ipOut = document.getElementById("pr-dot-ip");
+  const angOut = document.getElementById("pr-dot-ang");
+  let X = { x: 0.8, y: 0.3 }, Y = { x: 0.2, y: 0.8 };
+  let drag = null;
+
+  function draw() {
+    const { ctx, w, h } = setupCanvas(cv); clearHud(ctx,w,h);
+    const s = Math.min(w,h)*0.36, cx = w/2, cy = h/2;
+    // axes
+    ctx.strokeStyle = PR.lineBr; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0,cy); ctx.lineTo(w,cy); ctx.moveTo(cx,0); ctx.lineTo(cx,h); ctx.stroke();
+    // draw shaded angle wedge
+    const a1 = Math.atan2(-X.y, X.x), a2 = Math.atan2(-Y.y, Y.x);
+    ctx.fillStyle = "rgba(252,211,77,0.12)";
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, 34, Math.min(a1,a2), Math.max(a1,a2)); ctx.closePath(); ctx.fill();
+    // vectors
+    function drawVec(v, color, label) {
+      const tx = cx + v.x*s, ty = cy - v.y*s;
+      ctx.strokeStyle = color; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(tx, ty); ctx.stroke();
+      const ang = Math.atan2(ty-cy, tx-cx);
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.moveTo(tx,ty);
+      ctx.lineTo(tx-10*Math.cos(ang-0.4), ty-10*Math.sin(ang-0.4));
+      ctx.lineTo(tx-10*Math.cos(ang+0.4), ty-10*Math.sin(ang+0.4));
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#04080a"; ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(tx, ty, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = color; ctx.font = PR.fontLg;
+      ctx.fillText(label, tx + 10, ty - 4);
+    }
+    drawVec(X, PR.accent, "x");
+    drawVec(Y, PR.ocean,  "y");
+    const lx = Math.hypot(X.x, X.y), ly = Math.hypot(Y.x, Y.y);
+    const ip = X.x*Y.x + X.y*Y.y;
+    const cosv = (lx*ly < 1e-9) ? 1 : ip/(lx*ly);
+    const ang = Math.acos(Math.max(-1, Math.min(1, cosv))) * 180/Math.PI;
+    // readout on-canvas
+    ctx.fillStyle = PR.text; ctx.font = PR.font;
+    ctx.fillText("⟨x,y⟩ = " + ip.toFixed(2) + "   θ = " + ang.toFixed(0) + "°", 12, 18);
+    ctx.fillStyle = (ip>0)?PR.accent : (ip<0)?PR.err : PR.mute;
+    ctx.fillText((ip>0.05)?"▸ aligned":(ip<-0.05)?"▸ opposed":"▸ orthogonal", 12, 36);
+    ctx.fillStyle = PR.mute; ctx.fillText("drag either tip", 12, h-10);
+
+    lxOut.textContent = lx.toFixed(2);
+    lyOut.textContent = ly.toFixed(2);
+    ipOut.textContent = ip.toFixed(2);
+    angOut.textContent = ang.toFixed(0) + "°";
+  }
+  function pickDrag(mx,my,w,h){
+    const s = Math.min(w,h)*0.36, cx=w/2, cy=h/2;
+    const dxX = mx-(cx+X.x*s), dyX = my-(cy-X.y*s);
+    const dxY = mx-(cx+Y.x*s), dyY = my-(cy-Y.y*s);
+    if (dxX*dxX+dyX*dyX < dxY*dxY+dyY*dyY) return "X";
+    return "Y";
+  }
+  function handle(e){
+    const r = cv.getBoundingClientRect();
+    const px = (e.touches?e.touches[0].clientX:e.clientX) - r.left;
+    const py = (e.touches?e.touches[0].clientY:e.clientY) - r.top;
+    const s = Math.min(r.width, r.height)*0.36, cx=r.width/2, cy=r.height/2;
+    const wx = (px-cx)/s, wy = -(py-cy)/s;
+    const tgt = drag || pickDrag(px,py,r.width,r.height);
+    if (tgt === "X") X = { x: Math.max(-1.1,Math.min(1.1,wx)), y: Math.max(-1.1,Math.min(1.1,wy)) };
+    else Y = { x: Math.max(-1.1,Math.min(1.1,wx)), y: Math.max(-1.1,Math.min(1.1,wy)) };
+    draw();
+  }
+  cv.addEventListener("mousedown", e => {
+    const r = cv.getBoundingClientRect();
+    drag = pickDrag(e.clientX-r.left, e.clientY-r.top, r.width, r.height);
+    handle(e);
+  });
+  window.addEventListener("mousemove", e => { if (drag) handle(e); });
+  window.addEventListener("mouseup", () => drag = null);
+  cv.addEventListener("touchstart", e => {
+    const r = cv.getBoundingClientRect(); const t = e.touches[0];
+    drag = pickDrag(t.clientX-r.left, t.clientY-r.top, r.width, r.height);
+    handle(e); e.preventDefault();
+  });
+  cv.addEventListener("touchmove", e => { if (drag) handle(e); e.preventDefault(); });
+  cv.addEventListener("touchend", () => drag = null);
+  window.addEventListener("resize", draw);
+  draw();
+})();
+
+/* ---------- §0.3 MSE ---------- */
+(function(){
+  const cv = document.getElementById("pr-mse-cv"); if (!cv) return;
+  const g = document.getElementById("pr-mse-g");
+  const gv = document.getElementById("pr-mse-gv");
+  const meanOut = document.getElementById("pr-mse-mean");
+  const valOut = document.getElementById("pr-mse-val");
+  const minOut = document.getElementById("pr-mse-min");
+  // fixed data — 10 points, roughly around 0 ± 1
+  const data = [-1.7, -0.9, -0.4, 0.1, 0.2, 0.3, 0.6, 0.8, 1.1, 1.5];
+  const mean = data.reduce((a,b)=>a+b,0)/data.length;
+  const mseAt = (q) => data.reduce((a,x)=>a+(x-q)*(x-q),0)/data.length;
+
+  function draw() {
+    const { ctx, w, h } = setupCanvas(cv); clearHud(ctx,w,h);
+    const pad = { l: 30, r: 20, t: 14, b: 26 };
+    const xmin = -3, xmax = 3;
+    const toX = v => pad.l + (v-xmin)/(xmax-xmin) * (w-pad.l-pad.r);
+    const y0 = h/2 + 10;
+    // axis
+    ctx.strokeStyle = PR.lineBr; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.l, y0); ctx.lineTo(w-pad.r, y0); ctx.stroke();
+    // ticks
+    ctx.fillStyle = PR.mute; ctx.font = PR.fontSm;
+    for (let v=-3; v<=3; v++) {
+      const x = toX(v);
+      ctx.strokeStyle = PR.line; ctx.beginPath(); ctx.moveTo(x, y0-3); ctx.lineTo(x, y0+3); ctx.stroke();
+      ctx.fillText(v.toFixed(0), x-3, y0+16);
+    }
+    // data points
+    for (const d of data) {
+      ctx.fillStyle = PR.ocean;
+      ctx.beginPath(); ctx.arc(toX(d), y0, 4, 0, Math.PI*2); ctx.fill();
+    }
+    // mean marker (gold)
+    ctx.strokeStyle = PR.warn; ctx.lineWidth = 1; ctx.setLineDash([2,3]);
+    ctx.beginPath(); ctx.moveTo(toX(mean), y0-22); ctx.lineTo(toX(mean), y0+14); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = PR.warn; ctx.font = PR.fontSm;
+    ctx.fillText("mean", toX(mean)+4, y0-20);
+    // guess marker
+    const q = parseFloat(g.value);
+    ctx.strokeStyle = PR.accent; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(toX(q), y0-32); ctx.lineTo(toX(q), y0+18); ctx.stroke();
+    ctx.fillStyle = PR.accent; ctx.beginPath();
+    ctx.moveTo(toX(q), y0-36); ctx.lineTo(toX(q)-5, y0-32); ctx.lineTo(toX(q)+5, y0-32); ctx.closePath(); ctx.fill();
+    // residuals: show squared area via small bars above
+    for (const d of data) {
+      const err = d - q;
+      const areaH = Math.min(60, err*err * 18);
+      ctx.fillStyle = "rgba(251,113,133,0.22)";
+      ctx.fillRect(toX(d)-2, y0-30 - areaH, 4, areaH);
+    }
+    // label
+    ctx.fillStyle = PR.text; ctx.font = PR.font;
+    ctx.fillText("pink bars = squared errors", 12, 18);
+    const mv = mseAt(q), mmin = mseAt(mean);
+    gv.textContent = q.toFixed(2);
+    meanOut.textContent = mean.toFixed(2);
+    valOut.textContent = mv.toFixed(2);
+    minOut.textContent = mmin.toFixed(2);
+  }
+  g.addEventListener("input", draw);
+  window.addEventListener("resize", draw);
+  draw();
+})();
+
+/* ---------- §0.4 Unbiased vs Biased ---------- */
+(function(){
+  const cv = document.getElementById("pr-bias-cv"); if (!cv) return;
+  const mode = document.getElementById("pr-bias-mode");
+  const fire = document.getElementById("pr-bias-fire");
+  const clr = document.getElementById("pr-bias-clear");
+  const nOut = document.getElementById("pr-bias-n");
+  const meanOut = document.getElementById("pr-bias-mean");
+  const biasOut = document.getElementById("pr-bias-bias");
+  let shots = []; // [{x,y,mode}]
+
+  function add(n){
+    for (let i=0;i<n;i++){
+      let x = gauss()*0.28, y = gauss()*0.28;
+      if (mode.value === "biased") { x += 0.45; y -= 0.2; }
+      shots.push({x, y});
+    }
+    draw();
+  }
+  function draw(){
+    const { ctx, w, h } = setupCanvas(cv); clearHud(ctx,w,h);
+    const s = Math.min(w,h)*0.42, cx = w/2, cy = h/2;
+    // target rings
+    ctx.strokeStyle = PR.lineBr; ctx.lineWidth = 1;
+    for (let r=1; r<=4; r++) { ctx.beginPath(); ctx.arc(cx, cy, s*r/4, 0, Math.PI*2); ctx.stroke(); }
+    // crosshair
+    ctx.strokeStyle = PR.accent; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(cx-12, cy); ctx.lineTo(cx+12, cy); ctx.moveTo(cx, cy-12); ctx.lineTo(cx, cy+12); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = PR.accent; ctx.font = PR.fontSm;
+    ctx.fillText("truth θ", cx+14, cy-2);
+    // shots
+    for (const p of shots) {
+      ctx.fillStyle = "rgba(165,196,255,0.75)";
+      ctx.beginPath(); ctx.arc(cx + p.x*s, cy + p.y*s, 2.5, 0, Math.PI*2); ctx.fill();
+    }
+    // running mean
+    let mx = 0, my = 0;
+    if (shots.length) {
+      for (const p of shots) { mx += p.x; my += p.y; }
+      mx /= shots.length; my /= shots.length;
+      ctx.fillStyle = PR.err;
+      ctx.beginPath(); ctx.arc(cx + mx*s, cy + my*s, 5, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = PR.err; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(cx + mx*s, cy + my*s, 9, 0, Math.PI*2); ctx.stroke();
+      ctx.fillStyle = PR.err; ctx.font = PR.fontSm;
+      ctx.fillText("mean of shots", cx + mx*s + 10, cy + my*s + 3);
+    }
+    // legend
+    ctx.fillStyle = PR.text; ctx.font = PR.font;
+    ctx.fillText((mode.value==="unbiased")?"UNBIASED: noisy, but centered on truth":"BIASED: systematically off-target", 12, 18);
+
+    nOut.textContent = shots.length.toString();
+    if (shots.length) {
+      meanOut.textContent = "(" + mx.toFixed(2) + ", " + my.toFixed(2) + ")";
+      const b = Math.hypot(mx, my);
+      biasOut.textContent = b.toFixed(2) + (b < 0.08 ? "  ✓" : "  ← off");
+      biasOut.style.color = b < 0.08 ? PR.accent : PR.err;
+    } else {
+      meanOut.textContent = "—"; biasOut.textContent = "—";
+      biasOut.style.color = PR.textDim;
+    }
+  }
+  fire.onclick = () => add(50);
+  clr.onclick = () => { shots = []; draw(); };
+  mode.onchange = () => { shots = []; draw(); };
+  window.addEventListener("resize", draw);
+  draw();
+})();
+
+/* ---------- §0.5 Rotation ---------- */
+(function(){
+  const cv = document.getElementById("pr-rot-cv"); if (!cv) return;
+  const a = document.getElementById("pr-rot-a");
+  const av = document.getElementById("pr-rot-av");
+  const lenOut = document.getElementById("pr-rot-len");
+  const okOut = document.getElementById("pr-rot-ok");
+  // an L-shape polygon
+  const shape = [ [0.1,0.1], [0.1,0.9], [0.3,0.9], [0.3,0.3], [0.8,0.3], [0.8,0.1] ].map(p => [p[0]-0.3, p[1]-0.3]);
+
+  function draw(){
+    const { ctx, w, h } = setupCanvas(cv); clearHud(ctx,w,h);
+    const s = Math.min(w,h)*0.36, cx = w/2, cy = h/2;
+    ctx.strokeStyle = PR.lineBr; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0,cy); ctx.lineTo(w,cy); ctx.moveTo(cx,0); ctx.lineTo(cx,h); ctx.stroke();
+
+    const th = parseFloat(a.value) * Math.PI/180;
+    const c = Math.cos(th), sn = Math.sin(th);
+    // original (ghost)
+    ctx.strokeStyle = "rgba(125,227,199,0.35)"; ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    shape.forEach((p,i) => {
+      const px = cx + p[0]*s, py = cy - p[1]*s;
+      if (i===0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    });
+    ctx.closePath(); ctx.stroke();
+    // rotated
+    ctx.strokeStyle = PR.accent; ctx.lineWidth = 2;
+    ctx.fillStyle = "rgba(125,227,199,0.08)";
+    ctx.beginPath();
+    shape.forEach((p,i) => {
+      const rx = c*p[0] - sn*p[1], ry = sn*p[0] + c*p[1];
+      const px = cx + rx*s, py = cy - ry*s;
+      if (i===0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    });
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // a vertex with length labels
+    const p0 = shape[4]; // outer tip
+    const rx = c*p0[0] - sn*p0[1], ry = sn*p0[0] + c*p0[1];
+    ctx.fillStyle = PR.warn;
+    ctx.beginPath(); ctx.arc(cx+p0[0]*s, cy-p0[1]*s, 3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx+rx*s, cy-ry*s, 3, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = PR.warn; ctx.setLineDash([2,3]);
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx+p0[0]*s, cy-p0[1]*s);
+    ctx.moveTo(cx, cy); ctx.lineTo(cx+rx*s, cy-ry*s); ctx.stroke(); ctx.setLineDash([]);
+
+    const lb = Math.hypot(p0[0], p0[1]);
+    const la = Math.hypot(rx, ry);
+
+    ctx.fillStyle = PR.text; ctx.font = PR.font;
+    ctx.fillText("ghost = original     solid = rotated by θ", 12, 18);
+    ctx.fillStyle = PR.mute;
+    ctx.fillText("both arrows same length →", 12, h-10);
+
+    av.textContent = parseFloat(a.value).toFixed(0) + "°";
+    lenOut.textContent = lb.toFixed(3) + " → " + la.toFixed(3);
+    const same = Math.abs(lb - la) < 1e-6;
+    okOut.textContent = same ? "yes — rotation is rigid" : "no";
+    okOut.style.color = same ? PR.accent : PR.err;
+  }
+  a.addEventListener("input", draw);
+  window.addEventListener("resize", draw);
+  draw();
+})();
+
+/* ---------- §0.6 CLT ---------- */
+(function(){
+  const cv = document.getElementById("pr-clt-cv"); if (!cv) return;
+  const nInp = document.getElementById("pr-clt-n");
+  const nVal = document.getElementById("pr-clt-nv");
+  const src = document.getElementById("pr-clt-src");
+  const src2 = document.getElementById("pr-clt-src2");
+  const convOut = document.getElementById("pr-clt-conv");
+  const go = document.getElementById("pr-clt-go");
+  let samples = [];
+
+  function one(kind){
+    if (kind === "coin") return (Math.random() < 0.5) ? -1 : 1;
+    if (kind === "uniform") return Math.random()*2 - 1;
+    if (kind === "expo") { const u = Math.max(1e-9, Math.random()); return -Math.log(u) - 1; } // shifted
+    return 0;
+  }
+  function resample(){
+    const n = parseInt(nInp.value, 10);
+    const kind = src.value;
+    const N = 20000;
+    samples = new Float64Array(N);
+    for (let i=0; i<N; i++){
+      let s = 0;
+      for (let j=0;j<n;j++) s += one(kind);
+      samples[i] = s / Math.sqrt(n); // scale so variance stays bounded
+    }
+    draw();
+  }
+  function draw(){
+    const { ctx, w, h } = setupCanvas(cv); clearHud(ctx,w,h);
+    const pad = { l:28, r:14, t:14, b:22 };
+    const lo = -4, hi = 4, bins = 60;
+    const hist = new Float64Array(bins);
+    for (let i=0;i<samples.length;i++){
+      const x = samples[i];
+      const b = Math.floor((x-lo)/(hi-lo) * bins);
+      if (b>=0 && b<bins) hist[b]++;
+    }
+    let maxH = 0; for (let i=0;i<bins;i++) if (hist[i]>maxH) maxH = hist[i];
+    // gaussian overlay, area-matched
+    // variance of one(): coin=1, uniform=1/3, expo=1 (shifted std exponential)
+    const kind = src.value;
+    const varOne = (kind==="coin") ? 1 : (kind==="uniform") ? 1/3 : 1;
+    const sigma = Math.sqrt(varOne);
+    // bars
+    const bw = (w-pad.l-pad.r)/bins;
+    for (let i=0;i<bins;i++){
+      const bh = (hist[i]/maxH) * (h-pad.t-pad.b);
+      ctx.fillStyle = "rgba(125,227,199,0.35)";
+      ctx.fillRect(pad.l + i*bw, h-pad.b-bh, bw-1, bh);
+    }
+    // Gaussian curve
+    ctx.strokeStyle = PR.warn; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    const scale = samples.length * (hi-lo)/bins; // pdf * scale = expected count per bin
+    for (let px=0; px<=w-pad.l-pad.r; px+=2){
+      const x = lo + (px/(w-pad.l-pad.r)) * (hi-lo);
+      const pdf = Math.exp(-x*x/(2*sigma*sigma)) / Math.sqrt(2*Math.PI*sigma*sigma);
+      const count = pdf * scale;
+      const bh = (count/maxH) * (h-pad.t-pad.b);
+      const xp = pad.l + px, yp = h-pad.b-bh;
+      if (px===0) ctx.moveTo(xp,yp); else ctx.lineTo(xp,yp);
+    }
+    ctx.stroke();
+    // labels
+    ctx.fillStyle = PR.text; ctx.font = PR.font;
+    ctx.fillText("histogram of Σ/√n   ·   gold = Gaussian", 12, 18);
+    // ticks
+    ctx.fillStyle = PR.mute; ctx.font = PR.fontSm;
+    for (let v=-3; v<=3; v++){
+      const px = pad.l + ((v-lo)/(hi-lo)) * (w-pad.l-pad.r);
+      ctx.fillText(v.toFixed(0), px-3, h-6);
+    }
+
+    // crude convergence metric: KL-ish fit using bin ratio at center
+    const n = parseInt(nInp.value, 10);
+    nVal.textContent = n.toString();
+    src2.textContent = { coin:"±1 coin", uniform:"uniform [−1,1]", expo:"exponential (skewed)" }[kind];
+    let dev = 0, tot = 0;
+    for (let i=0;i<bins;i++){
+      const x = lo + (i+0.5)/bins * (hi-lo);
+      const pdf = Math.exp(-x*x/(2*sigma*sigma)) / Math.sqrt(2*Math.PI*sigma*sigma);
+      const exp = pdf * scale;
+      dev += Math.abs(hist[i] - exp); tot += exp;
+    }
+    const ratio = dev/Math.max(tot, 1);
+    if (ratio < 0.15) { convOut.textContent = "yes — Gaussian fit"; convOut.style.color = PR.accent; }
+    else if (ratio < 0.3) { convOut.textContent = "almost"; convOut.style.color = PR.warn; }
+    else { convOut.textContent = "no — n too small"; convOut.style.color = PR.err; }
+  }
+  nInp.addEventListener("input", resample);
+  src.addEventListener("change", resample);
+  go.addEventListener("click", resample);
+  window.addEventListener("resize", draw);
+  resample();
+})();
+
+/* ---------- §0.7 High-D concentration ---------- */
+(function(){
+  const cv = document.getElementById("pr-hd-cv"); if (!cv) return;
+  const d = document.getElementById("pr-hd-d");
+  const dv = document.getElementById("pr-hd-dv");
+  const typOut = document.getElementById("pr-hd-typ");
+  const isqdOut = document.getElementById("pr-hd-isqd");
+
+  function sampleCoords(dim, N){
+    // first coordinate of a uniform point on S^{dim-1}
+    const out = new Float64Array(N);
+    for (let i=0;i<N;i++){
+      let s = 0; let x = 0;
+      // we only need the first coordinate; sample Gaussian vector of dim components, first / norm
+      const g = gaussVec(dim);
+      let n2 = 0; for (let j=0;j<dim;j++) n2 += g[j]*g[j];
+      out[i] = g[0] / Math.sqrt(n2);
+    }
+    return out;
+  }
+  function draw(){
+    const { ctx, w, h } = setupCanvas(cv); clearHud(ctx,w,h);
+    const pad = { l:26, r:14, t:14, b:22 };
+    const dim = parseInt(d.value, 10);
+    const N = 10000;
+    const samples = sampleCoords(dim, N);
+    const lo=-1, hi=1, bins=80;
+    const hist = new Float64Array(bins);
+    for (let i=0;i<N;i++){
+      const b = Math.floor((samples[i]-lo)/(hi-lo)*bins);
+      if (b>=0 && b<bins) hist[b]++;
+    }
+    let maxH = 0; for (let i=0;i<bins;i++) if (hist[i]>maxH) maxH = hist[i];
+    const bw = (w-pad.l-pad.r)/bins;
+    for (let i=0;i<bins;i++){
+      const bh = (hist[i]/maxH) * (h-pad.t-pad.b);
+      ctx.fillStyle = "rgba(125,227,199,0.4)";
+      ctx.fillRect(pad.l + i*bw, h-pad.b-bh, bw-1, bh);
+    }
+    // ticks
+    ctx.fillStyle = PR.mute; ctx.font = PR.fontSm;
+    for (let v=-1; v<=1; v+=0.5){
+      const px = pad.l + ((v-lo)/(hi-lo)) * (w-pad.l-pad.r);
+      ctx.fillText(v.toFixed(1), px-8, h-6);
+    }
+    // ±1/√d markers
+    const s = 1/Math.sqrt(dim);
+    ctx.strokeStyle = PR.warn; ctx.setLineDash([3,3]);
+    [-s, s].forEach(v => {
+      const px = pad.l + ((v-lo)/(hi-lo)) * (w-pad.l-pad.r);
+      ctx.beginPath(); ctx.moveTo(px, pad.t); ctx.lineTo(px, h-pad.b); ctx.stroke();
+    });
+    ctx.setLineDash([]);
+    ctx.fillStyle = PR.warn; ctx.fillText("±1/√d", pad.l+8, pad.t+10);
+    ctx.fillStyle = PR.text; ctx.font = PR.font;
+    ctx.fillText("dim = " + dim + "   ·   distribution of x₁ on sphere", 12, 18);
+
+    // spread of x1: empirical std (matches 1/√d at high d)
+    let mean = 0; for (let i=0;i<N;i++) mean += samples[i]; mean /= N;
+    let varr = 0; for (let i=0;i<N;i++) varr += (samples[i]-mean)*(samples[i]-mean);
+    const sd = Math.sqrt(varr/N);
+    typOut.textContent = "≈ " + sd.toFixed(3);
+    isqdOut.textContent = s.toFixed(3);
+    dv.textContent = dim.toString();
+  }
+  d.addEventListener("input", draw);
+  window.addEventListener("resize", draw);
+  draw();
+})();
+
+/* ---------- §0.8 Quantization in 1D ---------- */
+(function(){
+  const cv = document.getElementById("pr-q1-cv"); if (!cv) return;
+  const b = document.getElementById("pr-q1-b");
+  const bv = document.getElementById("pr-q1-bv");
+  const Lout = document.getElementById("pr-q1-L");
+  const gOut = document.getElementById("pr-q1-g");
+  const eOut = document.getElementById("pr-q1-e");
+
+  function draw(){
+    const { ctx, w, h } = setupCanvas(cv); clearHud(ctx,w,h);
+    const pad = { l: 20, r: 20, t: 10, b: 22 };
+    const bn = parseInt(b.value, 10);
+    const L = 1 << bn; // 2^b
+    const lo = -1, hi = 1;
+    const y0 = h/2;
+    // line
+    ctx.strokeStyle = PR.lineBr; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.l, y0); ctx.lineTo(w-pad.r, y0); ctx.stroke();
+    // level markers — midpoints of equal bins
+    const levels = [];
+    const delta = 2/L;
+    for (let k=0; k<L; k++) levels.push(lo + (k+0.5)*delta);
+    const toX = v => pad.l + (v-lo)/(hi-lo) * (w-pad.l-pad.r);
+    levels.forEach(v => {
+      ctx.strokeStyle = PR.accent; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(toX(v), y0-10); ctx.lineTo(toX(v), y0+10); ctx.stroke();
+      ctx.fillStyle = PR.accent; ctx.font = PR.fontSm;
+      ctx.fillText(v.toFixed(2), toX(v)-10, y0-14);
+    });
+    // gap arrows
+    if (L >= 2) {
+      const a = levels[0], c = levels[1];
+      ctx.strokeStyle = PR.warn; ctx.setLineDash([2,3]);
+      ctx.beginPath(); ctx.moveTo(toX(a), y0+16); ctx.lineTo(toX(c), y0+16); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = PR.warn; ctx.font = PR.fontSm;
+      ctx.fillText("Δ = " + delta.toFixed(3), toX((a+c)/2) - 18, y0+28);
+    }
+    // end ticks
+    ctx.fillStyle = PR.mute; ctx.font = PR.fontSm;
+    ctx.fillText("-1", pad.l-4, y0+24); ctx.fillText("+1", w-pad.r-6, y0+24);
+
+    bv.textContent = bn.toString();
+    Lout.textContent = L.toString();
+    gOut.textContent = delta.toFixed(3);
+    eOut.textContent = (delta/2).toFixed(3);
+  }
+  b.addEventListener("input", draw);
+  window.addEventListener("resize", draw);
+  draw();
+})();
+
+/* ================================================================
+   Corner-bracket injector — add bottom brackets to every panel/card
+   ================================================================ */
+(function(){
+  document.querySelectorAll(".card, .panel").forEach(el => {
+    if (el.querySelector(":scope > i.cbr.bl")) return;
+    const bl = document.createElement("i"); bl.className = "cbr bl";
+    const br = document.createElement("i"); br.className = "cbr br";
+    el.appendChild(bl); el.appendChild(br);
+  });
+})();
+
+/* ================================================================
+   TOC active-section highlight
+   ================================================================ */
+(function(){
+  const links = [...document.querySelectorAll("nav.toc a")];
+  const sections = links.map(a => document.querySelector(a.getAttribute("href")));
+  function update() {
+    const y = window.scrollY + 120;
+    let active = 0;
+    for (let i=0;i<sections.length;i++) {
+      if (sections[i] && sections[i].offsetTop <= y) active = i;
+    }
+    links.forEach((a,i) => a.classList.toggle("active", i===active));
+  }
+  window.addEventListener("scroll", update, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>
