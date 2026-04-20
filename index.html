@@ -2757,7 +2757,10 @@ function clearHud(ctx, w, h) {
       ctx.beginPath(); ctx.moveTo(px, pad.t); ctx.lineTo(px, h-pad.b); ctx.stroke();
     });
     ctx.setLineDash([]);
-    ctx.fillStyle = PR.warn; ctx.fillText("±1/√d", pad.l+8, pad.t+10);
+    // Label the ±1/√d band next to the right dashed line so it doesn't collide with the caption
+    ctx.fillStyle = PR.warn; ctx.font = PR.fontSm;
+    const pxPos = pad.l + ((s-lo)/(hi-lo)) * (w-pad.l-pad.r);
+    ctx.fillText("±1/√d", pxPos + 4, h - pad.b - 6);
     ctx.fillStyle = PR.text; ctx.font = PR.font;
     ctx.fillText("dim = " + dim + "   ·   distribution of x₁ on sphere", 12, 18);
 
