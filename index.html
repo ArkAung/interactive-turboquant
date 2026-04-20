@@ -895,6 +895,67 @@
     from quantizing the rotated coordinates, and that is where the rotation earns its keep.
   </p>
 
+  <h4 style="margin-top:14px">A spike in 2D</h4>
+  <p class="small">
+    Start with the extreme case: all the vector's energy in one coordinate, $(1, 0)$.
+    Rotate by angle $\theta$ and watch where the energy goes. At $\theta{=}45°$ it splits evenly,
+    $(\tfrac{1}{\sqrt 2}, \tfrac{1}{\sqrt 2})$. The length does not change.
+  </p>
+  <div class="card">
+    <div class="controls">
+      <div class="ctrl"><label>Angle θ</label><input id="r2d-a" type="range" min="-180" max="180" step="1" value="30"><span class="val" id="r2d-av">30°</span></div>
+    </div>
+    <div class="plot-grid cols-2">
+      <div>
+        <div class="small" style="color:var(--orig);margin-bottom:6px"><b>geometry</b></div>
+        <div class="plot" style="height:280px"><canvas id="r2d-geom"></canvas></div>
+      </div>
+      <div>
+        <div class="small" style="color:var(--rot);margin-bottom:6px"><b>coordinate magnitudes</b></div>
+        <div class="plot" style="height:280px"><canvas id="r2d-bars"></canvas></div>
+      </div>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="label">max |coord|</div><div class="value rot" id="r2d-mx">–</div></div>
+      <div class="metric"><div class="label">length ‖x‖</div><div class="value gold" id="r2d-len">1.000</div></div>
+      <div class="metric"><div class="label">θ at even split</div><div class="value" id="r2d-split">45°</div></div>
+    </div>
+  </div>
+
+  <h4 style="margin-top:18px">A spike in 3D</h4>
+  <p class="small">
+    Same idea in three dimensions. The spike $(1, 0, 0)$ gets rotated by a random orthogonal matrix,
+    spreading across all three coordinates. The length still does not change. Each new
+    random rotation gives a new spread.
+  </p>
+  <div class="card">
+    <div class="controls">
+      <button id="r3d-rotate">Draw fresh rotation</button>
+    </div>
+    <div class="plot-grid cols-2">
+      <div>
+        <div class="small" style="color:var(--orig);margin-bottom:6px"><b>geometry (drag to orbit)</b></div>
+        <div class="plot" style="height:320px"><canvas id="r3d-geom"></canvas></div>
+      </div>
+      <div>
+        <div class="small" style="color:var(--rot);margin-bottom:6px"><b>coordinate magnitudes</b></div>
+        <div class="plot" style="height:320px"><canvas id="r3d-bars"></canvas></div>
+      </div>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="label">max |coord|</div><div class="value rot" id="r3d-mx">–</div></div>
+      <div class="metric"><div class="label">length ‖x‖</div><div class="value gold" id="r3d-len">1.000</div></div>
+      <div class="metric"><div class="label">typical max at random rot.</div><div class="value" id="r3d-typ">≈ 0.80</div></div>
+    </div>
+  </div>
+
+  <h4 style="margin-top:18px">At high dimension</h4>
+  <p class="small">
+    In 2-D a single rotation halves the peak at best; in 3-D a random rotation typically leaves one
+    coordinate around 0.7. At $d{=}64$ the peak falls to roughly $1/\sqrt d \approx 0.125$ regardless of
+    how adversarial the input was.
+  </p>
+
   <div class="card">
     <div class="controls">
       <div class="ctrl"><label>Dimension&nbsp;<code>d</code></label><input id="r-d" type="range" min="8" max="128" step="4" value="64"><span class="val" id="r-d-v">64</span></div>
@@ -2926,6 +2987,260 @@ function clearHud(ctx, w, h) {
   }
   b.addEventListener("input", draw);
   window.addEventListener("resize", draw);
+  draw();
+})();
+
+/* ---------- §3 · 2D spike rotation ---------- */
+(function(){
+  const gcv = document.getElementById("r2d-geom"); if (!gcv) return;
+  const bcv = document.getElementById("r2d-bars");
+  const aI = document.getElementById("r2d-a");
+  const aV = document.getElementById("r2d-av");
+  const mxOut = document.getElementById("r2d-mx");
+  const lenOut = document.getElementById("r2d-len");
+  function drawGeom() {
+    const { ctx, w, h } = setupCanvas(gcv); clearHud(ctx, w, h);
+    const s = Math.min(w, h) * 0.36, cx = w/2, cy = h/2;
+    ctx.strokeStyle = PR.lineBr; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0,cy); ctx.lineTo(w,cy); ctx.moveTo(cx,0); ctx.lineTo(cx,h); ctx.stroke();
+    // unit circle
+    ctx.strokeStyle = "rgba(125,227,199,0.18)";
+    ctx.beginPath(); ctx.arc(cx, cy, s, 0, Math.PI*2); ctx.stroke();
+    // ticks
+    ctx.fillStyle = PR.mute; ctx.font = PR.fontSm;
+    ctx.fillText("+1", cx + s - 4, cy + 14);
+    ctx.fillText("+1", cx + 6, cy - s + 6);
+    const th = parseFloat(aI.value) * Math.PI / 180;
+    const c = Math.cos(th), sn = Math.sin(th);
+    // original spike (1,0): gray ghost
+    ctx.strokeStyle = "rgba(125,227,199,0.4)"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + s, cy); ctx.stroke();
+    ctx.fillStyle = "rgba(125,227,199,0.6)"; ctx.font = PR.fontSm;
+    ctx.fillText("x = (1, 0)", cx + s + 6, cy + 4);
+    // rotated
+    const rx = c, ry = sn;
+    ctx.strokeStyle = PR.blue; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + rx*s, cy - ry*s); ctx.stroke();
+    const ang = Math.atan2(-ry, rx);
+    ctx.fillStyle = PR.blue;
+    const tx = cx + rx*s, ty = cy - ry*s;
+    ctx.beginPath(); ctx.moveTo(tx, ty);
+    ctx.lineTo(tx - 9*Math.cos(ang-0.42), ty - 9*Math.sin(ang-0.42));
+    ctx.lineTo(tx - 9*Math.cos(ang+0.42), ty - 9*Math.sin(ang+0.42));
+    ctx.closePath(); ctx.fill();
+    // projections onto axes (showing the two coordinate magnitudes as shadows)
+    ctx.strokeStyle = "rgba(251,113,133,0.55)"; ctx.lineWidth = 1.5; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(cx + rx*s, cy - ry*s); ctx.lineTo(cx + rx*s, cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx + rx*s, cy - ry*s); ctx.lineTo(cx, cy - ry*s); ctx.stroke();
+    ctx.setLineDash([]);
+    // angle arc
+    ctx.strokeStyle = PR.warn; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(cx, cy, 28, 0, -th, th < 0);
+    ctx.stroke();
+    ctx.fillStyle = PR.warn; ctx.font = PR.fontSm;
+    ctx.fillText("θ", cx + 34, cy - 6);
+    // readout
+    ctx.fillStyle = PR.blue; ctx.font = PR.font;
+    ctx.fillText("Rx = (" + rx.toFixed(2) + ", " + ry.toFixed(2) + ")", 12, 18);
+    ctx.fillStyle = PR.err; ctx.font = PR.fontSm;
+    ctx.fillText("red dashes = |coord|", 12, h - 10);
+  }
+  function drawBars() {
+    const { ctx, w, h } = setupCanvas(bcv); clearHud(ctx, w, h);
+    const pad = { l: 36, r: 20, t: 14, b: 28 };
+    const W = w - pad.l - pad.r, H = h - pad.t - pad.b;
+    const th = parseFloat(aI.value) * Math.PI / 180;
+    const c = Math.cos(th), sn = Math.sin(th);
+    const vals = [Math.abs(c), Math.abs(sn)];
+    const labels = ["|x₁|", "|x₂|"];
+    ctx.strokeStyle = PR.lineBr; ctx.beginPath();
+    ctx.moveTo(pad.l, pad.t + H); ctx.lineTo(pad.l + W, pad.t + H); ctx.stroke();
+    // 1/sqrt(d) line
+    ctx.strokeStyle = PR.warn; ctx.lineWidth = 1; ctx.setLineDash([4,3]);
+    const flat = 1 / Math.sqrt(2);
+    const fy = pad.t + H - flat * H;
+    ctx.beginPath(); ctx.moveTo(pad.l, fy); ctx.lineTo(pad.l + W, fy); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = PR.warn; ctx.font = PR.fontSm;
+    ctx.fillText("1/√d ≈ 0.71", pad.l + 6, fy - 4);
+    // bars
+    const bw = W / (vals.length * 1.6);
+    vals.forEach((v, i) => {
+      const bx = pad.l + (i + 0.3) * (W / vals.length);
+      const bh = v * H;
+      ctx.fillStyle = "rgba(94,234,212,0.85)";
+      ctx.fillRect(bx, pad.t + H - bh, bw, bh);
+      ctx.fillStyle = PR.text; ctx.font = PR.fontSm;
+      ctx.fillText(labels[i], bx + bw/2 - 10, pad.t + H + 14);
+      ctx.fillText(v.toFixed(2), bx + bw/2 - 10, pad.t + H - bh - 4);
+    });
+    // y ticks
+    ctx.fillStyle = PR.mute; ctx.font = PR.fontSm;
+    [0, 0.25, 0.5, 0.75, 1].forEach(v => {
+      const py = pad.t + H - v*H;
+      ctx.fillText(v.toFixed(2), 4, py + 3);
+    });
+    mxOut.textContent = Math.max(vals[0], vals[1]).toFixed(3);
+    lenOut.textContent = Math.hypot(c, sn).toFixed(3);
+  }
+  function draw() {
+    aV.textContent = aI.value + "°";
+    drawGeom(); drawBars();
+  }
+  aI.addEventListener("input", draw);
+  window.addEventListener("resize", draw);
+  draw();
+})();
+
+/* ---------- §3 · 3D spike rotation ---------- */
+(function(){
+  const gcv = document.getElementById("r3d-geom"); if (!gcv) return;
+  const bcv = document.getElementById("r3d-bars");
+  const btn = document.getElementById("r3d-rotate");
+  const mxOut = document.getElementById("r3d-mx");
+  const lenOut = document.getElementById("r3d-len");
+  let yaw = 0.7, pitch = -0.45, dragging = false, lastMX = 0, lastMY = 0;
+  let R = eye3();
+  function eye3() { return [[1,0,0],[0,1,0],[0,0,1]]; }
+  function randRot3() {
+    // Gram-Schmidt on 3x3 Gaussian
+    const g = [[gauss(),gauss(),gauss()],[gauss(),gauss(),gauss()],[gauss(),gauss(),gauss()]];
+    const rows = [];
+    for (let i = 0; i < 3; i++) {
+      let v = g[i].slice();
+      for (const u of rows) {
+        const dot = v[0]*u[0]+v[1]*u[1]+v[2]*u[2];
+        v = [v[0]-dot*u[0], v[1]-dot*u[1], v[2]-dot*u[2]];
+      }
+      const n = Math.hypot(v[0],v[1],v[2]) || 1;
+      rows.push([v[0]/n, v[1]/n, v[2]/n]);
+    }
+    return rows;
+  }
+  function applyR(v) {
+    return [R[0][0]*v[0]+R[0][1]*v[1]+R[0][2]*v[2],
+            R[1][0]*v[0]+R[1][1]*v[1]+R[1][2]*v[2],
+            R[2][0]*v[0]+R[2][1]*v[1]+R[2][2]*v[2]];
+  }
+  function proj(p, cx, cy, s) {
+    const cY = Math.cos(yaw), sY = Math.sin(yaw);
+    const cP = Math.cos(pitch), sP = Math.sin(pitch);
+    let x = p[0]*cY + p[2]*sY;
+    let z = -p[0]*sY + p[2]*cY;
+    let y = p[1]*cP - z*sP;
+    z = p[1]*sP + z*cP;
+    return { x: cx + x*s, y: cy - y*s, depth: z };
+  }
+  function drawArrow3(ctx, x0, y0, x1, y1, color, lw) {
+    ctx.strokeStyle = color; ctx.lineWidth = lw;
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    const ang = Math.atan2(y1-y0, x1-x0);
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.moveTo(x1, y1);
+    ctx.lineTo(x1 - 9*Math.cos(ang-0.42), y1 - 9*Math.sin(ang-0.42));
+    ctx.lineTo(x1 - 9*Math.cos(ang+0.42), y1 - 9*Math.sin(ang+0.42));
+    ctx.closePath(); ctx.fill();
+  }
+  function drawGeom() {
+    const { ctx, w, h } = setupCanvas(gcv); clearHud(ctx, w, h);
+    const s = Math.min(w, h) * 0.32, cx = w/2, cy = h/2 + 10;
+    // cube wireframe
+    const corners = [[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]];
+    const cpts = corners.map(c => proj(c, cx, cy, s));
+    const edges = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+    ctx.strokeStyle = "rgba(125,227,199,0.15)"; ctx.lineWidth = 1;
+    for (const [a,b] of edges) {
+      ctx.beginPath(); ctx.moveTo(cpts[a].x, cpts[a].y); ctx.lineTo(cpts[b].x, cpts[b].y); ctx.stroke();
+    }
+    // axes
+    const O = proj([0,0,0], cx, cy, s);
+    const axisTips = [[1.2,0,0],[0,1.2,0],[0,0,1.2]];
+    const axisCols = [PR.err, PR.accent, PR.blue];
+    const axisLabels = ["x₁","x₂","x₃"];
+    axisTips.forEach((p,i) => {
+      const P = proj(p, cx, cy, s);
+      ctx.strokeStyle = axisCols[i]; ctx.lineWidth = 1; ctx.setLineDash([2,3]);
+      ctx.beginPath(); ctx.moveTo(O.x, O.y); ctx.lineTo(P.x, P.y); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = axisCols[i]; ctx.font = PR.fontSm;
+      ctx.fillText(axisLabels[i], P.x+4, P.y+3);
+    });
+    // original spike (1,0,0) ghost
+    const T0 = proj([1,0,0], cx, cy, s);
+    drawArrow3(ctx, O.x, O.y, T0.x, T0.y, "rgba(125,227,199,0.4)", 2);
+    // rotated
+    const rv = applyR([1,0,0]);
+    const T = proj(rv, cx, cy, s);
+    drawArrow3(ctx, O.x, O.y, T.x, T.y, PR.blue, 2.2);
+    // readout
+    ctx.fillStyle = "rgba(125,227,199,0.6)"; ctx.font = PR.font;
+    ctx.fillText("x = (1, 0, 0)", 12, 18);
+    ctx.fillStyle = PR.blue;
+    ctx.fillText("Rx = (" + rv.map(v => v.toFixed(2)).join(", ") + ")", 12, 36);
+    ctx.fillStyle = PR.mute; ctx.font = PR.fontSm;
+    ctx.fillText("drag to orbit · click button to re-roll R", 12, h - 10);
+    return rv;
+  }
+  function drawBars(rv) {
+    const { ctx, w, h } = setupCanvas(bcv); clearHud(ctx, w, h);
+    const pad = { l: 36, r: 20, t: 14, b: 28 };
+    const W = w - pad.l - pad.r, H = h - pad.t - pad.b;
+    const vals = rv.map(Math.abs);
+    ctx.strokeStyle = PR.lineBr; ctx.beginPath();
+    ctx.moveTo(pad.l, pad.t + H); ctx.lineTo(pad.l + W, pad.t + H); ctx.stroke();
+    // 1/sqrt(d) line
+    const flat = 1 / Math.sqrt(3);
+    const fy = pad.t + H - flat * H;
+    ctx.strokeStyle = PR.warn; ctx.lineWidth = 1; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(pad.l, fy); ctx.lineTo(pad.l + W, fy); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = PR.warn; ctx.font = PR.fontSm;
+    ctx.fillText("1/√d ≈ 0.58", pad.l + 6, fy - 4);
+    const bw = W / (vals.length * 1.6);
+    vals.forEach((v, i) => {
+      const bx = pad.l + (i + 0.3) * (W / vals.length);
+      const bh = v * H;
+      ctx.fillStyle = "rgba(94,234,212,0.85)";
+      ctx.fillRect(bx, pad.t + H - bh, bw, bh);
+      ctx.fillStyle = PR.text; ctx.font = PR.fontSm;
+      ctx.fillText("|x" + (i+1) + "|", bx + bw/2 - 10, pad.t + H + 14);
+      ctx.fillText(v.toFixed(2), bx + bw/2 - 10, pad.t + H - bh - 4);
+    });
+    ctx.fillStyle = PR.mute; ctx.font = PR.fontSm;
+    [0, 0.25, 0.5, 0.75, 1].forEach(v => {
+      const py = pad.t + H - v*H;
+      ctx.fillText(v.toFixed(2), 4, py + 3);
+    });
+    mxOut.textContent = Math.max(...vals).toFixed(3);
+    lenOut.textContent = Math.hypot(...rv).toFixed(3);
+  }
+  function draw() {
+    const rv = drawGeom();
+    drawBars(rv);
+  }
+  gcv.addEventListener("mousedown", e => { dragging = true; lastMX = e.clientX; lastMY = e.clientY; });
+  window.addEventListener("mousemove", e => {
+    if (!dragging) return;
+    const dx = e.clientX - lastMX, dy = e.clientY - lastMY;
+    lastMX = e.clientX; lastMY = e.clientY;
+    yaw += dx * 0.01;
+    pitch = Math.max(-1.3, Math.min(1.3, pitch + dy * 0.01));
+    draw();
+  });
+  window.addEventListener("mouseup", () => dragging = false);
+  gcv.addEventListener("touchstart", e => { dragging = true; lastMX = e.touches[0].clientX; lastMY = e.touches[0].clientY; e.preventDefault(); });
+  gcv.addEventListener("touchmove", e => {
+    if (!dragging) return;
+    const dx = e.touches[0].clientX - lastMX, dy = e.touches[0].clientY - lastMY;
+    lastMX = e.touches[0].clientX; lastMY = e.touches[0].clientY;
+    yaw += dx * 0.01;
+    pitch = Math.max(-1.3, Math.min(1.3, pitch + dy * 0.01));
+    draw(); e.preventDefault();
+  });
+  gcv.addEventListener("touchend", () => dragging = false);
+  btn.onclick = () => { R = randRot3(); draw(); };
+  window.addEventListener("resize", draw);
+  R = randRot3();
   draw();
 })();
 
