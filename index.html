@@ -2801,23 +2801,25 @@ function clearHud(ctx, w, h) {
     const delta = 2/L;
     for (let k=0; k<L; k++) levels.push(lo + (k+0.5)*delta);
     const toX = v => pad.l + (v-lo)/(hi-lo) * (w-pad.l-pad.r);
-    levels.forEach(v => {
+    // Show at most ~8 level labels; always draw the tick marks.
+    const labelEvery = Math.max(1, Math.ceil(L / 8));
+    levels.forEach((v, k) => {
       ctx.strokeStyle = PR.accent; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(toX(v), y0-10); ctx.lineTo(toX(v), y0+10); ctx.stroke();
-      ctx.fillStyle = PR.accent; ctx.font = PR.fontSm;
-      ctx.fillText(v.toFixed(2), toX(v)-10, y0-14);
+      if (k % labelEvery === 0 || k === L-1) {
+        ctx.fillStyle = PR.accent; ctx.font = PR.fontSm;
+        ctx.fillText(v.toFixed(2), toX(v)-10, y0-14);
+      }
     });
-    // gap arrows
+    // gap indicator — just the dashed segment between first two levels; the value lives in the readout.
     if (L >= 2) {
       const a = levels[0], c = levels[1];
       ctx.strokeStyle = PR.warn; ctx.setLineDash([2,3]);
       ctx.beginPath(); ctx.moveTo(toX(a), y0+16); ctx.lineTo(toX(c), y0+16); ctx.stroke(); ctx.setLineDash([]);
-      ctx.fillStyle = PR.warn; ctx.font = PR.fontSm;
-      ctx.fillText("Δ = " + delta.toFixed(3), toX((a+c)/2) - 18, y0+28);
     }
     // end ticks
     ctx.fillStyle = PR.mute; ctx.font = PR.fontSm;
-    ctx.fillText("-1", pad.l-4, y0+24); ctx.fillText("+1", w-pad.r-6, y0+24);
+    ctx.fillText("-1", pad.l-4, y0+28); ctx.fillText("+1", w-pad.r-6, y0+28);
 
     bv.textContent = bn.toString();
     Lout.textContent = L.toString();
