@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TurboQuant — A First-Principles Walk-through</title>
+<title>TurboQuant: A First-Principles Walk-through</title>
 <script>
   window.MathJax = {
     tex: {
@@ -30,13 +30,13 @@
     --text-dim: #9ab5ae;
     --mute: #5a7a73;
     --mute-2: #3a4f4a;
-    --accent: #7de3c7;         /* mint — primary accent */
+    --accent: #7de3c7;         /* mint, primary accent */
     --accent-soft: #4fa990;
     --accent-glow: rgba(125,227,199,0.14);
     --ocean: #5eead4;           /* secondary accent */
-    --warn: #fcd34d;            /* amber — highlight/bounds */
-    --err: #fb7185;             /* coral — error/residual */
-    --blue: #a5c4ff;            /* cool — quantized */
+    --warn: #fcd34d;            /* amber, highlight/bounds */
+    --err: #fb7185;             /* coral, error/residual */
+    --blue: #a5c4ff;            /* cool, quantized */
     /* Semantic aliases so existing code keeps working */
     --bg: var(--ink);
     --bg2: var(--panel2);
@@ -63,7 +63,7 @@
     background-attachment: fixed;
   }
 
-  /* Global grid overlay — the signature HUD background */
+  /* Global grid overlay, the signature HUD background */
   body::before {
     content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
     background-image:
@@ -330,7 +330,7 @@
     .plot-grid.cols-2, .plot-grid.cols-3 { grid-template-columns: 1fr; }
   }
 
-  /* Metric strip — telemetry readouts */
+  /* Metric strip, telemetry readouts */
   .metrics { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0; }
   .metric {
     flex: 1 1 140px;
@@ -463,7 +463,7 @@
   .primer-cell .readout b { color: var(--accent); font-weight: 500; }
   .primer-cell .readout .k { color: var(--mute); text-transform: uppercase; letter-spacing: 0.18em; font-size: 10.5px; margin-right: 4px; }
 
-  /* Glossary inline pop — reusable */
+  /* Glossary inline pop, reusable */
   .gloss {
     border-bottom: 1px dotted var(--accent-soft);
     cursor: help; color: var(--accent);
@@ -492,7 +492,7 @@
   <div class="brand">◈ TURBOQUANT</div>
   <ol>
     <li><a href="#hero"><span class="n">▸</span><span>The promise</span></a></li>
-    <li><a href="#primer"><span class="n">§0</span><span>Primer — jargon decoder</span></a></li>
+    <li><a href="#primer"><span class="n">§0</span><span>Primer: jargon decoder</span></a></li>
     <li><a href="#problem"><span class="n">§1</span><span>Vector quantization</span></a></li>
     <li><a href="#naive"><span class="n">§2</span><span>Why naive fails</span></a></li>
     <li><a href="#rotation"><span class="n">§3</span><span>The rotation trick</span></a></li>
@@ -500,7 +500,7 @@
     <li><a href="#codebook"><span class="n">§5</span><span>The universal codebook</span></a></li>
     <li><a href="#pipeline"><span class="n">§6</span><span>TurboQuant-MSE</span></a></li>
     <li><a href="#bias"><span class="n">§7</span><span>The inner-product bias</span></a></li>
-    <li><a href="#qjl"><span class="n">§8</span><span>QJL — the un-biaser</span></a></li>
+    <li><a href="#qjl"><span class="n">§8</span><span>QJL: the un-biaser</span></a></li>
     <li><a href="#bounds"><span class="n">§9</span><span>Shannon's floor</span></a></li>
     <li><a href="#impact"><span class="n">§10</span><span>Why it matters</span></a></li>
   </ol>
@@ -534,14 +534,14 @@
   </div>
   <p class="small" style="margin-top:18px">
     The single idea you will take away:
-    <b>in high dimensions, a random rotation turns every vector into a "nice" one</b> — so you can pre-compute one
+    <b>in high dimensions, a random rotation turns every vector into a "nice" one</b>, so you can pre-compute one
     universal codebook and use it forever. Everything else is bookkeeping.
   </p>
 </header>
 
 <!-- ======================= SECTION: PRIMER ======================= -->
 <section id="primer">
-  <div class="eyebrow">§0 · Primer — Jargon Decoder</div>
+  <div class="eyebrow">§0 · Primer: Jargon Decoder</div>
   <h2>Seven ideas the rest of the page is built on.</h2>
   <p class="lede">
     Each mini-demo below covers one concept used later. Skip the ones you already know.
@@ -555,7 +555,7 @@
       <div class="ph">A list of numbers. <span style="color:var(--mute)">An arrow in space.</span></div>
       <div class="pb">
         A vector is an ordered list: <code>[0.3, −1.2]</code>. Geometrically it is an
-        <b>arrow from the origin</b>. A <i>d-dimensional vector</i> is an arrow in $d$-space &mdash; hard
+        <b>arrow from the origin</b>. A <i>d-dimensional vector</i> is an arrow in $d$-space, hard
         to picture past 3-D, but the rules are the same.
       </div>
       <div class="plot" style="height: 260px;"><canvas id="pr-vec-cv"></canvas></div>
@@ -589,7 +589,7 @@
       <div class="ph">Why we square the mistake.</div>
       <div class="pb">
         Error is how far off you are. If we just averaged the signed errors, positive and negative would
-        cancel. <b>Squaring</b> makes every miss positive and penalises big misses more &mdash;
+        cancel. <b>Squaring</b> makes every miss positive and penalises big misses more, 
         so the minimising guess is the <b>average</b>.
       </div>
       <div class="plot" style="height: 220px;"><canvas id="pr-mse-cv"></canvas></div>
@@ -617,8 +617,8 @@
         <div class="ctrl">
           <label>Mode</label>
           <select id="pr-bias-mode">
-            <option value="unbiased">Unbiased — noisy</option>
-            <option value="biased">Biased — systematically off</option>
+            <option value="unbiased">Unbiased, noisy</option>
+            <option value="biased">Biased, systematically off</option>
           </select>
         </div>
         <button id="pr-bias-fire">Fire 50 shots</button>
@@ -626,8 +626,8 @@
       </div>
       <div class="readout">
         <span><span class="k">shots</span><b id="pr-bias-n">0</b></span>
-        <span><span class="k">mean of shots</span><b id="pr-bias-mean">—</b></span>
-        <span><span class="k">bias</span><b id="pr-bias-bias">—</b></span>
+        <span><span class="k">mean of shots</span><b id="pr-bias-mean">–</b></span>
+        <span><span class="k">bias</span><b id="pr-bias-bias">–</b></span>
       </div>
     </div>
 
@@ -673,7 +673,7 @@
       </div>
       <div class="readout">
         <span><span class="k">source shape</span><b id="pr-clt-src2">±1 coin</b></span>
-        <span><span class="k">converged?</span><b id="pr-clt-conv">no — n too small</b></span>
+        <span><span class="k">converged?</span><b id="pr-clt-conv">no, n too small</b></span>
       </div>
     </div>
 
@@ -703,7 +703,7 @@
       <div class="pb">
         This is what $b$ bits per number means. With $b=2$ you get 4 levels, $b=3$ gives 8.
         The gap between levels is your worst-case error. Adding one bit halves the gap, so the
-        squared error drops by 4&times; per bit &mdash; the $4^{-b}$ factor that shows up later.
+        squared error drops by 4&times; per bit, the $4^{-b}$ factor that shows up later.
       </div>
       <div class="plot" style="height: 140px;"><canvas id="pr-q1-cv"></canvas></div>
       <div class="controls" style="margin-top:10px;">
@@ -732,7 +732,7 @@
   <div class="eyebrow">§1 · Setup</div>
   <h2>What is vector quantization, really?</h2>
   <p>
-    You have a vector $\mathbf{x}\in\mathbb{R}^d$ — say $d{=}1536$ floats from an OpenAI embedding.
+    You have a vector $\mathbf{x}\in\mathbb{R}^d$, say $d{=}1536$ floats from an OpenAI embedding.
     You want to store it using $b$ bits per coordinate (total $b\cdot d$ bits), then later recover an approximation
     $\tilde{\mathbf{x}}$ close to $\mathbf{x}$. Closeness is measured by
   </p>
@@ -747,8 +747,8 @@
   </p>
   <div class="card insight">
     <div class="panel-hd"><span class="tag">■ DECODER · KEY WORDS</span><span class="stat">plain English</span></div>
-    <p class="small" style="margin:0 0 6px"><b>MSE distortion</b>: average squared error between the true vector and its reconstruction &mdash; primer §0.3.</p>
-    <p class="small" style="margin:0 0 6px"><b>Inner product</b> $\langle y, x\rangle$: how much two vectors point the same way &mdash; primer §0.2. This is what attention computes.</p>
+    <p class="small" style="margin:0 0 6px"><b>MSE distortion</b>: average squared error between the true vector and its reconstruction, primer §0.3.</p>
+    <p class="small" style="margin:0 0 6px"><b>Inner product</b> $\langle y, x\rangle$: how much two vectors point the same way, primer §0.2. This is what attention computes.</p>
     <p class="small" style="margin:0 0 6px"><b>Estimator</b>: a rule (here: quantize, then decode) that returns an approximation $\hat s$ of a true number $s$.</p>
     <p class="small" style="margin:0"><b>Unbiased estimator</b>: across many queries, the average of $\hat s$ equals $s$. Individual estimates can be noisy; the mean is on target. Primer §0.4.</p>
   </div>
@@ -779,9 +779,9 @@
       </div>
     </div>
     <div class="metrics">
-      <div class="metric"><div class="label">‖x − x̃‖² / ‖x‖²</div><div class="value err" id="p1-mse">—</div></div>
-      <div class="metric"><div class="label">levels per coord</div><div class="value quant" id="p1-levels">—</div></div>
-      <div class="metric"><div class="label">bits used</div><div class="value" id="p1-bits">—</div></div>
+      <div class="metric"><div class="label">‖x − x̃‖² / ‖x‖²</div><div class="value err" id="p1-mse">–</div></div>
+      <div class="metric"><div class="label">levels per coord</div><div class="value quant" id="p1-levels">–</div></div>
+      <div class="metric"><div class="label">bits used</div><div class="value" id="p1-bits">–</div></div>
     </div>
   </div>
   <p class="small">
@@ -796,7 +796,7 @@
   <div class="eyebrow">§2 · Worst-case vectors hurt</div>
   <h2>The adversarial coordinate, and why production systems pay a tax</h2>
   <p>
-    Real embeddings are rarely flat. Trained models produce <i>outlier channels</i> &mdash;
+    Real embeddings are rarely flat. Trained models produce <i>outlier channels</i>, 
     a few coordinates much larger than the rest. A fixed $[-L, L]$ grid either clips the outliers
     or wastes resolution on the bulk. Production quantizers (GPTQ, AWQ, KIVI, KVQuant) work around this by
     computing $(\min, \max)$ (or zero-point and scale) for every small block and storing those in full
@@ -814,7 +814,7 @@
   <p>
     The <i>data-oblivious</i> constraint is the further twist: the procedure must work for any vector without
     calibration on a training set. No fine-tuning, no dataset-specific statistics. One fixed recipe, for
-    any input &mdash; including the spike.
+    any input, including the spike.
   </p>
 </section>
 
@@ -823,7 +823,7 @@
   <div class="eyebrow">§3 · The core trick</div>
   <h2>Multiply by a random rotation. Watch the spike dissolve.</h2>
   <p>
-    Pick a random orthogonal matrix $\boldsymbol{\Pi}\in\mathbb{R}^{d\times d}$ — concretely, generate a Gaussian
+    Pick a random orthogonal matrix $\boldsymbol{\Pi}\in\mathbb{R}^{d\times d}$, concretely, generate a Gaussian
     matrix, then run QR decomposition to orthonormalize it. Now replace $\mathbf{x}$ with
     $\mathbf{y} = \boldsymbol{\Pi}\mathbf{x}$. Because $\boldsymbol{\Pi}$ is a rotation it preserves every geometric
     property we care about:
@@ -836,7 +836,7 @@
   </div>
   <p>
     So rotating, quantizing, then rotating back is lossless at the rotation step. The only error comes
-    from quantizing the rotated coordinates &mdash; and that is where the rotation earns its keep.
+    from quantizing the rotated coordinates, and that is where the rotation earns its keep.
   </p>
 
   <div class="card">
@@ -854,24 +854,24 @@
     </div>
     <div class="plot-grid cols-2">
       <div>
-        <div class="small" style="margin-bottom:6px;color:var(--orig)"><b>before</b> — $|x_i|$ (Cartesian)</div>
+        <div class="small" style="margin-bottom:6px;color:var(--orig)"><b>before</b>, $|x_i|$ (Cartesian)</div>
         <div class="plot" style="height:180px"><canvas id="r-before"></canvas></div>
       </div>
       <div>
-        <div class="small" style="margin-bottom:6px;color:var(--rot)"><b>after</b> — $|(\boldsymbol{\Pi}\mathbf{x})_i|$</div>
+        <div class="small" style="margin-bottom:6px;color:var(--rot)"><b>after</b>, $|(\boldsymbol{\Pi}\mathbf{x})_i|$</div>
         <div class="plot" style="height:180px"><canvas id="r-after"></canvas></div>
       </div>
     </div>
     <div class="metrics">
-      <div class="metric"><div class="label">max |xᵢ| / ‖x‖</div><div class="value orig" id="r-before-max">—</div></div>
-      <div class="metric"><div class="label">max |(Πx)ᵢ| / ‖x‖</div><div class="value rot" id="r-after-max">—</div></div>
-      <div class="metric"><div class="label">‖x‖ (preserved)</div><div class="value gold" id="r-norm">—</div></div>
+      <div class="metric"><div class="label">max |xᵢ| / ‖x‖</div><div class="value orig" id="r-before-max">–</div></div>
+      <div class="metric"><div class="label">max |(Πx)ᵢ| / ‖x‖</div><div class="value rot" id="r-after-max">–</div></div>
+      <div class="metric"><div class="label">‖x‖ (preserved)</div><div class="value gold" id="r-norm">–</div></div>
     </div>
   </div>
 
   <div class="card insight">
     <b style="color:var(--orig)">In one sentence.</b>
-    Rotation does not change the vector's length or its inner products with anything else &mdash; it only
+    Rotation does not change the vector's length or its inner products with anything else, it only
     redistributes which coordinates hold the energy. An adversarial vector with all its mass in one coordinate
     becomes, after rotation, a typical vector with mass spread across all $d$. The quantizer only ever sees
     the typical one.
@@ -889,10 +889,10 @@
   </p>
   <div class="formula">
     $f_X(x) \;=\; \dfrac{\Gamma(d/2)}{\sqrt{\pi}\,\Gamma((d-1)/2)}\,(1-x^2)^{(d-3)/2}\,,\quad x\in[-1,1]$
-    <br><small>— a scaled/shifted Beta distribution.</small>
+    <br><small>,  a scaled/shifted Beta distribution.</small>
   </div>
   <p>
-    As $d$ grows this density converges to $\mathcal{N}\!\left(0,\,\tfrac{1}{d}\right)$ &mdash; a narrow bell curve with
+    As $d$ grows this density converges to $\mathcal{N}\!\left(0,\,\tfrac{1}{d}\right)$, a narrow bell curve with
     variance $1/d$. Rotating a fixed $\mathbf{x}$ by a random orthogonal $\boldsymbol{\Pi}$ is equivalent to sampling
     a random point on the sphere of radius $\|\mathbf{x}\|$, so each coordinate
     $(\boldsymbol{\Pi}\mathbf{x})_j$ has this near-Gaussian distribution regardless of $\mathbf{x}$.
@@ -913,7 +913,7 @@
     </div>
     <p class="small">
       Drag $d$ from 3 to 256. At $d{=}3$ the Beta density is far from Gaussian (roughly semicircular);
-      by $d{=}30$ it is visually a Gaussian. Distinct coordinates are also approximately independent &mdash;
+      by $d{=}30$ it is visually a Gaussian. Distinct coordinates are also approximately independent, 
       a stronger condition than uncorrelated, and what is actually needed for the per-coordinate argument below.
     </p>
   </div>
@@ -936,7 +936,7 @@
     href="#" onclick="return false">Lloyd 1982, Max 1960</a>) alternates two steps:
   </p>
   <ul>
-    <li><b>Assignment:</b> each centroid owns the Voronoi cell around it — boundaries are midpoints between adjacent centroids.</li>
+    <li><b>Assignment:</b> each centroid owns the Voronoi cell around it, boundaries are midpoints between adjacent centroids.</li>
     <li><b>Update:</b> each centroid moves to the conditional mean of its cell: $c_k \leftarrow \mathbb{E}[X \mid X \in \text{cell}_k]$.</li>
   </ul>
   <p>
@@ -959,14 +959,14 @@
     </div>
     <div class="metrics">
       <div class="metric"><div class="label">iteration</div><div class="value" id="cb-iter">0</div></div>
-      <div class="metric"><div class="label">MSE per coord</div><div class="value err" id="cb-mse">—</div></div>
-      <div class="metric"><div class="label">Shannon bound 1/4^b / d</div><div class="value gold" id="cb-sh">—</div></div>
+      <div class="metric"><div class="label">MSE per coord</div><div class="value err" id="cb-mse">–</div></div>
+      <div class="metric"><div class="label">Shannon bound 1/4^b / d</div><div class="value gold" id="cb-sh">–</div></div>
     </div>
   </div>
   <p class="small">
     For moderate $d$, the paper's explicit centroids (after normalising by $\sqrt{d}$) are:
     $b{=}1\!:\pm\sqrt{2/\pi}$, &nbsp; $b{=}2\!:\{\pm 0.453,\pm 1.510\}$, &nbsp; and so on.
-    Theorem 1 proves the per-coordinate MSE is $\lesssim \tfrac{\sqrt{3}\pi}{2d}\cdot 4^{-b}$ &mdash; within a
+    Theorem 1 proves the per-coordinate MSE is $\lesssim \tfrac{\sqrt{3}\pi}{2d}\cdot 4^{-b}$, within a
     factor of $\approx 2.7$ of Shannon's information-theoretic minimum $\tfrac{1}{d}\cdot 4^{-b}$.
   </p>
 </section>
@@ -1003,7 +1003,7 @@
         <div class="plot" style="height:140px"><canvas id="pipe-a"></canvas></div>
       </div>
       <div>
-        <div class="small" style="color:var(--rot)"><b>Πx</b> (rotated — nearly Gaussian)</div>
+        <div class="small" style="color:var(--rot)"><b>Πx</b> (rotated, nearly Gaussian)</div>
         <div class="plot" style="height:140px"><canvas id="pipe-rot"></canvas></div>
       </div>
       <div>
@@ -1022,15 +1022,15 @@
       </div>
     </div>
     <div class="metrics">
-      <div class="metric"><div class="label">‖x − x̃‖² / ‖x‖²</div><div class="value err" id="pipe-mse">—</div></div>
-      <div class="metric"><div class="label">naïve (no rotation)</div><div class="value" id="pipe-naive">—</div></div>
-      <div class="metric"><div class="label">Shannon floor 1/4^b</div><div class="value gold" id="pipe-floor">—</div></div>
-      <div class="metric"><div class="label">compression factor</div><div class="value orig" id="pipe-ratio">—</div></div>
+      <div class="metric"><div class="label">‖x − x̃‖² / ‖x‖²</div><div class="value err" id="pipe-mse">–</div></div>
+      <div class="metric"><div class="label">naïve (no rotation)</div><div class="value" id="pipe-naive">–</div></div>
+      <div class="metric"><div class="label">Shannon floor 1/4^b</div><div class="value gold" id="pipe-floor">–</div></div>
+      <div class="metric"><div class="label">compression factor</div><div class="value orig" id="pipe-ratio">–</div></div>
     </div>
   </div>
   <p class="small">
     Toggle between inputs. Naïve quantization fails on the spike and on the outlier channel; with the
-    rotation, the error is roughly the same regardless of which input you pick &mdash; the rotated coordinates
+    rotation, the error is roughly the same regardless of which input you pick, the rotated coordinates
     all look like draws from $\mathcal{N}(0,1/d)$, which is what the codebook was built for.
   </p>
 </section>
@@ -1044,7 +1044,7 @@
     <div class="panel-hd"><span class="tag">■ RECALL · §0.4</span><span class="stat">Bullseye test</span></div>
     <p style="margin:0">
       &ldquo;<b>Unbiased</b>&rdquo; is the bullseye-scatter picture from the primer: shots may wander, but their
-      <i>average</i> lands on the truth. &ldquo;<b>Biased</b>&rdquo; means the cluster center is parked somewhere <i>else</i> —
+      <i>average</i> lands on the truth. &ldquo;<b>Biased</b>&rdquo; means the cluster center is parked somewhere <i>else</i>, 
       no amount of averaging saves you. Everything in this section is about: <i>our attention scores are a
       cluster that is systematically parked too low</i>.
     </p>
@@ -1054,10 +1054,10 @@
     Attention does not want $\tilde{\mathbf{x}}$; it wants $\langle \mathbf{q}, \mathbf{k}\rangle$. And it turns
     out that an MSE-optimal quantizer, while minimizing pointwise squared error, systematically
     <i>underestimates</i> inner products. The reason is that rounding toward a centroid biases the vector
-    length — the projection onto any query direction shrinks by a predictable factor.
+    length, the projection onto any query direction shrinks by a predictable factor.
   </p>
   <p class="small" style="max-width:780px">
-    <b>Where does $2/\pi$ come from?</b> &nbsp;For a standard Gaussian $g$, $\mathbb{E}[|g|]=\sqrt{2/\pi}$ &mdash;
+    <b>Where does $2/\pi$ come from?</b> &nbsp;For a standard Gaussian $g$, $\mathbb{E}[|g|]=\sqrt{2/\pi}$, 
     the &ldquo;half-normal&rdquo; mean. The 1-bit MSE codebook rounds each rotated coordinate to $\pm\sqrt{2/\pi}/\sqrt d$;
     when you dot-product that reconstruction back against $\mathbf{y}$, you pick up another $\sqrt{2/\pi}$ factor
     in expectation. Multiply: $2/\pi \approx 0.637$. That is the entire bias, from first principles.
@@ -1070,7 +1070,7 @@
   <div class="formula">
     $\mathbb{E}\big[\langle\mathbf{y},\tilde{\mathbf{x}}\rangle\big] \;=\; \dfrac{2}{\pi}\cdot\langle\mathbf{y},\mathbf{x}\rangle \;\ne\; \langle\mathbf{y},\mathbf{x}\rangle.$
   </div>
-  <p>That $2/\pi \approx 0.637$ is a multiplicative <b>bias</b>. It shrinks as $b$ grows, but it never goes to zero cleanly — and for low-bit, high-dimensional settings (exactly where you want to be) the bias is painfully real.</p>
+  <p>That $2/\pi \approx 0.637$ is a multiplicative <b>bias</b>. It shrinks as $b$ grows, but it never goes to zero cleanly, and for low-bit, high-dimensional settings (exactly where you want to be) the bias is painfully real.</p>
 
   <div class="card">
     <div class="controls">
@@ -1087,7 +1087,7 @@
       </div>
     </div>
     <div class="metrics">
-      <div class="metric"><div class="label">measured mean ratio</div><div class="value quant" id="bias-mean">—</div></div>
+      <div class="metric"><div class="label">measured mean ratio</div><div class="value quant" id="bias-mean">–</div></div>
       <div class="metric"><div class="label">theory at b=1: 2/π</div><div class="value gold" id="bias-theory">0.6366</div></div>
     </div>
   </div>
@@ -1096,13 +1096,13 @@
 <!-- ======================= SECTION: QJL ======================= -->
 <section id="qjl">
   <div class="eyebrow">§8 · The un-biaser</div>
-  <h2>QJL — squeezing unbiased inner products out of 1 bit per coordinate.</h2>
+  <h2>QJL: squeezing unbiased inner products out of 1 bit per coordinate.</h2>
 
   <div class="card insight">
     <div class="panel-hd"><span class="tag">■ INTUITION</span><span class="stat">Un-bias by construction</span></div>
     <p style="margin:0 0 6px">
       Step back: the bias we just measured is a <i>known</i> number, $\sqrt{2/\pi}$ per application of sign-then-dot.
-      If it is known, we can <b>cancel it</b>. That is exactly what QJL does — it multiplies by $\sqrt{\pi/2}/d$ on the
+      If it is known, we can <b>cancel it</b>. That is exactly what QJL does, it multiplies by $\sqrt{\pi/2}/d$ on the
       decode side so the shrinkage cancels exactly. The quantization stays lossy (it is still 1 bit!), but the
       <i>average</i> estimate lands on the bullseye.
     </p>
@@ -1122,7 +1122,7 @@
     Q_{\text{jl}}^{-1}(\mathbf{z}) \;=\; \dfrac{\sqrt{\pi/2}}{d}\cdot\mathbf{S}^{\!\top}\mathbf{z}.$
   </div>
   <p>
-    One bit per coordinate. No scales, no side info — same as before. But this one is
+    One bit per coordinate. No scales, no side info, same as before. But this one is
     <b>unbiased</b> for inner products, exactly:
   </p>
   <div class="formula">
@@ -1148,9 +1148,9 @@
       </div>
     </div>
     <div class="metrics">
-      <div class="metric"><div class="label">QJL mean</div><div class="value quant" id="qjl-mean">—</div></div>
-      <div class="metric"><div class="label">MSE-1bit mean</div><div class="value err" id="qjl-mean2">—</div></div>
-      <div class="metric"><div class="label">QJL std</div><div class="value" id="qjl-std">—</div></div>
+      <div class="metric"><div class="label">QJL mean</div><div class="value quant" id="qjl-mean">–</div></div>
+      <div class="metric"><div class="label">MSE-1bit mean</div><div class="value err" id="qjl-mean2">–</div></div>
+      <div class="metric"><div class="label">QJL std</div><div class="value" id="qjl-std">–</div></div>
     </div>
   </div>
 
@@ -1175,10 +1175,10 @@
   <h2>How close is TurboQuant to the theoretical best?</h2>
   <p>
     Using Shannon's lossy source-coding theorem (via Yao's minimax principle) the paper proves that
-    <b>no</b> quantizer — randomized, adaptive, data-dependent, anything — can do better than
+    <b>no</b> quantizer, randomized, adaptive, data-dependent, anything, can do better than
     $D_{\text{mse}} \ge 4^{-b}$ for worst-case inputs on the unit sphere.
     TurboQuant's upper bound is $\tfrac{\sqrt{3}\pi}{2}\cdot 4^{-b}$, which is <b>within a factor of ≈ 2.7</b>
-    of this information-theoretic floor — and the factor shrinks below 1.5 at $b{=}1$.
+    of this information-theoretic floor, and the factor shrinks below 1.5 at $b{=}1$.
   </p>
 
   <div class="card">
@@ -1196,7 +1196,7 @@
     </div>
   </div>
   <p class="small">
-    The plot is on a log scale — the three curves have the <i>same slope</i> ($\propto 4^{-b}$).
+    The plot is on a log scale, the three curves have the <i>same slope</i> ($\propto 4^{-b}$).
     They differ only by a small constant. Measured, upper-bound, and lower-bound march down in parallel.
   </p>
 
@@ -1221,12 +1221,12 @@
       <table>
         <tr><th>Method</th><th>KV bits/ch</th><th>NiaH</th></tr>
         <tr><td>Full cache (FP16)</td><td class="mono">16</td><td class="mono">0.997</td></tr>
-        <tr><td>SnapKV</td><td class="mono">—</td><td class="mono">0.858</td></tr>
+        <tr><td>SnapKV</td><td class="mono">–</td><td class="mono">0.858</td></tr>
         <tr><td>KIVI</td><td class="mono">3</td><td class="mono">0.981</td></tr>
         <tr><td>PolarQuant</td><td class="mono">3.9</td><td class="mono">0.995</td></tr>
         <tr><td><b>TurboQuant</b></td><td class="mono">3.5</td><td class="mono">0.997</td></tr>
       </table>
-      <p class="small">Same quality at <b>4.5×</b> compression — and at 2.5 bits it is still within a point.</p>
+      <p class="small">Same quality at <b>4.5×</b> compression, and at 2.5 bits it is still within a point.</p>
     </div>
     <div class="card">
       <h3 style="margin-top:0">Near-neighbor search</h3>
@@ -1237,12 +1237,12 @@
         <tr><td>RabitQ</td><td class="mono">597 s</td><td class="mono">2267 s</td><td class="mono">3957 s</td></tr>
         <tr><td><b>TurboQuant</b></td><td class="mono">0.0007 s</td><td class="mono">0.0013 s</td><td class="mono">0.0021 s</td></tr>
       </table>
-      <p class="small">Six orders of magnitude faster indexing — and higher recall to boot. Because there is no
+      <p class="small">Six orders of magnitude faster indexing, and higher recall to boot. Because there is no
       codebook to learn and no scales to fit: just rotate and round.</p>
     </div>
   </div>
 
-  <h3>Zoomed-out summary — all three papers together</h3>
+  <h3>Zoomed-out summary: all three papers together</h3>
   <ol>
     <li><b>QJL (2024).</b> Take the sign of a random Gaussian projection. One bit per coordinate, unbiased inner product, zero overhead. The un-biaser primitive.</li>
     <li><b>PolarQuant (Feb 2025).</b> After random pre-conditioning, convert to polar coordinates. Radii are concentrated; angles are concentrated around $\pi/4$. Quantize those well-concentrated distributions independently. An alternative geometry that also avoids side-info.</li>
@@ -1251,7 +1251,7 @@
 
   <div class="card insight">
     <b style="color:var(--orig)">The whole trick, in one line.</b>
-    Random rotations make every vector "look Gaussian" in its coordinates — so one fixed, optimal codebook
+    Random rotations make every vector "look Gaussian" in its coordinates, so one fixed, optimal codebook
     works for all of them. That collapses the vector-quantization problem into the best-studied scalar one.
   </div>
 </section>
@@ -1716,7 +1716,7 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
 })();
 
 /* ================================================================
-   §3 ROTATION — coordinate bars before/after
+   §3 ROTATION, coordinate bars before/after
    ================================================================ */
 (function(){
   const cD = document.getElementById("r-d");
@@ -1758,7 +1758,7 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
 })();
 
 /* ================================================================
-   §4 CONCENTRATION — coord distribution on sphere
+   §4 CONCENTRATION, coord distribution on sphere
    ================================================================ */
 (function(){
   const cD = document.getElementById("c-d");
@@ -1798,7 +1798,7 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
 })();
 
 /* ================================================================
-   §5 LLOYD-MAX — codebook visualization, iterative
+   §5 LLOYD-MAX, codebook visualization, iterative
    ================================================================ */
 (function(){
   const cB = document.getElementById("cb-b");
@@ -1868,7 +1868,7 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
 })();
 
 /* ================================================================
-   §6 PIPELINE — full TurboQuant-MSE
+   §6 PIPELINE, full TurboQuant-MSE
    ================================================================ */
 (function(){
   const cB = document.getElementById("pipe-b");
@@ -1929,7 +1929,7 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
 })();
 
 /* ================================================================
-   §7 BIAS — MSE-opt quantizer is biased for inner products
+   §7 BIAS, MSE-opt quantizer is biased for inner products
    Button-triggered; slider only updates label.
    ================================================================ */
 (function(){
@@ -1968,7 +1968,7 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
     let m=0; for (const r of ratios) m+=r; m /= ratios.length;
     mM.textContent = m.toFixed(4);
     const theoryMap = { 1: "2/π ≈ 0.637", 2: "≈ 0.88", 3: "≈ 0.97", 4: "≈ 0.99", 5: "≈ 1.00" };
-    mT.textContent = theoryMap[b] || "—";
+    mT.textContent = theoryMap[b] || "–";
 
     const { ctx, w, h } = setupCanvas(canvas);
     ctx.clearRect(0,0,w,h);
@@ -2016,7 +2016,7 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
 })();
 
 /* ================================================================
-   §8 QJL — unbiasedness demo. Fresh S per trial.
+   §8 QJL, unbiasedness demo. Fresh S per trial.
    Button-triggered.
    ================================================================ */
 (function(){
@@ -2125,7 +2125,7 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
 })();
 
 /* ================================================================
-   §9 BOUNDS — empirical distortion vs theory
+   §9 BOUNDS, empirical distortion vs theory
    ================================================================ */
 (function(){
   const cD = document.getElementById("bd-d");
@@ -2200,7 +2200,7 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
     drawLine(measured, "#6ee7b7");
     drawLine(lower, "#fbbf24");
     ctx.fillStyle = "#b0b0c4"; ctx.font = "12px ui-monospace, Menlo, monospace";
-    ctx.fillText("MSE distortion (log scale) vs bit-width b — three parallel lines", pad.l, pad.t - 6);
+    ctx.fillText("MSE distortion (log scale) vs bit-width b, three parallel lines", pad.l, pad.t - 6);
   }
   cD.oninput = ()=>{dV.textContent=cD.value;};
   cN.oninput = ()=>{nV.textContent=cN.value;};
@@ -2405,7 +2405,7 @@ function clearHud(ctx, w, h) {
   const meanOut = document.getElementById("pr-mse-mean");
   const valOut = document.getElementById("pr-mse-val");
   const minOut = document.getElementById("pr-mse-min");
-  // fixed data — 10 points, roughly around 0 ± 1
+  // fixed data, 10 points, roughly around 0 ± 1
   const data = [-1.7, -0.9, -0.4, 0.1, 0.2, 0.3, 0.6, 0.8, 1.1, 1.5];
   const mean = data.reduce((a,b)=>a+b,0)/data.length;
   const mseAt = (q) => data.reduce((a,x)=>a+(x-q)*(x-q),0)/data.length;
@@ -2521,7 +2521,7 @@ function clearHud(ctx, w, h) {
       biasOut.textContent = b.toFixed(2) + (b < 0.08 ? "  ✓" : "  ← off");
       biasOut.style.color = b < 0.08 ? PR.accent : PR.err;
     } else {
-      meanOut.textContent = "—"; biasOut.textContent = "—";
+      meanOut.textContent = "–"; biasOut.textContent = "–";
       biasOut.style.color = PR.textDim;
     }
   }
@@ -2589,7 +2589,7 @@ function clearHud(ctx, w, h) {
     av.textContent = parseFloat(a.value).toFixed(0) + "°";
     lenOut.textContent = lb.toFixed(3) + " → " + la.toFixed(3);
     const same = Math.abs(lb - la) < 1e-6;
-    okOut.textContent = same ? "yes — rotation is rigid" : "no";
+    okOut.textContent = same ? "yes, rotation is rigid" : "no";
     okOut.style.color = same ? PR.accent : PR.err;
   }
   a.addEventListener("input", draw);
@@ -2684,9 +2684,9 @@ function clearHud(ctx, w, h) {
       dev += Math.abs(hist[i] - exp); tot += exp;
     }
     const ratio = dev/Math.max(tot, 1);
-    if (ratio < 0.15) { convOut.textContent = "yes — Gaussian fit"; convOut.style.color = PR.accent; }
+    if (ratio < 0.15) { convOut.textContent = "yes, Gaussian fit"; convOut.style.color = PR.accent; }
     else if (ratio < 0.3) { convOut.textContent = "almost"; convOut.style.color = PR.warn; }
-    else { convOut.textContent = "no — n too small"; convOut.style.color = PR.err; }
+    else { convOut.textContent = "no, n too small"; convOut.style.color = PR.err; }
   }
   nInp.addEventListener("input", resample);
   src.addEventListener("change", resample);
@@ -2787,7 +2787,7 @@ function clearHud(ctx, w, h) {
     // line
     ctx.strokeStyle = PR.lineBr; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(pad.l, y0); ctx.lineTo(w-pad.r, y0); ctx.stroke();
-    // level markers — midpoints of equal bins
+    // level markers, midpoints of equal bins
     const levels = [];
     const delta = 2/L;
     for (let k=0; k<L; k++) levels.push(lo + (k+0.5)*delta);
@@ -2802,7 +2802,7 @@ function clearHud(ctx, w, h) {
         ctx.fillText(v.toFixed(2), toX(v)-10, y0-14);
       }
     });
-    // gap indicator — just the dashed segment between first two levels; the value lives in the readout.
+    // gap indicator, just the dashed segment between first two levels; the value lives in the readout.
     if (L >= 2) {
       const a = levels[0], c = levels[1];
       ctx.strokeStyle = PR.warn; ctx.setLineDash([2,3]);
@@ -2823,7 +2823,7 @@ function clearHud(ctx, w, h) {
 })();
 
 /* ================================================================
-   Corner-bracket injector — add bottom brackets to every panel/card
+   Corner-bracket injector, add bottom brackets to every panel/card
    ================================================================ */
 (function(){
   document.querySelectorAll(".card, .panel").forEach(el => {
