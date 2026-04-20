@@ -883,7 +883,7 @@
   <div class="eyebrow">§4 · Why the rotation works</div>
   <h2>Coordinates of random unit vectors are nearly Gaussian.</h2>
   <p>
-    Here is the gorgeous fact that makes the whole paper tick. Sample a point uniformly from the sphere
+    The fact that makes the whole paper work: sample a point uniformly from the sphere
     $\mathbb{S}^{d-1}$. What is the distribution of a single coordinate $x_j$? Lemma 1 of the paper gives the exact
     density:
   </p>
@@ -892,12 +892,10 @@
     <br><small>— a scaled/shifted Beta distribution.</small>
   </div>
   <p>
-    As $d$ grows this distribution looks more and more like a narrow bell curve. In fact by the central limit theorem
-    (and a slightly subtle argument about independence on the sphere) it converges to
-    $\mathcal{N}\!\left(0,\,\tfrac{1}{d}\right)$.
-    <b>Rotating any fixed $\mathbf{x}$ with a random $\boldsymbol{\Pi}$ is equivalent to sampling a random point on a
-    sphere of the same radius</b> — so $(\boldsymbol{\Pi}\mathbf{x})_j$ inherits this near-Gaussian distribution,
-    no matter what $\mathbf{x}$ was.
+    As $d$ grows this density converges to $\mathcal{N}\!\left(0,\,\tfrac{1}{d}\right)$ &mdash; a narrow bell curve with
+    variance $1/d$. Rotating a fixed $\mathbf{x}$ by a random orthogonal $\boldsymbol{\Pi}$ is equivalent to sampling
+    a random point on the sphere of radius $\|\mathbf{x}\|$, so each coordinate
+    $(\boldsymbol{\Pi}\mathbf{x})_j$ has this near-Gaussian distribution regardless of $\mathbf{x}$.
   </p>
 
   <div class="card">
@@ -914,17 +912,17 @@
       </div>
     </div>
     <p class="small">
-      Ramp $d$ from 3 to 256. At $d{=}3$ the Beta density is wildly non-Gaussian (actually a semicircle-ish shape);
-      by $d{=}30$ it is already a Gaussian to the eye. And <b>distinct coordinates are almost independent</b>
-      (stronger than just uncorrelated — this is a real theorem about points on the sphere).
+      Drag $d$ from 3 to 256. At $d{=}3$ the Beta density is far from Gaussian (roughly semicircular);
+      by $d{=}30$ it is visually a Gaussian. Distinct coordinates are also approximately independent &mdash;
+      a stronger condition than uncorrelated, and what is actually needed for the per-coordinate argument below.
     </p>
   </div>
 
   <div class="card insight">
     <b style="color:var(--orig)">Consequence for quantization.</b>
-    Every coordinate of the rotated vector has the <i>same, known</i> distribution. We can solve the scalar
-    quantization problem for $\mathcal{N}(0, 1/d)$ <b>once</b>, store the optimal codebook, and reuse it for every
-    coordinate of every vector forever. No per-block scale factors. Zero overhead.
+    Every coordinate of the rotated vector follows the same known distribution. Solve the scalar quantization
+    problem for $\mathcal{N}(0, 1/d)$ once, store the optimal codebook, and reuse it for every coordinate of
+    every vector. No per-block scale factors, no side information.
   </div>
 </section>
 
@@ -966,10 +964,10 @@
     </div>
   </div>
   <p class="small">
-    For moderate $d$, the paper's explicit centroids (normalized by $\sqrt{d}$) match what you see:
-    $b{=}1\!:\pm\sqrt{2/\pi}$, &nbsp; $b{=}2\!:\{\pm 0.453,\pm 1.510\}$, &nbsp; etc.
-    Theorem 1 proves the resulting per-coordinate MSE is $\lesssim \tfrac{\sqrt{3}\pi}{2d}\cdot 4^{-b}$,
-    within a factor of $\approx 2.7$ of Shannon's information-theoretic minimum $\tfrac{1}{d}\cdot 4^{-b}$.
+    For moderate $d$, the paper's explicit centroids (after normalising by $\sqrt{d}$) are:
+    $b{=}1\!:\pm\sqrt{2/\pi}$, &nbsp; $b{=}2\!:\{\pm 0.453,\pm 1.510\}$, &nbsp; and so on.
+    Theorem 1 proves the per-coordinate MSE is $\lesssim \tfrac{\sqrt{3}\pi}{2d}\cdot 4^{-b}$ &mdash; within a
+    factor of $\approx 2.7$ of Shannon's information-theoretic minimum $\tfrac{1}{d}\cdot 4^{-b}$.
   </p>
 </section>
 
@@ -1031,9 +1029,9 @@
     </div>
   </div>
   <p class="small">
-    Try <i>spike</i> with and without rotation by toggling the input. Naïve quantization (no rotation) is
-    catastrophic; TurboQuant's rotated version is uniformly excellent regardless of the input distribution.
-    This is the practical payoff.
+    Toggle between inputs. Naïve quantization fails on the spike and on the outlier channel; with the
+    rotation, the error is roughly the same regardless of which input you pick &mdash; the rotated coordinates
+    all look like draws from $\mathcal{N}(0,1/d)$, which is what the codebook was built for.
   </p>
 </section>
 
