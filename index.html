@@ -505,20 +505,18 @@
     <li><a href="#impact"><span class="n">§10</span><span>Why it matters</span></a></li>
   </ol>
   <hr>
-  <small>Every chart is live — drag the sliders, press the buttons. Numbers are computed in your browser from first principles.</small>
+  <small>Every chart is live. Numbers are computed in your browser.</small>
 </nav>
 
 <main>
 
 <!-- ======================= HERO ======================= -->
 <header class="hero" id="hero">
-  <div class="eyebrow">A first-principles walk-through</div>
+  <div class="eyebrow">Walk-through</div>
   <h1>Compressing AI vectors to&nbsp;<span class="accent">3 bits per number</span><br>without losing accuracy.</h1>
   <p class="lede">
-    Modern language models store enormous tables of high-dimensional vectors — KV caches, embeddings, attention keys.
-    TurboQuant is a surprisingly elegant recipe that compresses each coordinate of these vectors to <b>2–4 bits</b>, with
-    <b>provably</b> near-optimal distortion, <b>zero</b> memory overhead for scale factors, and <b>no</b> training or
-    calibration. This page walks through <i>why</i> it works, starting from the bottom.
+    Modern language models store large tables of high-dimensional vectors: KV caches, embeddings, attention keys.
+    TurboQuant compresses each coordinate of these vectors to <b>2–4 bits</b> with provably near-optimal distortion, no memory overhead for scale factors, and no training or calibration. This page explains how it works.
   </p>
   <div class="refs">
     <a class="ref" href="https://arxiv.org/abs/2504.19874" target="_blank">
@@ -544,11 +542,9 @@
 <!-- ======================= SECTION: PRIMER ======================= -->
 <section id="primer">
   <div class="eyebrow">§0 · Primer — Jargon Decoder</div>
-  <h2>Seven words you need to feel, not just read.</h2>
+  <h2>Seven ideas the rest of the page is built on.</h2>
   <p class="lede">
-    TurboQuant leans on a small handful of concepts. Every one of them has an honest,
-    physical meaning. Play with each mini-demo below until the word <i>clicks</i> — then the
-    rest of this page is almost a formality.
+    Each mini-demo below covers one concept used later. Skip the ones you already know.
   </p>
 
   <div class="primer-grid">
@@ -558,9 +554,9 @@
       <div class="pt">§0.1 · Vector</div>
       <div class="ph">A list of numbers. <span style="color:var(--mute)">An arrow in space.</span></div>
       <div class="pb">
-        A vector is just an ordered list: <code>[0.3, −1.2]</code>. Geometrically it is an
-        <b>arrow from the origin</b>. A <i>d-dimensional vector</i> is an arrow in $d$-space — unreachable
-        to picture past 3, but the rules stay the same. Drag the tip.
+        A vector is an ordered list: <code>[0.3, −1.2]</code>. Geometrically it is an
+        <b>arrow from the origin</b>. A <i>d-dimensional vector</i> is an arrow in $d$-space &mdash; hard
+        to picture past 3-D, but the rules are the same.
       </div>
       <div class="plot" style="height: 260px;"><canvas id="pr-vec-cv"></canvas></div>
       <div class="readout">
@@ -572,12 +568,11 @@
     <!-- 0.2 Length & Inner product -->
     <div class="primer-cell" id="pr-dot">
       <div class="pt">§0.2 · Length ‖x‖ &amp; Inner Product ⟨x,y⟩</div>
-      <div class="ph">How much of one vector &ldquo;points along&rdquo; another.</div>
+      <div class="ph">How much one vector points along another.</div>
       <div class="pb">
-        <b>Length</b> = $\sqrt{x_1^2+x_2^2+\dots}$ &mdash; the arrow's ruler reading.
-        <b>Inner product</b> $\langle x,y\rangle = x_1 y_1 + x_2 y_2 + \dots$
-        $= \|x\|\|y\|\cos\theta$. When the arrows align, it is big; perpendicular, it is zero; opposite, negative. Drag
-        either arrow.
+        <b>Length</b> = $\sqrt{x_1^2+x_2^2+\dots}$.
+        <b>Inner product</b> $\langle x,y\rangle = x_1 y_1 + x_2 y_2 + \dots = \|x\|\|y\|\cos\theta$.
+        When the arrows align it is large; perpendicular, zero; opposite, negative.
       </div>
       <div class="plot" style="height: 280px;"><canvas id="pr-dot-cv"></canvas></div>
       <div class="readout">
@@ -591,11 +586,11 @@
     <!-- 0.3 MSE -->
     <div class="primer-cell" id="pr-mse">
       <div class="pt">§0.3 · Mean Squared Error</div>
-      <div class="ph">Why we <i>square</i> the mistake.</div>
+      <div class="ph">Why we square the mistake.</div>
       <div class="pb">
-        &ldquo;Error&rdquo; is how far off you are. If we just averaged the sign, positive and negative errors
-        would cancel. <b>Squaring</b> makes every miss positive and punishes big misses quadratically &mdash;
-        so the best guess becomes the <b>average</b>. Move the guess; watch the MSE.
+        Error is how far off you are. If we just averaged the signed errors, positive and negative would
+        cancel. <b>Squaring</b> makes every miss positive and penalises big misses more &mdash;
+        so the minimising guess is the <b>average</b>.
       </div>
       <div class="plot" style="height: 220px;"><canvas id="pr-mse-cv"></canvas></div>
       <div class="controls" style="margin-top:10px;">
@@ -611,12 +606,11 @@
     <!-- 0.4 Unbiased vs biased -->
     <div class="primer-cell" id="pr-bias">
       <div class="pt">§0.4 · Unbiased vs Biased Estimator</div>
-      <div class="ph">Noisy is fine. <i>Systematically wrong</i> is not.</div>
+      <div class="ph">Noisy is fine. Systematically off is not.</div>
       <div class="pb">
-        An <b>estimator</b> is a recipe that produces a guess $\hat\theta$ for a truth $\theta$. It is
-        <b>unbiased</b> if the <i>average</i> of the guesses equals $\theta$: $\mathbb{E}[\hat\theta]=\theta$.
-        Shots can scatter wildly and still be unbiased &mdash; as long as the <i>center</i> lands on the bullseye.
-        Click <i>fire 50 shots</i>.
+        An <b>estimator</b> produces a guess $\hat\theta$ for a truth $\theta$. It is
+        <b>unbiased</b> if the average of its guesses equals $\theta$: $\mathbb{E}[\hat\theta]=\theta$.
+        Individual shots can scatter widely and still be unbiased, as long as their centre is on target.
       </div>
       <div class="plot" style="height: 280px;"><canvas id="pr-bias-cv"></canvas></div>
       <div class="controls" style="margin-top:10px;">
@@ -640,11 +634,11 @@
     <!-- 0.5 Rotation -->
     <div class="primer-cell" id="pr-rot">
       <div class="pt">§0.5 · Rotation</div>
-      <div class="ph">A rigid spin &mdash; preserves lengths and angles.</div>
+      <div class="ph">A rigid spin. Preserves lengths and angles.</div>
       <div class="pb">
-        A <b>rotation matrix</b> $R$ spins space. Crucially: $\|Rx\|=\|x\|$ and $\langle Rx,Ry\rangle=\langle x,y\rangle$ &mdash;
-        <b>rotation preserves everything</b> we care about. It just changes the <i>basis</i>
-        you are reading the coordinates in. Spin the shape.
+        A <b>rotation matrix</b> $R$ spins space. The key property: $\|Rx\|=\|x\|$ and
+        $\langle Rx,Ry\rangle=\langle x,y\rangle$. Rotation only changes the <i>basis</i> the coordinates
+        are written in, not the geometry.
       </div>
       <div class="plot" style="height: 280px;"><canvas id="pr-rot-cv"></canvas></div>
       <div class="controls" style="margin-top:10px;">
@@ -659,12 +653,11 @@
     <!-- 0.6 CLT -->
     <div class="primer-cell" id="pr-clt">
       <div class="pt">§0.6 · Where bell-curves come from (CLT)</div>
-      <div class="ph">Add up many small randoms → Gaussian. Always.</div>
+      <div class="ph">Add up many small randoms → Gaussian.</div>
       <div class="pb">
-        The <b>Central Limit Theorem</b>: sum many independent random numbers and their
-        distribution <i>always</i> converges to a bell curve. It doesn't matter if each piece is a coin
-        flip, a uniform roll, or anything else. This is <b>why</b> a rotated coordinate behaves like
-        a Gaussian.
+        The <b>Central Limit Theorem</b>: sum enough independent random numbers and the distribution
+        converges to a bell curve, regardless of whether each piece is a coin flip, a uniform roll, or
+        something skewed. This is why a rotated coordinate ends up Gaussian-like.
       </div>
       <div class="plot" style="height: 240px;"><canvas id="pr-clt-cv"></canvas></div>
       <div class="controls" style="margin-top:10px;">
@@ -687,11 +680,11 @@
     <!-- 0.7 High-D concentration -->
     <div class="primer-cell" id="pr-hd">
       <div class="pt">§0.7 · Life in many dimensions</div>
-      <div class="ph">Every point on a sphere looks &ldquo;average&rdquo;.</div>
+      <div class="ph">Coordinates of a random unit vector are all small.</div>
       <div class="pb">
-        Pick a random point on a unit sphere in $d$ dimensions. In 2-D almost any coordinate is possible.
-        In 100-D, almost every coordinate is tiny &mdash; close to $\pm 1/\sqrt{d}$. This is <b>measure
-        concentration</b>, the single fact that makes TurboQuant tick.
+        Pick a random point on a unit sphere in $d$ dimensions. In 2-D any coordinate is possible.
+        In 100-D, almost every coordinate is close to $\pm 1/\sqrt{d}$. This is <b>measure
+        concentration</b>, and it is the core fact TurboQuant exploits.
       </div>
       <div class="plot" style="height: 240px;"><canvas id="pr-hd-cv"></canvas></div>
       <div class="controls" style="margin-top:10px;">
@@ -708,9 +701,9 @@
       <div class="pt">§0.8 · Quantization, in one dimension</div>
       <div class="ph">Snap every number to the nearest of $2^b$ levels.</div>
       <div class="pb">
-        This is what &ldquo;$b$ bits per number&rdquo; means. With $b=2$ you get 4 levels, $b=3$ gives 8.
-        The <i>gap</i> between levels is your worst-case error. Doubling bits quarters the gap &mdash; the source
-        of the magic &ldquo;$4^{-b}$&rdquo; you will see later.
+        This is what $b$ bits per number means. With $b=2$ you get 4 levels, $b=3$ gives 8.
+        The gap between levels is your worst-case error. Adding one bit halves the gap, so the
+        squared error drops by 4&times; per bit &mdash; the $4^{-b}$ factor that shows up later.
       </div>
       <div class="plot" style="height: 140px;"><canvas id="pr-q1-cv"></canvas></div>
       <div class="controls" style="margin-top:10px;">
@@ -726,11 +719,11 @@
   </div>
 
   <div class="card insight">
-    <div class="panel-hd"><span class="tag">■ CHEAT SHEET</span><span class="stat">Keep these 7 ideas in your pocket</span></div>
-    <p style="margin:0"><b>Vector</b>: list of numbers / arrow. <b>Length</b>: $\sqrt{\sum x_i^2}$.
-    <b>Inner product</b>: how aligned two vectors are. <b>MSE</b>: average squared miss.
-    <b>Unbiased</b>: noisy is OK, lopsided is not &mdash; average of guesses = truth.
-    <b>Rotation</b>: lossless reshuffle of coordinates. <b>CLT</b>: sum of many randoms → Gaussian.</p>
+    <div class="panel-hd"><span class="tag">■ CHEAT SHEET</span><span class="stat">Seven ideas, one sentence each</span></div>
+    <p style="margin:0"><b>Vector</b>: ordered list of numbers / arrow from the origin. <b>Length</b>: $\sqrt{\sum x_i^2}$.
+    <b>Inner product</b>: how much two vectors point the same way. <b>MSE</b>: average squared error.
+    <b>Unbiased</b>: the average of the estimates equals the truth.
+    <b>Rotation</b>: change of basis that preserves lengths and angles. <b>CLT</b>: sum of many independent randoms converges to a Gaussian.</p>
   </div>
 </section>
 
