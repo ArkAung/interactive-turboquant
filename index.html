@@ -733,8 +733,8 @@
   <h2>What is vector quantization, really?</h2>
   <p>
     You have a vector $\mathbf{x}\in\mathbb{R}^d$ — say $d{=}1536$ floats from an OpenAI embedding.
-    You want to store it using just $b$ bits per coordinate (total $b\cdot d$ bits), then later recover an approximation
-    $\tilde{\mathbf{x}}$ that is <i>close</i> to $\mathbf{x}$. "Close" is measured by
+    You want to store it using $b$ bits per coordinate (total $b\cdot d$ bits), then later recover an approximation
+    $\tilde{\mathbf{x}}$ close to $\mathbf{x}$. Closeness is measured by
   </p>
   <div class="formula">
     <b>MSE distortion</b> &nbsp; $D_{\text{mse}} = \mathbb{E}\big[\,\|\mathbf{x} - \tilde{\mathbf{x}}\|_2^2\,\big]$
@@ -747,16 +747,15 @@
   </p>
   <div class="card insight">
     <div class="panel-hd"><span class="tag">■ DECODER · KEY WORDS</span><span class="stat">plain English</span></div>
-    <p class="small" style="margin:0 0 6px"><b>MSE distortion</b>: averaged squared miss between the true vector and its reconstruction &mdash; primer §0.3.</p>
-    <p class="small" style="margin:0 0 6px"><b>Inner product</b> $\langle y, x\rangle$: how much the two vectors point the same way &mdash; primer §0.2. This is the thing attention actually computes.</p>
-    <p class="small" style="margin:0 0 6px"><b>Estimator</b>: a rule (here: quantize, then decode) that spits out an approximation $\hat s$ of some true number $s$.</p>
-    <p class="small" style="margin:0"><b>Unbiased estimator</b>: across many queries, the <i>average</i> of $\hat s$ equals $s$. The individual shots can be noisy; the <i>cluster center</i> lands on truth. Primer §0.4 is this idea, with a bullseye.</p>
+    <p class="small" style="margin:0 0 6px"><b>MSE distortion</b>: average squared error between the true vector and its reconstruction &mdash; primer §0.3.</p>
+    <p class="small" style="margin:0 0 6px"><b>Inner product</b> $\langle y, x\rangle$: how much two vectors point the same way &mdash; primer §0.2. This is what attention computes.</p>
+    <p class="small" style="margin:0 0 6px"><b>Estimator</b>: a rule (here: quantize, then decode) that returns an approximation $\hat s$ of a true number $s$.</p>
+    <p class="small" style="margin:0"><b>Unbiased estimator</b>: across many queries, the average of $\hat s$ equals $s$. Individual estimates can be noisy; the mean is on target. Primer §0.4.</p>
   </div>
 
-  <h3>The world's most obvious quantizer</h3>
+  <h3>The obvious quantizer</h3>
   <p>
-    For each coordinate, pick the closest of $2^b$ evenly-spaced levels in $[-1, 1]$.
-    That is $b$ bits per number, done. Play with it below.
+    For each coordinate, pick the closest of $2^b$ evenly-spaced levels in $[-1, 1]$. That is $b$ bits per number.
   </p>
 
   <div class="card">
@@ -786,9 +785,9 @@
     </div>
   </div>
   <p class="small">
-    Try the <b>spike</b> input. The naive quantizer is catastrophic: it puts all its budget into
-    evenly covering $[-1,1]$, yet almost all the energy lives in a single coordinate. The spike is
-    off the grid; the zeros don't need that many levels; bits are wasted.
+    Try the <b>spike</b> input. The naive quantizer does badly: it spreads its budget evenly across
+    $[-1,1]$, but almost all the energy is in a single coordinate. The spike falls off the grid while
+    the many zeros consume most of the levels.
   </p>
 </section>
 
@@ -797,25 +796,25 @@
   <div class="eyebrow">§2 · Worst-case vectors hurt</div>
   <h2>The adversarial coordinate, and why production systems pay a tax</h2>
   <p>
-    A real embedding rarely looks perfectly flat. Trained models famously produce <i>outlier channels</i> —
-    a handful of coordinates whose magnitudes dwarf the rest. Any fixed $[-L, L]$ grid either clips the outliers
-    or wastes resolution on the bulk. So production quantizers — GPTQ, AWQ, KIVI, KVQuant — do the natural thing:
-    <b>compute $(\min, \max)$ (or zero-point & scale) for every small block</b> and store those in full precision
-    as side information.
+    Real embeddings are rarely flat. Trained models produce <i>outlier channels</i> &mdash;
+    a few coordinates much larger than the rest. A fixed $[-L, L]$ grid either clips the outliers
+    or wastes resolution on the bulk. Production quantizers (GPTQ, AWQ, KIVI, KVQuant) work around this by
+    computing $(\min, \max)$ (or zero-point and scale) for every small block and storing those in full
+    precision as side information.
   </p>
 
   <div class="card caution">
     <b style="color:var(--err)">The catch.</b>
-    Storing a <span class="mono">float16</span> scale + zero-point for every 16–64-element block adds
-    <b>1–2 extra bits per quantized number</b>. At a 3-bit budget that is a <i>33–66% overhead</i>.
-    You are compressing, but dragging a pile of bookkeeping along with it.
-    TurboQuant's explicit goal is to <i>eliminate this overhead while still handling worst-case vectors.</i>
+    A <span class="mono">float16</span> scale + zero-point per 16&ndash;64-element block costs
+    <b>1&ndash;2 extra bits per quantized number</b>. At a 3-bit budget that is 33&ndash;66% overhead on top
+    of the payload. TurboQuant's goal is to match the worst-case quality of these schemes while storing
+    no per-block side information.
   </div>
 
   <p>
-    The <i>data-oblivious</i> requirement makes it even harder: we want a procedure that works for any vector without
-    first looking at a training set. No fine-tuning. No dataset-specific calibration. Just a fixed recipe.
-    How can a fixed recipe possibly do well against a spike vector?
+    The <i>data-oblivious</i> constraint is the further twist: the procedure must work for any vector without
+    calibration on a training set. No fine-tuning, no dataset-specific statistics. One fixed recipe, for
+    any input &mdash; including the spike.
   </p>
 </section>
 
@@ -836,8 +835,8 @@
     $\boldsymbol{\Pi}^{\!\top}\boldsymbol{\Pi} = \mathbf{I}$
   </div>
   <p>
-    So rotating, quantizing, then rotating back is lossless at the rotation step. The quantization error we pay
-    is only on the rotated vector's coordinates. <b>And that is exactly where rotation buys us something.</b>
+    So rotating, quantizing, then rotating back is lossless at the rotation step. The only error comes
+    from quantizing the rotated coordinates &mdash; and that is where the rotation earns its keep.
   </p>
 
   <div class="card">
@@ -871,10 +870,11 @@
   </div>
 
   <div class="card insight">
-    <b style="color:var(--orig)">The "aha" in one sentence.</b>
-    A rotation does not create or destroy information — it <i>redistributes</i> it.
-    An adversarial vector with all its mass in one coordinate is, after rotation, a <i>typical</i> vector with
-    mass spread evenly. The quantizer only sees the typical vector.
+    <b style="color:var(--orig)">In one sentence.</b>
+    Rotation does not change the vector's length or its inner products with anything else &mdash; it only
+    redistributes which coordinates hold the energy. An adversarial vector with all its mass in one coordinate
+    becomes, after rotation, a typical vector with mass spread across all $d$. The quantizer only ever sees
+    the typical one.
   </div>
 </section>
 
