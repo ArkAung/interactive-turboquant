@@ -920,6 +920,68 @@
     no per-block side information.
   </div>
 
+  <div class="card">
+    <div class="panel-hd">
+      <span class="tag">&#9632; DEMO &middot; feel the catch</span>
+      <span class="stat">same <code>b</code> bits/value, three strategies</span>
+    </div>
+    <p class="small" style="margin:0 0 10px;color:var(--text-dim);max-width:860px">
+      A 64-dim vector whose coordinates are mostly small, with one giant outlier in red.
+      Three quantizers try to reconstruct it at the same <code>b</code>-bit budget. Strategy A uses a single fixed grid, strategy B adapts per block (at the cost of a <span class="mono">float16</span> header per block), strategy C rotates first.
+      Watch the RMSE and the &ldquo;effective bits/value&rdquo; change as you slide.
+    </p>
+    <div class="controls">
+      <div class="ctrl"><label>Outlier magnitude</label><input id="ot-m" type="range" min="0" max="8" step="0.1" value="4"><span class="val" id="ot-m-v">4.0</span></div>
+      <div class="ctrl"><label>Bit budget&nbsp;<code>b</code></label><input id="ot-b" type="range" min="1" max="5" value="3"><span class="val" id="ot-b-v">3</span></div>
+      <div class="ctrl"><label>Block size&nbsp;<code>s</code></label><input id="ot-s" type="range" min="8" max="64" step="8" value="16"><span class="val" id="ot-s-v">16</span></div>
+      <button id="ot-new">New vector</button>
+    </div>
+
+    <div class="small" style="margin:8px 0 4px;color:var(--text-dim)">Source vector (outlier in red, dashed lines = fixed grid range)</div>
+    <div class="plot" style="height:88px"><canvas id="ot-src"></canvas></div>
+
+    <div class="plot-grid cols-3" style="margin-top:16px">
+      <div>
+        <div class="small" style="margin:0 0 4px"><b style="color:var(--err)">A. Fixed grid [&minus;L, L]</b></div>
+        <div class="small" style="color:var(--text-dim);margin:0 0 6px">one global range, <code>b</code> bits/value, no header. Outlier clips.</div>
+        <div class="plot" style="height:88px"><canvas id="ot-a"></canvas></div>
+        <div class="metrics" style="margin:8px 0 0">
+          <div class="metric"><div class="label">RMSE</div><div class="value err" id="ot-a-rmse">&ndash;</div></div>
+          <div class="metric"><div class="label">bits/value</div><div class="value" id="ot-a-bv">&ndash;</div></div>
+          <div class="metric"><div class="label">overhead</div><div class="value" id="ot-a-over">0%</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="small" style="margin:0 0 4px"><b style="color:#e0a215">B. Per-block (production)</b></div>
+        <div class="small" style="color:var(--text-dim);margin:0 0 6px"><code>float16</code> scale+zero per block (dashed dividers). Outlier fits, header taxes you.</div>
+        <div class="plot" style="height:88px"><canvas id="ot-b-cv"></canvas></div>
+        <div class="metrics" style="margin:8px 0 0">
+          <div class="metric"><div class="label">RMSE</div><div class="value" id="ot-b-rmse" style="color:#e0a215">&ndash;</div></div>
+          <div class="metric"><div class="label">bits/value</div><div class="value" id="ot-b-bv">&ndash;</div></div>
+          <div class="metric"><div class="label">overhead</div><div class="value err" id="ot-b-over">&ndash;</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="small" style="margin:0 0 4px"><b style="color:var(--accent)">C. Rotate &rarr; fixed grid</b></div>
+        <div class="small" style="color:var(--text-dim);margin:0 0 6px">rotation smears the spike across all 64 coords. One global grid works, no header.</div>
+        <div class="plot" style="height:88px"><canvas id="ot-c"></canvas></div>
+        <div class="metrics" style="margin:8px 0 0">
+          <div class="metric"><div class="label">RMSE</div><div class="value quant" id="ot-c-rmse">&ndash;</div></div>
+          <div class="metric"><div class="label">bits/value</div><div class="value" id="ot-c-bv">&ndash;</div></div>
+          <div class="metric"><div class="label">overhead</div><div class="value" id="ot-c-over">0%</div></div>
+        </div>
+      </div>
+    </div>
+
+    <p class="small" style="margin:14px 0 0;color:var(--text-dim);max-width:860px">
+      <b>Read the storage line:</b> the &ldquo;bits/value&rdquo; you pay is <code>b + 32/s</code> for per-block
+      and just <code>b</code> for the other two, because only per-block stores a float16 scale and zero-point
+      (32 bits together) every <code>s</code> elements. At <code>b=3, s=16</code> that is
+      <code>3 + 2 = 5</code> bits/value, a <b>66% surcharge</b>. C matches A&apos;s storage but with
+      B&apos;s reconstruction quality. That is the point of the whole paper.
+    </p>
+  </div>
+
   <p>
     The <i>data-oblivious</i> constraint is the further twist: the procedure must work for any vector without
     calibration on a training set. No fine-tuning, no dataset-specific statistics. One fixed recipe, for
@@ -2014,6 +2076,182 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
   cI.onchange = reshuffle;
   btn.onclick = reshuffle;
   reshuffle();
+})();
+
+/* ================================================================
+   §2 OUTLIER TAX: three-strategy compare
+   Fixed grid vs per-block vs rotate-then-fixed, on a 64-dim vector
+   with one adjustable outlier.
+   ================================================================ */
+(function(){
+  const cM = document.getElementById("ot-m");
+  const cB = document.getElementById("ot-b");
+  const cS = document.getElementById("ot-s");
+  const btn = document.getElementById("ot-new");
+  const mV = document.getElementById("ot-m-v");
+  const bV = document.getElementById("ot-b-v");
+  const sV = document.getElementById("ot-s-v");
+  const srcCv = document.getElementById("ot-src");
+  const cvA = document.getElementById("ot-a");
+  const cvB = document.getElementById("ot-b-cv");
+  const cvC = document.getElementById("ot-c");
+  const aR = document.getElementById("ot-a-rmse");
+  const aBv = document.getElementById("ot-a-bv");
+  const bR = document.getElementById("ot-b-rmse");
+  const bBv = document.getElementById("ot-b-bv");
+  const bOv = document.getElementById("ot-b-over");
+  const cR = document.getElementById("ot-c-rmse");
+  const cBv = document.getElementById("ot-c-bv");
+  if (!cM) return;
+
+  const D = 64;
+  const L = 2.5;
+  let bulk = null;
+  let R = null;
+  let outIdx = 0;
+
+  function regen() {
+    bulk = new Float64Array(D);
+    for (let i = 0; i < D; i++) bulk[i] = gauss();
+    outIdx = Math.floor(Math.random() * D);
+    R = randomRotation(D);
+  }
+
+  function buildSource() {
+    const m = +cM.value;
+    const x = new Float64Array(D);
+    for (let i = 0; i < D; i++) x[i] = bulk[i];
+    x[outIdx] = m;
+    return x;
+  }
+
+  function quantizeUniform(x, lo, hi, b) {
+    const levels = Math.pow(2, b);
+    const step = (hi - lo) / (levels - 1);
+    const y = new Float64Array(x.length);
+    for (let i = 0; i < x.length; i++) {
+      const v = Math.max(lo, Math.min(hi, x[i]));
+      const k = Math.round((v - lo) / step);
+      y[i] = lo + k * step;
+    }
+    return y;
+  }
+
+  function quantizePerBlock(x, s, b) {
+    const y = new Float64Array(x.length);
+    for (let bs = 0; bs < x.length; bs += s) {
+      const be = Math.min(bs + s, x.length);
+      let lo = Infinity, hi = -Infinity;
+      for (let i = bs; i < be; i++) { if (x[i] < lo) lo = x[i]; if (x[i] > hi) hi = x[i]; }
+      if (hi - lo < 1e-9) hi = lo + 1e-9;
+      const levels = Math.pow(2, b);
+      const step = (hi - lo) / (levels - 1);
+      for (let i = bs; i < be; i++) {
+        const v = Math.max(lo, Math.min(hi, x[i]));
+        const k = Math.round((v - lo) / step);
+        y[i] = lo + k * step;
+      }
+    }
+    return y;
+  }
+
+  function quantizeRotated(x, b) {
+    const y = matVec(R, x);
+    let energy = 0; for (let i = 0; i < y.length; i++) energy += y[i]*y[i];
+    const sigma = Math.sqrt(energy / y.length);
+    const Lr = Math.max(2.5 * sigma, 1e-3);
+    const q = quantizeUniform(y, -Lr, Lr, b);
+    return matTVec(R, q);
+  }
+
+  function rmse(x, y) {
+    let s = 0; for (let i = 0; i < x.length; i++) s += (x[i]-y[i])**2;
+    return Math.sqrt(s / x.length);
+  }
+
+  function drawBars(cv, vals, opts) {
+    opts = opts || {};
+    const { ctx, w, h } = setupCanvas(cv);
+    ctx.fillStyle = THEME.bg; ctx.fillRect(0, 0, w, h);
+    const pad = { l: 10, r: 10, t: 8, b: 8 };
+    const pw = w - pad.l - pad.r, ph = h - pad.t - pad.b;
+    const n = vals.length;
+    const bw = pw / n;
+    const vmax = opts.vmax || Math.max(1, ...Array.from(vals).map(Math.abs));
+    const y0 = pad.t + ph / 2;
+
+    ctx.strokeStyle = THEME.axis; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad.l, y0); ctx.lineTo(w - pad.r, y0); ctx.stroke();
+
+    if (opts.clipAt && opts.clipAt < vmax) {
+      ctx.strokeStyle = THEME.err; ctx.setLineDash([3, 3]); ctx.lineWidth = 1;
+      const hi = y0 - opts.clipAt / vmax * (ph / 2);
+      const lo = y0 + opts.clipAt / vmax * (ph / 2);
+      ctx.beginPath();
+      ctx.moveTo(pad.l, hi); ctx.lineTo(w - pad.r, hi);
+      ctx.moveTo(pad.l, lo); ctx.lineTo(w - pad.r, lo);
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+
+    if (opts.blockSize) {
+      ctx.strokeStyle = accentRGBA(0.45); ctx.setLineDash([2, 3]); ctx.lineWidth = 1;
+      for (let k = opts.blockSize; k < n; k += opts.blockSize) {
+        const x = pad.l + k * bw;
+        ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, h - pad.b); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
+
+    for (let i = 0; i < n; i++) {
+      const v = vals[i];
+      const bh = Math.max(-ph / 2, Math.min(ph / 2, v / vmax * (ph / 2)));
+      let color = opts.color || THEME.text;
+      if (opts.highlight === i) color = THEME.err;
+      ctx.fillStyle = color;
+      const x = pad.l + i * bw;
+      const top = bh >= 0 ? y0 - bh : y0;
+      ctx.fillRect(x + 0.5, top, Math.max(1, bw - 1), Math.abs(bh));
+    }
+  }
+
+  function labels() {
+    mV.textContent = (+cM.value).toFixed(1);
+    bV.textContent = cB.value;
+    sV.textContent = cS.value;
+  }
+
+  function render() {
+    labels();
+    if (!bulk) regen();
+    const b = +cB.value, s = +cS.value, m = +cM.value;
+    const x = buildSource();
+    const xa = quantizeUniform(x, -L, L, b);
+    const xb = quantizePerBlock(x, s, b);
+    const xc = quantizeRotated(x, b);
+
+    const vmax = Math.max(Math.abs(m), 3);
+    drawBars(srcCv, x, { vmax, highlight: outIdx, clipAt: L });
+    drawBars(cvA, xa, { vmax, color: THEME.err, clipAt: L });
+    drawBars(cvB, xb, { vmax, color: "#e0a215", blockSize: s });
+    drawBars(cvC, xc, { vmax, color: THEME.accent });
+
+    aR.textContent = rmse(x, xa).toFixed(3);
+    aBv.textContent = b + " bits";
+    bR.textContent = rmse(x, xb).toFixed(3);
+    const extra = 32 / s;
+    bBv.textContent = (b + extra).toFixed(2) + " bits";
+    bOv.textContent = "+" + extra.toFixed(2) + " b/v (" + Math.round(100 * extra / b) + "%)";
+    cR.textContent = rmse(x, xc).toFixed(3);
+    cBv.textContent = b + " bits";
+  }
+
+  cM.oninput = render;
+  cB.oninput = render;
+  cS.oninput = render;
+  btn.onclick = () => { regen(); render(); };
+  regen(); render();
+  onThemeChange(render);
+  window.addEventListener("resize", render);
 })();
 
 /* ================================================================
