@@ -594,7 +594,7 @@
 
 <!-- ======================= SECTION: PRIMER ======================= -->
 <section id="primer">
-  <div class="eyebrow">§0 · Primer: Jargon Decoder</div>
+  <div class="eyebrow">§0 · Primer: jargon decoder</div>
   <h2>Seven ideas the rest of the page is built on.</h2>
   <p class="lede">
     Each mini-demo below covers one concept used later. Skip the ones you already know.
@@ -782,7 +782,7 @@
 
 <!-- ======================= SECTION: PROBLEM ======================= -->
 <section id="problem">
-  <div class="eyebrow">§1 · Setup</div>
+  <div class="eyebrow">§1 · Vector quantization</div>
   <h2>What is vector quantization, really?</h2>
   <p>
     You have a vector $\mathbf{x}\in\mathbb{R}^d$, say $d{=}1536$ floats from an OpenAI embedding.
@@ -902,7 +902,7 @@
 
 <!-- ======================= SECTION: NAIVE FAILS ======================= -->
 <section id="naive">
-  <div class="eyebrow">§2 · Worst-case vectors hurt</div>
+  <div class="eyebrow">§2 · Why naive fails</div>
   <h2>The adversarial coordinate, and why production systems pay a tax</h2>
   <p>
     Real embeddings are rarely flat. Trained models produce <i>outlier channels</i>, 
@@ -929,7 +929,7 @@
 
 <!-- ======================= SECTION: ROTATION ======================= -->
 <section id="rotation">
-  <div class="eyebrow">§3 · The core trick</div>
+  <div class="eyebrow">§3 · The rotation trick</div>
   <h2>Multiply by a random rotation. Watch the spike dissolve.</h2>
   <p>
     Pick a random orthogonal matrix $\boldsymbol{\Pi}\in\mathbb{R}^{d\times d}$, concretely, generate a Gaussian
@@ -1050,7 +1050,7 @@
 
 <!-- ======================= SECTION: CONCENTRATION ======================= -->
 <section id="concentration">
-  <div class="eyebrow">§4 · Why the rotation works</div>
+  <div class="eyebrow">§4 · Why rotation works</div>
   <h2>Coordinates of random unit vectors are nearly Gaussian.</h2>
   <p>
     The fact that makes the whole paper work: sample a point uniformly from the sphere
@@ -1194,7 +1194,7 @@
 
 <!-- ======================= SECTION: PIPELINE ======================= -->
 <section id="pipeline">
-  <div class="eyebrow">§6 · End-to-end pipeline</div>
+  <div class="eyebrow">§6 · TurboQuant-MSE</div>
   <h2>Putting it together: TurboQuant-MSE.</h2>
   <div class="steps">
     <div class="step"><div class="n">STEP 1</div><div class="t">Rotate</div><div class="d">$\mathbf{y} = \boldsymbol{\Pi}\mathbf{x}$. Same $\boldsymbol{\Pi}$ reused for every vector.</div></div>
@@ -1258,7 +1258,7 @@
 
 <!-- ======================= SECTION: BIAS ======================= -->
 <section id="bias">
-  <div class="eyebrow">§7 · A subtle problem</div>
+  <div class="eyebrow">§7 · The inner-product bias</div>
   <h2>MSE-optimal quantizers are biased for inner products.</h2>
 
   <div class="card insight">
@@ -1324,7 +1324,7 @@
 
 <!-- ======================= SECTION: QJL ======================= -->
 <section id="qjl">
-  <div class="eyebrow">§8 · The un-biaser</div>
+  <div class="eyebrow">§8 · QJL: the un-biaser</div>
   <h2>QJL: squeezing unbiased inner products out of 1 bit per coordinate.</h2>
 
   <div class="card insight">
@@ -1400,7 +1400,7 @@
 
 <!-- ======================= SECTION: BOUNDS ======================= -->
 <section id="bounds">
-  <div class="eyebrow">§9 · Hitting Shannon's floor</div>
+  <div class="eyebrow">§9 · Shannon's floor</div>
   <h2>How close is TurboQuant to the theoretical best?</h2>
   <p>
     Using Shannon's lossy source-coding theorem (via Yao's minimax principle) the paper proves that
@@ -1439,7 +1439,7 @@
 
 <!-- ======================= SECTION: IMPACT ======================= -->
 <section id="impact">
-  <div class="eyebrow">§10 · Why this is a big deal</div>
+  <div class="eyebrow">§10 · Why it matters</div>
   <h2>Concrete wins in LLM inference and vector search.</h2>
   <div class="plot-grid cols-2">
     <div class="card">
