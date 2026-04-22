@@ -2322,16 +2322,15 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
     ctx.fillText(title, 10, 16);
   }
 
-  function run() {
-    labels();
+  // Cached last-run data so theme change only repaints, not resimulates.
+  let cache = null;
+
+  function compute() {
     const b = +cB.value, d = +cD.value, n = +cN.value;
 
-    // --- MSE-optimal branch ---
     const sig = 1 / Math.sqrt(d);
     const centroids = lloydGauss(b, sig, 20);
     const R = randomRotation(d);
-    const mseRatios = [];
-    // Reuse (x,y) pairs across both panels for fair comparison.
     const pairs = [];
     for (let t = 0; t < n; t++) {
       const x = unitVec(d), y = unitVec(d);
@@ -2339,6 +2338,7 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
       if (Math.abs(yx) < 0.02) continue;
       pairs.push({ x, y, yx });
     }
+    const mseRatios = [];
     for (const { x, y, yx } of pairs) {
       const rx = matVec(R, x);
       const qy = quantizeWithCodebook(rx, centroids);
@@ -2346,13 +2346,9 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
       mseRatios.push(dot(y, xh) / yx);
     }
     let mMSE = 0; for (const r of mseRatios) mMSE += r; mMSE /= mseRatios.length || 1;
-    outM.textContent = mMSE.toFixed(4);
-    const theoryMap = { 1: "2/π ≈ 0.637", 2: "≈ 0.88", 3: "≈ 0.97", 4: "≈ 0.99", 5: "≈ 1.00" };
-    outT.textContent = theoryMap[b] || "–";
 
-    // --- QJL branch (1-bit, fresh S per trial) ---
-    // Cost control: QJL is O(d^2) per trial. Cap effective trials at a budget.
-    const qjlN = Math.min(pairs.length, Math.max(200, Math.floor(4e5 / d)));
+    // QJL is O(d²) per trial; cap trial count.
+    const qjlN = Math.min(pairs.length, Math.max(150, Math.floor(2.5e5 / d)));
     const qjlRatios = [];
     const prefactor = Math.sqrt(Math.PI / 2) / d;
     for (let t = 0; t < qjlN; t++) {
@@ -2369,18 +2365,45 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
       qjlRatios.push((prefactor * acc) / yx);
     }
     let mQJL = 0; for (const r of qjlRatios) mQJL += r; mQJL /= qjlRatios.length || 1;
-    outQ.textContent = mQJL.toFixed(4);
 
+    cache = { b, d, mseRatios, mMSE, qjlRatios, mQJL, qjlN };
+  }
+
+  function placeholder(cv, msg) {
+    const { ctx, w, h } = setupCanvas(cv);
+    ctx.fillStyle = THEME.bg; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = THEME.mute;
+    ctx.font = "12px 'JetBrains Mono', ui-monospace, Menlo, monospace";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(msg, w/2, h/2);
+    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+  }
+
+  function render() {
+    if (!cache) {
+      placeholder(cvM, "Click \u201CRun both\u201D to simulate");
+      placeholder(cvQ, "Click \u201CRun both\u201D to simulate");
+      return;
+    }
+    const { b, d, mseRatios, mMSE, qjlRatios, mQJL, qjlN } = cache;
+    outM.textContent = mMSE.toFixed(4);
+    outQ.textContent = mQJL.toFixed(4);
+    const theoryMap = { 1: "2/π ≈ 0.637", 2: "≈ 0.88", 3: "≈ 0.97", 4: "≈ 0.99", 5: "≈ 1.00" };
+    outT.textContent = theoryMap[b] || "–";
     drawBullseye(cvM, mseRatios, mMSE, COL_MSE, "MSE-optimal b=" + b + " bit, d=" + d);
     drawBullseye(cvQ, qjlRatios, mQJL, COL_QJL, "QJL 1-bit, d=" + d + " (n=" + qjlN + ")");
   }
+
+  function run() { labels(); compute(); render(); }
+
   cB.oninput = labels;
   cD.oninput = labels;
   cN.oninput = labels;
   btn.onclick = run;
   labels();
-  run();
-  onThemeChange(run);
+  requestAnimationFrame(render);
+  onThemeChange(render);
+  window.addEventListener("resize", render);
 })();
 
 /* ================================================================
@@ -2400,19 +2423,17 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
 
   function labels() { dV.textContent = cD.value; nV.textContent = cN.value; }
 
-  function run() {
-    labels();
+  let cache = null;
+
+  function compute() {
     const d = +cD.value, n = +cN.value;
-    // Fix (x,y) for all trials; vary S.
     const x = unitVec(d);
     let y = unitVec(d);
     for (let i=0;i<d;i++) y[i] = 0.5*x[i] + 0.5*y[i];
     const yn = norm2(y); for (let i=0;i<d;i++) y[i] /= yn;
     const true_ip = dot(x, y);
-
     const qjl_ratios = [];
     const prefactor = Math.sqrt(Math.PI/2)/d;
-
     for (let t=0;t<n;t++) {
       let acc = 0;
       for (let i=0;i<d;i++) {
@@ -2423,17 +2444,28 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
         }
         acc += Siy * (Six>=0 ? 1 : -1);
       }
-      const est = prefactor * acc;
-      qjl_ratios.push(est / true_ip);
+      qjl_ratios.push((prefactor * acc) / true_ip);
     }
-
     let mQJL=0; for (const r of qjl_ratios) mQJL += r; mQJL /= qjl_ratios.length;
     let varQ=0; for (const r of qjl_ratios) varQ += (r-mQJL)**2; varQ /= qjl_ratios.length;
+    cache = { d, n, qjl_ratios, mQJL, std: Math.sqrt(varQ) };
+  }
+
+  function render() {
+    if (!cache) {
+      const { ctx, w, h } = setupCanvas(canvas);
+      ctx.fillStyle = THEME.bg; ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = THEME.mute;
+      ctx.font = "12px 'JetBrains Mono', ui-monospace, Menlo, monospace";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("Click \u201CRun\u201D to simulate", w/2, h/2);
+      ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+      return;
+    }
+    const { qjl_ratios, mQJL, std } = cache;
     mQ.textContent = mQJL.toFixed(4);
-    // MSE-1bit baseline: the theoretical bias (2/π) for a random rotation.
-    // We just display the theoretical value (no expensive per-trial rotation needed).
     mM.textContent = (2/Math.PI).toFixed(4) + " (theory)";
-    mS.textContent = Math.sqrt(varQ).toFixed(4);
+    mS.textContent = std.toFixed(4);
 
     const { ctx, w, h } = setupCanvas(canvas);
     ctx.clearRect(0,0,w,h);
@@ -2450,14 +2482,12 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
     ctx.strokeStyle = THEME.grid;
     ctx.beginPath(); ctx.moveTo(pad.l,pad.t); ctx.lineTo(pad.l,h-pad.b); ctx.lineTo(w-pad.r,h-pad.b); ctx.stroke();
 
-    // MSE-1bit bias marker (theoretical)
     ctx.strokeStyle = "#f472b6"; ctx.lineWidth = 2;
     const mseX = pad.l + (2/Math.PI - rlo)/(rhi-rlo) * plotW;
     ctx.beginPath(); ctx.moveTo(mseX, pad.t); ctx.lineTo(mseX, h-pad.b); ctx.stroke();
     ctx.fillStyle = "#f472b6"; ctx.font = "10px ui-monospace, Menlo, monospace";
     ctx.fillText("MSE-1bit mean = 2/π ≈ 0.637", mseX - 140, pad.t + 11);
 
-    // QJL histogram
     ctx.fillStyle = "rgba(96,165,250,0.78)";
     for (let i=0;i<nbins;i++) {
       const xx = pad.l + i/nbins*plotW;
@@ -2466,14 +2496,12 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
       ctx.fillRect(xx+0.5, h-pad.b - hh, ww-1, hh);
     }
 
-    // QJL mean line (gold)
     ctx.strokeStyle = "#fbbf24"; ctx.lineWidth = 2;
     const qx = pad.l + (mQJL-rlo)/(rhi-rlo) * plotW;
     ctx.beginPath(); ctx.moveTo(qx, pad.t); ctx.lineTo(qx, h-pad.b); ctx.stroke();
     ctx.fillStyle = "#fbbf24";
     ctx.fillText("QJL mean = "+mQJL.toFixed(3), qx + 6, pad.t + 27);
 
-    // truth = 1
     ctx.strokeStyle = "#6ee7b7"; ctx.lineWidth = 2; ctx.setLineDash([4,4]);
     const tx = pad.l + (1-rlo)/(rhi-rlo) * plotW;
     ctx.beginPath(); ctx.moveTo(tx, pad.t); ctx.lineTo(tx, h-pad.b); ctx.stroke();
@@ -2485,12 +2513,16 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
     ctx.fillText(rlo.toFixed(2), pad.l-8, h-pad.b+14);
     ctx.fillText(rhi.toFixed(2), w-pad.r-22, h-pad.b+14);
   }
+
+  function run() { labels(); compute(); render(); }
+
   cD.oninput = labels;
   cN.oninput = labels;
   btn.onclick = run;
   labels();
-  run();
-  onThemeChange(run);
+  requestAnimationFrame(render);
+  onThemeChange(render);
+  window.addEventListener("resize", render);
 })();
 
 /* ================================================================
@@ -2504,9 +2536,12 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
   const nV = document.getElementById("bd-n-v");
   const canvas = document.getElementById("bd-plot");
 
-  function run() {
+  function labels() { dV.textContent = cD.value; nV.textContent = cN.value; }
+
+  let cache = null;
+
+  function compute() {
     const d = +cD.value, n = +cN.value;
-    dV.textContent = d; nV.textContent = n;
     const sig = 1/Math.sqrt(d);
     const bs = [1,2,3,4,5];
     const measured = []; const upper = []; const lower = [];
@@ -2525,9 +2560,22 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
       upper.push(Math.sqrt(3)*Math.PI/2 * Math.pow(4,-b));
       lower.push(Math.pow(4,-b));
     }
-    // draw log-scale plot
+    cache = { bs, measured, upper, lower };
+  }
+
+  function render() {
     const { ctx, w, h } = setupCanvas(canvas);
     ctx.clearRect(0,0,w,h);
+    if (!cache) {
+      ctx.fillStyle = THEME.bg; ctx.fillRect(0,0,w,h);
+      ctx.fillStyle = THEME.mute;
+      ctx.font = "12px 'JetBrains Mono', ui-monospace, Menlo, monospace";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText("Click \u201CRecompute\u201D to simulate", w/2, h/2);
+      ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+      return;
+    }
+    const { bs, measured, upper, lower } = cache;
     const pad = { l: 58, r: 20, t: 22, b: 36 };
     const plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
     const allVals = [...measured, ...upper, ...lower];
@@ -2535,7 +2583,6 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
     const ylo = Math.log10(yMin*0.3), yhi = Math.log10(yMax*1.1);
     function ypos(v){ return pad.t + (yhi - Math.log10(v))/(yhi-ylo) * plotH; }
     function xpos(b){ return pad.l + (b-1)/(bs.length-1) * plotW; }
-    // grid
     ctx.strokeStyle = THEME.gridSoft; ctx.lineWidth = 1;
     for (let k = Math.ceil(ylo); k<= Math.floor(yhi); k++) {
       const y = ypos(Math.pow(10,k));
@@ -2543,13 +2590,10 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
       ctx.fillStyle=THEME.mute; ctx.font="10px ui-monospace, Menlo, monospace";
       ctx.fillText("10^"+k, 6, y+3);
     }
-    // axis
     ctx.strokeStyle = THEME.grid;
     ctx.beginPath(); ctx.moveTo(pad.l,pad.t); ctx.lineTo(pad.l,h-pad.b); ctx.lineTo(w-pad.r,h-pad.b); ctx.stroke();
-    // x labels
     ctx.fillStyle = THEME.mute; ctx.font = "11px ui-monospace, Menlo, monospace";
     for (let i=0;i<bs.length;i++) { ctx.fillText("b="+bs[i], xpos(bs[i])-10, h-pad.b+16); }
-    // lines
     function drawLine(vals, color) {
       ctx.strokeStyle = color; ctx.lineWidth = 2.5;
       ctx.beginPath();
@@ -2558,7 +2602,6 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
         if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
       }
       ctx.stroke();
-      // dots
       ctx.fillStyle = color;
       for (let i=0;i<bs.length;i++) {
         const x = xpos(bs[i]), y = ypos(vals[i]);
@@ -2571,11 +2614,16 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
     ctx.fillStyle = THEME.textDim; ctx.font = "12px ui-monospace, Menlo, monospace";
     ctx.fillText("MSE distortion (log scale) vs bit-width b, three parallel lines", pad.l, pad.t - 6);
   }
-  cD.oninput = ()=>{dV.textContent=cD.value;};
-  cN.oninput = ()=>{nV.textContent=cN.value;};
+
+  function run() { labels(); compute(); render(); }
+
+  cD.oninput = labels;
+  cN.oninput = labels;
   btn.onclick = run;
-  run();
-  onThemeChange(run);
+  labels();
+  requestAnimationFrame(render);
+  onThemeChange(render);
+  window.addEventListener("resize", render);
 })();
 
 /* ================================================================
