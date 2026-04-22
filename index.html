@@ -19,7 +19,7 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    /* Monochrome tactical HUD palette */
+    /* Monochrome tactical HUD palette (dark, default) */
     --ink: #000000;
     --panel: #06090a;
     --panel2: #0b1113;
@@ -32,11 +32,21 @@
     --mute-2: #3a4f4a;
     --accent: #7de3c7;         /* mint, primary accent */
     --accent-soft: #4fa990;
-    --accent-glow: rgba(125,227,199,0.14);
+    --accent-rgb: 125,227,199;
+    --accent-glow: rgba(var(--accent-rgb),0.14);
     --ocean: #5eead4;           /* secondary accent */
     --warn: #fcd34d;            /* amber, highlight/bounds */
     --err: #fb7185;             /* coral, error/residual */
     --blue: #a5c4ff;            /* cool, quantized */
+    /* Canvas palette, read by JS via getComputedStyle */
+    --canvas-bg: #04080a;
+    --canvas-grid: #24243a;
+    --canvas-grid-soft: #1a1a28;
+    --canvas-axis: #2a3a3f;
+    --canvas-text: #d4e4e0;
+    --canvas-text-dim: #b0b0c4;
+    --canvas-mute: #6a6a80;
+    --canvas-legend-bg: rgba(4,8,10,0.88);
     /* Semantic aliases so existing code keeps working */
     --bg: var(--ink);
     --bg2: var(--panel2);
@@ -50,6 +60,35 @@
     --red:  var(--err);
   }
 
+  :root[data-theme="light"] {
+    --ink: #f5f7f4;
+    --panel: #ffffff;
+    --panel2: #f2f5f2;
+    --panel3: #e8ece8;
+    --line: #d3ddd7;
+    --line-bright: #a7b9b1;
+    --text: #0f1a17;
+    --text-dim: #42584f;
+    --mute: #72877f;
+    --mute-2: #a7b9b1;
+    --accent: #0e8d72;
+    --accent-soft: #36a68a;
+    --accent-rgb: 14,141,114;
+    --accent-glow: rgba(14,141,114,0.12);
+    --ocean: #0d8b98;
+    --warn: #9a6200;
+    --err: #be123c;
+    --blue: #2241b8;
+    --canvas-bg: #fbfcfa;
+    --canvas-grid: #c9d6cf;
+    --canvas-grid-soft: #e4ece6;
+    --canvas-axis: #98a9a1;
+    --canvas-text: #0f1a17;
+    --canvas-text-dim: #42584f;
+    --canvas-mute: #72877f;
+    --canvas-legend-bg: rgba(255,255,255,0.92);
+  }
+
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: var(--ink); color: var(--text); }
 
@@ -57,8 +96,7 @@
     font-family: "Space Grotesk", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     font-size: 16.5px; line-height: 1.62;
     background:
-      radial-gradient(ellipse 80% 60% at 50% -10%, rgba(125,227,199,0.04), transparent 60%),
-      linear-gradient(180deg, #02050600 0%, #02050600 100%),
+      radial-gradient(ellipse 80% 60% at 50% -10%, rgba(var(--accent-rgb),0.04), transparent 60%),
       var(--ink);
     background-attachment: fixed;
   }
@@ -67,17 +105,21 @@
   body::before {
     content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
     background-image:
-      linear-gradient(rgba(125,227,199,0.035) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(125,227,199,0.035) 1px, transparent 1px);
+      linear-gradient(rgba(var(--accent-rgb),0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(var(--accent-rgb),0.035) 1px, transparent 1px);
     background-size: 64px 64px;
     mask-image: radial-gradient(ellipse 70% 80% at 50% 50%, #000 50%, transparent 100%);
     -webkit-mask-image: radial-gradient(ellipse 70% 80% at 50% 50%, #000 50%, transparent 100%);
   }
   body::after {
     content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
-    background: repeating-linear-gradient(0deg, rgba(125,227,199,0.015) 0 1px, transparent 1px 3px);
+    background: repeating-linear-gradient(0deg, rgba(var(--accent-rgb),0.015) 0 1px, transparent 1px 3px);
     mix-blend-mode: screen;
   }
+  :root[data-theme="light"] body::before { background-image:
+      linear-gradient(rgba(var(--accent-rgb),0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(var(--accent-rgb),0.06) 1px, transparent 1px); }
+  :root[data-theme="light"] body::after { background: repeating-linear-gradient(0deg, rgba(var(--accent-rgb),0.03) 0 1px, transparent 1px 3px); mix-blend-mode: multiply; }
 
   code, .mono, pre { font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
 
@@ -88,7 +130,7 @@
     padding: 28px 20px 28px 22px;
     border-right: 1px solid var(--line);
     overflow-y: auto;
-    background: linear-gradient(180deg, rgba(6,9,10,0.85) 0%, rgba(6,9,10,0.95) 100%);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 88%, transparent) 0%, color-mix(in srgb, var(--panel) 96%, transparent) 100%);
     backdrop-filter: blur(6px);
   }
   nav.toc .brand {
@@ -121,11 +163,21 @@
     color: var(--mute-2); font-family: "JetBrains Mono", monospace; font-size: 10.5px;
     flex: 0 0 28px; padding-top: 1px;
   }
-  nav.toc a:hover { background: rgba(125,227,199,0.04); color: var(--accent); border-left-color: var(--accent-soft); }
+  nav.toc a:hover { background: rgba(var(--accent-rgb),0.04); color: var(--accent); border-left-color: var(--accent-soft); }
   nav.toc a:hover .n { color: var(--accent-soft); }
-  nav.toc a.active { background: rgba(125,227,199,0.07); color: var(--accent); border-left-color: var(--accent); }
+  nav.toc a.active { background: rgba(var(--accent-rgb),0.07); color: var(--accent); border-left-color: var(--accent); }
   nav.toc a.active .n { color: var(--accent); }
   nav.toc hr { border: none; border-top: 1px dashed var(--line); margin: 20px 0; }
+  .theme-toggle {
+    display: inline-block; width: 100%; padding: 7px 10px;
+    background: transparent; color: var(--text-dim);
+    border: 1px solid var(--line-bright); border-radius: 2px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px; letter-spacing: 0.22em; text-transform: uppercase;
+    cursor: pointer; margin-bottom: 14px;
+    transition: background .15s, border-color .15s, color .15s;
+  }
+  .theme-toggle:hover { background: rgba(var(--accent-rgb),0.06); border-color: var(--accent-soft); color: var(--accent); }
   nav.toc small { font-family: "JetBrains Mono", monospace; font-size: 10.5px; letter-spacing: 0.05em; color: var(--mute); text-transform: uppercase; line-height: 1.6; }
 
   main { padding: 48px 56px 120px 56px; min-width: 0; position: relative; }
@@ -159,7 +211,7 @@
   h3::before { content: "▸ "; color: var(--accent-soft); }
 
   p { margin: 0 0 14px; color: var(--text); }
-  .lede { font-size: 20px; line-height: 1.55; color: #b9d0c9; max-width: 800px; }
+  .lede { font-size: 20px; line-height: 1.55; color: var(--text-dim); max-width: 800px; }
   small, .small { font-size: 13.5px; color: var(--text-dim); }
 
   .eyebrow {
@@ -171,7 +223,7 @@
   }
   .eyebrow::before {
     content: ""; width: 8px; height: 8px; border-radius: 50%;
-    background: var(--accent); box-shadow: 0 0 0 2px rgba(125,227,199,0.15), 0 0 10px var(--accent);
+    background: var(--accent); box-shadow: 0 0 0 2px rgba(var(--accent-rgb),0.15), 0 0 10px var(--accent);
     animation: pulse 2.4s ease-in-out infinite;
   }
   @keyframes pulse {
@@ -179,7 +231,7 @@
     50% { opacity: 0.35; }
   }
 
-  a { color: var(--accent); text-decoration: none; border-bottom: 1px dashed rgba(125,227,199,0.3); }
+  a { color: var(--accent); text-decoration: none; border-bottom: 1px dashed rgba(var(--accent-rgb),0.3); }
   a:hover { border-bottom-color: var(--accent); }
   hr { border: none; border-top: 1px dashed var(--line); margin: 40px 0; }
 
@@ -215,7 +267,7 @@
   .card.accent::before, .card.accent::after { border-color: var(--warn); }
   .card.accent > i.cbr { border-color: var(--warn); }
 
-  .card.insight { border-top: 1px solid var(--accent); background: linear-gradient(180deg, rgba(125,227,199,0.05) 0%, var(--panel2) 80%); }
+  .card.insight { border-top: 1px solid var(--accent); background: linear-gradient(180deg, rgba(var(--accent-rgb),0.05) 0%, var(--panel2) 80%); }
   .card.caution { border-top: 1px solid var(--err); background: linear-gradient(180deg, rgba(251,113,133,0.05) 0%, var(--panel2) 80%); }
   .card.caution::before, .card.caution::after { border-color: var(--err); }
   .card.caution > i.cbr { border-color: var(--err); }
@@ -239,7 +291,7 @@
     font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase;
     border: 1px solid var(--line-bright); color: var(--text-dim); margin-right: 6px;
   }
-  .pill.orig  { color: var(--accent); border-color: rgba(125,227,199,0.40); background: rgba(125,227,199,0.05); }
+  .pill.orig  { color: var(--accent); border-color: rgba(var(--accent-rgb),0.40); background: rgba(var(--accent-rgb),0.05); }
   .pill.rot   { color: var(--ocean);  border-color: rgba(94,234,212,0.40);  background: rgba(94,234,212,0.04); }
   .pill.quant { color: var(--blue);   border-color: rgba(165,196,255,0.40); background: rgba(165,196,255,0.04); }
   .pill.err   { color: var(--err);    border-color: rgba(251,113,133,0.40); background: rgba(251,113,133,0.04); }
@@ -258,7 +310,7 @@
     color: var(--accent); font-family: "JetBrains Mono", monospace;
     min-width: 40px; text-align: right;
     padding: 1px 7px; border: 1px solid var(--line); border-radius: 1px;
-    background: rgba(125,227,199,0.04);
+    background: rgba(var(--accent-rgb),0.04);
     font-size: 11.5px; letter-spacing: 0.03em;
   }
   input[type=range] {
@@ -269,12 +321,12 @@
     -webkit-appearance: none; appearance: none;
     width: 12px; height: 12px; background: var(--accent); cursor: pointer;
     transform: rotate(45deg); /* diamond */
-    box-shadow: 0 0 8px rgba(125,227,199,0.6);
+    box-shadow: 0 0 8px rgba(var(--accent-rgb),0.6);
   }
   input[type=range]::-moz-range-thumb {
     width: 12px; height: 12px; background: var(--accent); border: none; cursor: pointer;
     transform: rotate(45deg);
-    box-shadow: 0 0 8px rgba(125,227,199,0.6);
+    box-shadow: 0 0 8px rgba(var(--accent-rgb),0.6);
   }
   button {
     background: transparent; color: var(--text-dim);
@@ -284,9 +336,9 @@
     font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
     transition: background .15s, border-color .15s, color .15s;
   }
-  button:hover { background: rgba(125,227,199,0.06); border-color: var(--accent-soft); color: var(--accent); }
+  button:hover { background: rgba(var(--accent-rgb),0.06); border-color: var(--accent-soft); color: var(--accent); }
   button.primary { border-color: var(--accent); color: var(--accent); }
-  button.primary:hover { background: rgba(125,227,199,0.1); }
+  button.primary:hover { background: rgba(var(--accent-rgb),0.1); }
   select {
     background: var(--panel); color: var(--text-dim);
     border: 1px solid var(--line-bright); padding: 6px 10px; border-radius: 2px;
@@ -296,7 +348,7 @@
 
   /* Plots */
   .plot {
-    position: relative; background: #04080a;
+    position: relative; background: var(--canvas-bg);
     border: 1px solid var(--line); border-radius: 2px; overflow: hidden;
   }
   .plot::before, .plot::after {
@@ -358,7 +410,7 @@
 
   /* Formula block */
   .formula {
-    background: #04080a;
+    background: var(--canvas-bg);
     border: 1px solid var(--line); border-left: 2px solid var(--accent-soft);
     border-radius: 0; padding: 14px 18px; margin: 14px 0; overflow-x: auto;
     position: relative;
@@ -394,7 +446,7 @@
     color: var(--text-dim); font-size: 10.5px;
     font-family: "JetBrains Mono", monospace; letter-spacing: 0.05em;
   }
-  .refs .ref:hover { background: rgba(125,227,199,0.04); border-color: var(--accent-soft); }
+  .refs .ref:hover { background: rgba(var(--accent-rgb),0.04); border-color: var(--accent-soft); }
 
   /* Steps pipeline */
   .steps {
@@ -505,6 +557,7 @@
     <li><a href="#impact"><span class="n">§10</span><span>Why it matters</span></a></li>
   </ol>
   <hr>
+  <button id="theme-toggle" class="theme-toggle" aria-label="Toggle colour theme">Light mode</button>
   <small>Every chart is live. Numbers are computed in your browser.</small>
 </nav>
 
@@ -1443,6 +1496,78 @@
 
 <script>
 /* ================================================================
+   Theme: dark (default) + light. Toggle stored in localStorage.
+   THEME is a live snapshot of canvas-relevant CSS vars, refreshed
+   on every theme change so drawing code reads current colors
+   without re-querying per draw.
+   ================================================================ */
+const THEME = {};
+const PR = {
+  font:   "11px 'JetBrains Mono', ui-monospace, Menlo, monospace",
+  fontSm: "10px 'JetBrains Mono', ui-monospace, Menlo, monospace",
+  fontLg: "13px 'JetBrains Mono', ui-monospace, Menlo, monospace",
+};
+function refreshTheme() {
+  const cs = getComputedStyle(document.documentElement);
+  const g = k => cs.getPropertyValue(k).trim();
+  THEME.bg        = g('--canvas-bg');
+  THEME.grid      = g('--canvas-grid');
+  THEME.gridSoft  = g('--canvas-grid-soft');
+  THEME.axis      = g('--canvas-axis');
+  THEME.text      = g('--canvas-text');
+  THEME.textDim   = g('--canvas-text-dim');
+  THEME.mute      = g('--canvas-mute');
+  THEME.legendBg  = g('--canvas-legend-bg');
+  THEME.accent    = g('--accent');
+  THEME.accentSoft= g('--accent-soft');
+  THEME.accentRgb = g('--accent-rgb');
+  THEME.ocean     = g('--ocean');
+  THEME.warn      = g('--warn');
+  THEME.err       = g('--err');
+  THEME.blue      = g('--blue');
+  THEME.line      = g('--line');
+  THEME.lineBr    = g('--line-bright');
+  THEME.mode      = document.documentElement.getAttribute('data-theme') || 'dark';
+  // Primer palette mirrors THEME so existing PR.xxx usages stay theme-aware
+  PR.accent = THEME.accent;
+  PR.ocean  = THEME.ocean;
+  PR.warn   = THEME.warn;
+  PR.err    = THEME.err;
+  PR.blue   = THEME.blue;
+  PR.text   = THEME.text;
+  PR.textDim= THEME.textDim;
+  PR.mute   = THEME.mute;
+  PR.line   = THEME.line;
+  PR.lineBr = THEME.lineBr;
+  PR.panelBg= THEME.bg;
+}
+function accentRGBA(a) { return 'rgba(' + THEME.accentRgb + ',' + a + ')'; }
+function onThemeChange(fn) { window.addEventListener('themechange', fn); }
+(function initTheme(){
+  let mode = localStorage.getItem('tq-theme');
+  if (!mode) {
+    mode = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+  }
+  document.documentElement.setAttribute('data-theme', mode);
+  refreshTheme();
+  window.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+    const label = () => btn.textContent = (THEME.mode === 'dark') ? 'Light mode' : 'Dark mode';
+    label();
+    btn.onclick = () => {
+      const next = (THEME.mode === 'dark') ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('tq-theme', next);
+      refreshTheme();
+      label();
+      window.dispatchEvent(new Event('themechange'));
+      window.dispatchEvent(new Event('resize'));
+    };
+  });
+})();
+
+/* ================================================================
    Math utilities
    ================================================================ */
 function gauss() {
@@ -1621,14 +1746,14 @@ function setupCanvas(canvas) {
 
 function drawAxes(ctx, w, h, pad, opts) {
   ctx.save();
-  ctx.strokeStyle = "#24243a";
+  ctx.strokeStyle = THEME.grid;
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(pad.l, h-pad.b); ctx.lineTo(w-pad.r, h-pad.b);
   ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, h-pad.b);
   ctx.stroke();
   if (opts && opts.title) {
-    ctx.fillStyle = "#8a8aa6"; ctx.font = "11px ui-monospace, Menlo, monospace";
+    ctx.fillStyle = THEME.mute; ctx.font = "11px ui-monospace, Menlo, monospace";
     ctx.fillText(opts.title, pad.l+6, pad.t+12);
   }
   ctx.restore();
@@ -1644,7 +1769,7 @@ function drawBars(canvas, data, opts) {
   drawAxes(ctx, w, h, pad);
   // zero line
   const zeroY = h - pad.b - (0 - (-ymax))/(2*ymax) * (h - pad.t - pad.b);
-  ctx.strokeStyle = "#20202e"; ctx.beginPath(); ctx.moveTo(pad.l, zeroY); ctx.lineTo(w-pad.r, zeroY); ctx.stroke();
+  ctx.strokeStyle = THEME.gridSoft; ctx.beginPath(); ctx.moveTo(pad.l, zeroY); ctx.lineTo(w-pad.r, zeroY); ctx.stroke();
   ctx.fillStyle = opts.color || "#60a5fa";
   for (let i=0;i<n;i++) {
     const v = data[i];
@@ -1656,7 +1781,7 @@ function drawBars(canvas, data, opts) {
     ctx.fillRect(x, top, Math.max(1, bw-2), hh);
   }
   // axis labels
-  ctx.fillStyle = "#6a6a80"; ctx.font = "10px ui-monospace, Menlo, monospace";
+  ctx.fillStyle = THEME.mute; ctx.font = "10px ui-monospace, Menlo, monospace";
   ctx.fillText((+ymax).toFixed(3), 2, pad.t + 8);
   ctx.fillText((-ymax).toFixed(3), 2, h - pad.b - 1);
   if (opts.label) ctx.fillText(opts.label, pad.l+4, h - pad.b - 3);
@@ -1671,13 +1796,13 @@ function drawBarsSigned(canvas, data, opts) {
   const plotW = w - pad.l - pad.r;
   const plotH = h - pad.t - pad.b;
   const bw = plotW / n;
-  ctx.strokeStyle = "#24243a";
+  ctx.strokeStyle = THEME.grid;
   ctx.lineWidth = 1;
   // axis
   ctx.beginPath(); ctx.moveTo(pad.l, h-pad.b); ctx.lineTo(w-pad.r, h-pad.b);
   ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, h-pad.b); ctx.stroke();
   const zeroY = pad.t + plotH/2;
-  ctx.strokeStyle = "#1f1f2e";
+  ctx.strokeStyle = THEME.gridSoft;
   ctx.beginPath(); ctx.moveTo(pad.l, zeroY); ctx.lineTo(w-pad.r, zeroY); ctx.stroke();
   ctx.fillStyle = opts.color || "#60a5fa";
   for (let i=0;i<n;i++) {
@@ -1687,7 +1812,7 @@ function drawBarsSigned(canvas, data, opts) {
     if (v >= 0) ctx.fillRect(xx, zeroY - hh, Math.max(1, bw-2), hh);
     else ctx.fillRect(xx, zeroY, Math.max(1, bw-2), hh);
   }
-  ctx.fillStyle = "#6a6a80"; ctx.font = "10px ui-monospace, Menlo, monospace";
+  ctx.fillStyle = THEME.mute; ctx.font = "10px ui-monospace, Menlo, monospace";
   ctx.fillText("+"+absmax.toPrecision(2), 2, pad.t + 10);
   ctx.fillText(""+(-absmax).toPrecision(2), 2, h - pad.b - 1);
   if (opts.label) ctx.fillText(opts.label, pad.l+6, pad.t+10);
@@ -1719,7 +1844,7 @@ function drawHistPDF(canvas, samples, pdfFuncs, xmin, xmax, opts) {
   }
   ymax *= 1.1;
   // axis
-  ctx.strokeStyle = "#24243a"; ctx.lineWidth = 1;
+  ctx.strokeStyle = THEME.grid; ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, h-pad.b); ctx.lineTo(w-pad.r, h-pad.b); ctx.stroke();
   // histogram bars
@@ -1745,13 +1870,13 @@ function drawHistPDF(canvas, samples, pdfFuncs, xmin, xmax, opts) {
     ctx.stroke();
   }
   // tick labels
-  ctx.fillStyle = "#6a6a80"; ctx.font = "10px ui-monospace, Menlo, monospace";
+  ctx.fillStyle = THEME.mute; ctx.font = "10px ui-monospace, Menlo, monospace";
   ctx.fillText(xmin.toFixed(2), pad.l-4, h-pad.b+14);
   ctx.fillText(xmax.toFixed(2), w-pad.r-30, h-pad.b+14);
   ctx.fillText("0", pad.l-14, h-pad.b);
   ctx.fillText(ymax.toPrecision(2), pad.l-36, pad.t+8);
   if (opts.title) {
-    ctx.fillStyle = "#b0b0c4"; ctx.font = "12px ui-monospace, Menlo, monospace";
+    ctx.fillStyle = THEME.textDim; ctx.font = "12px ui-monospace, Menlo, monospace";
     ctx.fillText(opts.title, pad.l, pad.t-6);
   }
 }
@@ -1764,7 +1889,7 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
   const plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
   const xmin = -4*sigma, xmax = 4*sigma;
   // axis
-  ctx.strokeStyle = "#24243a"; ctx.lineWidth = 1;
+  ctx.strokeStyle = THEME.grid; ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, h-pad.b); ctx.lineTo(w-pad.r, h-pad.b); ctx.stroke();
   // PDF
@@ -1809,11 +1934,11 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
     ctx.fillRect(px-0.5, h-pad.b, 1, 5);
   }
   // tick labels
-  ctx.fillStyle = "#6a6a80"; ctx.font = "10px ui-monospace, Menlo, monospace";
+  ctx.fillStyle = THEME.mute; ctx.font = "10px ui-monospace, Menlo, monospace";
   ctx.fillText(xmin.toPrecision(2), pad.l-10, h-pad.b+14);
   ctx.fillText(xmax.toPrecision(2), w-pad.r-30, h-pad.b+14);
   if (opts && opts.title) {
-    ctx.fillStyle = "#b0b0c4"; ctx.font = "12px ui-monospace, Menlo, monospace";
+    ctx.fillStyle = THEME.textDim; ctx.font = "12px ui-monospace, Menlo, monospace";
     ctx.fillText(opts.title, pad.l, pad.t-6);
   }
 }
@@ -1850,10 +1975,10 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
     const bw = plotW / d;
     const absmax = Math.max(...x.map(v => Math.abs(v)), 0.05) * 1.05;
     const xtilde = quantUniform(x, b, -absmax, absmax); // scale-fair uniform
-    ctx.strokeStyle = "#24243a";
+    ctx.strokeStyle = THEME.grid;
     ctx.beginPath(); ctx.moveTo(pad.l, pad.t+plotH/2); ctx.lineTo(w-pad.r, pad.t+plotH/2); ctx.stroke();
     // grid lines at quantization levels
-    ctx.strokeStyle = "#1e1e2a"; ctx.lineWidth = 1;
+    ctx.strokeStyle = THEME.gridSoft; ctx.lineWidth = 1;
     const K = 1<<b;
     for (let k=0;k<K;k++) {
       const val = -absmax + 2*absmax*k/(K-1);
@@ -2125,12 +2250,7 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
 
   const COL_MSE = "#f472b6";
   const COL_QJL = "#6ee7b7";
-  const COL_BG = "#04080a";
-  const COL_RING = "#2a3a3f";
   const COL_TRUTH = "#fbbf24";
-  const COL_MEAN = "#fb7185";
-  const COL_TEXT = "#d4e4e0";
-  const COL_DIM = "#6a6a80";
 
   function labels() {
     bV.textContent = cB.value; dV.textContent = cD.value; nV.textContent = cN.value;
@@ -2138,7 +2258,7 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
 
   function drawBullseye(cv, ratios, mean, accent, title) {
     const { ctx, w, h } = setupCanvas(cv);
-    ctx.fillStyle = COL_BG; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = THEME.bg; ctx.fillRect(0, 0, w, h);
     const cx = w / 2, cy = h / 2;
     const xmin = -0.2, xmax = 1.4;
     const xspan = xmax - xmin;
@@ -2150,7 +2270,7 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
     const Y = j => cy + j * (plotH * 0.38);
 
     // target rings centered on truth
-    ctx.strokeStyle = COL_RING; ctx.lineWidth = 1;
+    ctx.strokeStyle = THEME.axis; ctx.lineWidth = 1;
     const maxR = Math.min(plotW, plotH) * 0.46;
     for (let k = 1; k <= 4; k++) {
       ctx.beginPath();
@@ -2178,27 +2298,27 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
     // mean of shots (red dot + ring)
     if (isFinite(mean)) {
       const mx = X(mean), my = cy;
-      ctx.fillStyle = COL_MEAN;
+      ctx.fillStyle = THEME.err;
       ctx.beginPath(); ctx.arc(mx, my, 5, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = COL_MEAN; ctx.lineWidth = 1.2;
+      ctx.strokeStyle = THEME.err; ctx.lineWidth = 1.2;
       ctx.beginPath(); ctx.arc(mx, my, 10, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillStyle = COL_MEAN; ctx.font = "10px 'JetBrains Mono', ui-monospace, Menlo, monospace";
+      ctx.fillStyle = THEME.err; ctx.font = "10px 'JetBrains Mono', ui-monospace, Menlo, monospace";
       ctx.fillText("mean = " + mean.toFixed(3), mx + 14, my + 3);
     }
 
     // x-axis ticks
-    ctx.fillStyle = COL_DIM; ctx.font = "10px 'JetBrains Mono', ui-monospace, Menlo, monospace";
+    ctx.fillStyle = THEME.mute; ctx.font = "10px 'JetBrains Mono', ui-monospace, Menlo, monospace";
     [0, 0.5, 1.0].forEach(t => {
       const tx = X(t);
       if (tx > 6 && tx < w - 6) {
         ctx.fillText(t.toFixed(1), tx - 8, h - 6);
-        ctx.strokeStyle = COL_RING;
+        ctx.strokeStyle = THEME.axis;
         ctx.beginPath(); ctx.moveTo(tx, cy + maxR * 0.62 + 2); ctx.lineTo(tx, cy + maxR * 0.62 + 6); ctx.stroke();
       }
     });
 
     // title
-    ctx.fillStyle = COL_TEXT; ctx.font = "11px 'JetBrains Mono', ui-monospace, Menlo, monospace";
+    ctx.fillStyle = THEME.text; ctx.font = "11px 'JetBrains Mono', ui-monospace, Menlo, monospace";
     ctx.fillText(title, 10, 16);
   }
 
@@ -2260,10 +2380,7 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
   btn.onclick = run;
   labels();
   run();
-  window.addEventListener("resize", () => {
-    // Re-draw without rerunning the costly QJL; cheap repaint isn't trivial without cached state,
-    // so just skip resize redraw. User can hit Run again.
-  });
+  onThemeChange(run);
 })();
 
 /* ================================================================
@@ -2330,7 +2447,7 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
     for (const r of qjl_ratios) { const k=Math.floor((r-rlo)/bw); if(k>=0&&k<nbins) cq[k]++; }
     const cmax = Math.max(...cq, 1);
 
-    ctx.strokeStyle = "#24243a";
+    ctx.strokeStyle = THEME.grid;
     ctx.beginPath(); ctx.moveTo(pad.l,pad.t); ctx.lineTo(pad.l,h-pad.b); ctx.lineTo(w-pad.r,h-pad.b); ctx.stroke();
 
     // MSE-1bit bias marker (theoretical)
@@ -2364,7 +2481,7 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
     ctx.fillStyle = "#6ee7b7";
     ctx.fillText("truth = 1", tx + 6, pad.t + 43);
 
-    ctx.fillStyle = "#6a6a80";
+    ctx.fillStyle = THEME.mute;
     ctx.fillText(rlo.toFixed(2), pad.l-8, h-pad.b+14);
     ctx.fillText(rhi.toFixed(2), w-pad.r-22, h-pad.b+14);
   }
@@ -2373,6 +2490,7 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
   btn.onclick = run;
   labels();
   run();
+  onThemeChange(run);
 })();
 
 /* ================================================================
@@ -2418,18 +2536,18 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
     function ypos(v){ return pad.t + (yhi - Math.log10(v))/(yhi-ylo) * plotH; }
     function xpos(b){ return pad.l + (b-1)/(bs.length-1) * plotW; }
     // grid
-    ctx.strokeStyle = "#1a1a28"; ctx.lineWidth = 1;
+    ctx.strokeStyle = THEME.gridSoft; ctx.lineWidth = 1;
     for (let k = Math.ceil(ylo); k<= Math.floor(yhi); k++) {
       const y = ypos(Math.pow(10,k));
       ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(w-pad.r,y); ctx.stroke();
-      ctx.fillStyle="#6a6a80"; ctx.font="10px ui-monospace, Menlo, monospace";
+      ctx.fillStyle=THEME.mute; ctx.font="10px ui-monospace, Menlo, monospace";
       ctx.fillText("10^"+k, 6, y+3);
     }
     // axis
-    ctx.strokeStyle = "#24243a";
+    ctx.strokeStyle = THEME.grid;
     ctx.beginPath(); ctx.moveTo(pad.l,pad.t); ctx.lineTo(pad.l,h-pad.b); ctx.lineTo(w-pad.r,h-pad.b); ctx.stroke();
     // x labels
-    ctx.fillStyle = "#6a6a80"; ctx.font = "11px ui-monospace, Menlo, monospace";
+    ctx.fillStyle = THEME.mute; ctx.font = "11px ui-monospace, Menlo, monospace";
     for (let i=0;i<bs.length;i++) { ctx.fillText("b="+bs[i], xpos(bs[i])-10, h-pad.b+16); }
     // lines
     function drawLine(vals, color) {
@@ -2450,37 +2568,22 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
     drawLine(upper, "#f472b6");
     drawLine(measured, "#6ee7b7");
     drawLine(lower, "#fbbf24");
-    ctx.fillStyle = "#b0b0c4"; ctx.font = "12px ui-monospace, Menlo, monospace";
+    ctx.fillStyle = THEME.textDim; ctx.font = "12px ui-monospace, Menlo, monospace";
     ctx.fillText("MSE distortion (log scale) vs bit-width b, three parallel lines", pad.l, pad.t - 6);
   }
   cD.oninput = ()=>{dV.textContent=cD.value;};
   cN.oninput = ()=>{nV.textContent=cN.value;};
   btn.onclick = run;
   run();
+  onThemeChange(run);
 })();
 
 /* ================================================================
-   Primer palette (HUD colors used by mini-demos)
+   Primer HUD background (PR palette defined up top, theme-aware).
    ================================================================ */
-const PR = {
-  accent: "#7de3c7",
-  ocean:  "#5eead4",
-  warn:   "#fcd34d",
-  err:    "#fb7185",
-  blue:   "#a5c4ff",
-  text:   "#d4e4e0",
-  textDim:"#9ab5ae",
-  mute:   "#5a7a73",
-  line:   "#1a2427",
-  lineBr: "#2a3a3f",
-  panelBg:"#04080a",
-  font:   "11px 'JetBrains Mono', ui-monospace, Menlo, monospace",
-  fontSm: "10px 'JetBrains Mono', ui-monospace, Menlo, monospace",
-  fontLg: "13px 'JetBrains Mono', ui-monospace, Menlo, monospace",
-};
 function clearHud(ctx, w, h) {
   ctx.fillStyle = PR.panelBg; ctx.fillRect(0,0,w,h);
-  ctx.strokeStyle = "rgba(125,227,199,0.05)"; ctx.lineWidth = 1;
+  ctx.strokeStyle = accentRGBA(0.05); ctx.lineWidth = 1;
   ctx.beginPath();
   for (let x=16; x<w; x+=32) { ctx.moveTo(x,0); ctx.lineTo(x,h); }
   for (let y=16; y<h; y+=32) { ctx.moveTo(0,y); ctx.lineTo(w,y); }
@@ -2525,10 +2628,10 @@ function clearHud(ctx, w, h) {
     ctx.lineTo(tx - 10*Math.cos(ang+0.4), ty - 10*Math.sin(ang+0.4));
     ctx.closePath(); ctx.fill();
     // tip handle
-    ctx.fillStyle = "#04080a"; ctx.strokeStyle = PR.accent; ctx.lineWidth = 1.5;
+    ctx.fillStyle = THEME.bg; ctx.strokeStyle = PR.accent; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(tx, ty, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke();
     // component guides
-    ctx.strokeStyle = "rgba(125,227,199,0.35)"; ctx.setLineDash([3,3]);
+    ctx.strokeStyle = accentRGBA(0.35); ctx.setLineDash([3,3]);
     ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx, P.cy);
     ctx.moveTo(tx, ty); ctx.lineTo(P.cx, ty); ctx.stroke(); ctx.setLineDash([]);
     // labels
@@ -2589,7 +2692,7 @@ function clearHud(ctx, w, h) {
       ctx.lineTo(tx-10*Math.cos(ang-0.4), ty-10*Math.sin(ang-0.4));
       ctx.lineTo(tx-10*Math.cos(ang+0.4), ty-10*Math.sin(ang+0.4));
       ctx.closePath(); ctx.fill();
-      ctx.fillStyle = "#04080a"; ctx.strokeStyle = color; ctx.lineWidth = 1.5;
+      ctx.fillStyle = THEME.bg; ctx.strokeStyle = color; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.arc(tx, ty, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke();
       ctx.fillStyle = color; ctx.font = PR.fontLg;
       ctx.fillText(label, tx + 10, ty - 4);
@@ -2802,7 +2905,7 @@ function clearHud(ctx, w, h) {
     const th = parseFloat(a.value) * Math.PI/180;
     const c = Math.cos(th), sn = Math.sin(th);
     // original (ghost)
-    ctx.strokeStyle = "rgba(125,227,199,0.35)"; ctx.lineWidth = 1.2;
+    ctx.strokeStyle = accentRGBA(0.35); ctx.lineWidth = 1.2;
     ctx.beginPath();
     shape.forEach((p,i) => {
       const px = cx + p[0]*s, py = cy - p[1]*s;
@@ -2811,7 +2914,7 @@ function clearHud(ctx, w, h) {
     ctx.closePath(); ctx.stroke();
     // rotated
     ctx.strokeStyle = PR.accent; ctx.lineWidth = 2;
-    ctx.fillStyle = "rgba(125,227,199,0.08)";
+    ctx.fillStyle = accentRGBA(0.08);
     ctx.beginPath();
     shape.forEach((p,i) => {
       const rx = c*p[0] - sn*p[1], ry = sn*p[0] + c*p[1];
@@ -2897,7 +3000,7 @@ function clearHud(ctx, w, h) {
     const bw = (w-pad.l-pad.r)/bins;
     for (let i=0;i<bins;i++){
       const bh = (hist[i]/maxH) * (h-pad.t-pad.b);
-      ctx.fillStyle = "rgba(125,227,199,0.35)";
+      ctx.fillStyle = accentRGBA(0.35);
       ctx.fillRect(pad.l + i*bw, h-pad.b-bh, bw-1, bh);
     }
     // Gaussian curve
@@ -2982,7 +3085,7 @@ function clearHud(ctx, w, h) {
     const bw = (w-pad.l-pad.r)/bins;
     for (let i=0;i<bins;i++){
       const bh = (hist[i]/maxH) * (h-pad.t-pad.b);
-      ctx.fillStyle = "rgba(125,227,199,0.4)";
+      ctx.fillStyle = accentRGBA(0.4);
       ctx.fillRect(pad.l + i*bw, h-pad.b-bh, bw-1, bh);
     }
     // ticks
@@ -3087,7 +3190,7 @@ function clearHud(ctx, w, h) {
     ctx.strokeStyle = PR.lineBr; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(0,cy); ctx.lineTo(w,cy); ctx.moveTo(cx,0); ctx.lineTo(cx,h); ctx.stroke();
     // unit circle
-    ctx.strokeStyle = "rgba(125,227,199,0.18)";
+    ctx.strokeStyle = accentRGBA(0.18);
     ctx.beginPath(); ctx.arc(cx, cy, s, 0, Math.PI*2); ctx.stroke();
     // ticks
     ctx.fillStyle = PR.mute; ctx.font = PR.fontSm;
@@ -3096,9 +3199,9 @@ function clearHud(ctx, w, h) {
     const th = parseFloat(aI.value) * Math.PI / 180;
     const c = Math.cos(th), sn = Math.sin(th);
     // original spike (1,0): gray ghost
-    ctx.strokeStyle = "rgba(125,227,199,0.4)"; ctx.lineWidth = 2;
+    ctx.strokeStyle = accentRGBA(0.4); ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + s, cy); ctx.stroke();
-    ctx.fillStyle = "rgba(125,227,199,0.6)"; ctx.font = PR.fontSm;
+    ctx.fillStyle = accentRGBA(0.6); ctx.font = PR.fontSm;
     ctx.fillText("x = (1, 0)", cx + s + 6, cy + 4);
     // rotated
     const rx = c, ry = sn;
@@ -3231,7 +3334,7 @@ function clearHud(ctx, w, h) {
     const corners = [[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]];
     const cpts = corners.map(c => proj(c, cx, cy, s));
     const edges = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
-    ctx.strokeStyle = "rgba(125,227,199,0.15)"; ctx.lineWidth = 1;
+    ctx.strokeStyle = accentRGBA(0.15); ctx.lineWidth = 1;
     for (const [a,b] of edges) {
       ctx.beginPath(); ctx.moveTo(cpts[a].x, cpts[a].y); ctx.lineTo(cpts[b].x, cpts[b].y); ctx.stroke();
     }
@@ -3250,13 +3353,13 @@ function clearHud(ctx, w, h) {
     });
     // original spike (1,0,0) ghost
     const T0 = proj([1,0,0], cx, cy, s);
-    drawArrow3(ctx, O.x, O.y, T0.x, T0.y, "rgba(125,227,199,0.4)", 2);
+    drawArrow3(ctx, O.x, O.y, T0.x, T0.y, accentRGBA(0.4), 2);
     // rotated
     const rv = applyR([1,0,0]);
     const T = proj(rv, cx, cy, s);
     drawArrow3(ctx, O.x, O.y, T.x, T.y, PR.blue, 2.2);
     // readout
-    ctx.fillStyle = "rgba(125,227,199,0.6)"; ctx.font = PR.font;
+    ctx.fillStyle = accentRGBA(0.6); ctx.font = PR.font;
     ctx.fillText("x = (1, 0, 0)", 12, 18);
     ctx.fillStyle = PR.blue;
     ctx.fillText("Rx = (" + rv.map(v => v.toFixed(2)).join(", ") + ")", 12, 36);
@@ -3345,7 +3448,7 @@ function clearHud(ctx, w, h) {
     ctx.strokeStyle = PR.lineBr; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(0,cy); ctx.lineTo(w,cy); ctx.moveTo(cx,0); ctx.lineTo(cx,h); ctx.stroke();
     // circle
-    ctx.strokeStyle = "rgba(125,227,199,0.35)"; ctx.lineWidth = 1;
+    ctx.strokeStyle = accentRGBA(0.35); ctx.lineWidth = 1;
     ctx.beginPath(); ctx.arc(cx, cy, s, 0, Math.PI*2); ctx.stroke();
     // color points by x1
     for (const p of pts) {
@@ -3435,7 +3538,7 @@ function clearHud(ctx, w, h) {
     const { ctx, w, h } = setupCanvas(scv); clearHud(ctx, w, h);
     const s = Math.min(w, h) * 0.36, cx = w/2, cy = h/2;
     // wireframe: lat & lon lines
-    ctx.strokeStyle = "rgba(125,227,199,0.15)"; ctx.lineWidth = 1;
+    ctx.strokeStyle = accentRGBA(0.15); ctx.lineWidth = 1;
     const steps = 32;
     for (let a = 0; a < 6; a++) {
       const phi = -Math.PI/2 + a * Math.PI/5;
@@ -3613,7 +3716,7 @@ function clearHud(ctx, w, h) {
     ctx.lineTo(cx + qx*s, cy - qy*s);
     ctx.stroke(); ctx.setLineDash([]);
     // tip handle
-    ctx.fillStyle = "#04080a"; ctx.strokeStyle = PR.accent; ctx.lineWidth = 1.5;
+    ctx.fillStyle = THEME.bg; ctx.strokeStyle = PR.accent; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(cx + xr*s, cy - yr*s, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke();
     // legend
     ctx.fillStyle = PR.accent; ctx.font = PR.font;
@@ -3704,7 +3807,7 @@ function clearHud(ctx, w, h) {
     const corners = [[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]];
     const cpts = corners.map(c => proj(c, cx, cy, s));
     const edges = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
-    ctx.strokeStyle = "rgba(125,227,199,0.18)"; ctx.lineWidth = 1;
+    ctx.strokeStyle = accentRGBA(0.18); ctx.lineWidth = 1;
     for (const [a,bb] of edges) {
       ctx.beginPath(); ctx.moveTo(cpts[a].x, cpts[a].y); ctx.lineTo(cpts[bb].x, cpts[bb].y); ctx.stroke();
     }
