@@ -863,10 +863,11 @@
           <option value="balanced">balanced (1,1,1)/√3</option>
           <option value="outlier">outlier (0.9, 0.4, 0.1)</option>
           <option value="diag">diagonal (0.7, 0.7, 0.1)</option>
+          <option value="custom">custom (drag the tip)</option>
         </select>
       </div>
     </div>
-    <div class="plot interactive" style="height:380px"><span class="hint">&#8635; drag to orbit</span><canvas id="q3d-cv"></canvas></div>
+    <div class="plot interactive" style="height:380px"><span class="hint">&#8597; drag tip · &#8635; orbit</span><canvas id="q3d-cv"></canvas></div>
     <div class="metrics">
       <div class="metric"><div class="label">‖error‖ / ‖x‖</div><div class="value err" id="q3d-rel">–</div></div>
       <div class="metric"><div class="label">levels per axis</div><div class="value quant" id="q3d-L">4</div></div>
@@ -1035,7 +1036,7 @@
     <div class="plot-grid cols-2">
       <div>
         <div class="small" style="color:var(--orig);margin-bottom:6px"><b>geometry</b></div>
-        <div class="plot" style="height:280px"><canvas id="r2d-geom"></canvas></div>
+        <div class="plot interactive" style="height:280px"><span class="hint">&#8597; drag tip</span><canvas id="r2d-geom"></canvas></div>
       </div>
       <div>
         <div class="small" style="color:var(--rot);margin-bottom:6px"><b>coordinate magnitudes</b></div>
@@ -1062,7 +1063,7 @@
     <div class="plot-grid cols-2">
       <div>
         <div class="small" style="color:var(--orig);margin-bottom:6px"><b>geometry (drag to orbit)</b></div>
-        <div class="plot interactive" style="height:320px"><span class="hint">&#8635; drag to orbit</span><canvas id="r3d-geom"></canvas></div>
+        <div class="plot interactive" style="height:320px"><span class="hint">&#8597; drag tip · &#8635; orbit</span><canvas id="r3d-geom"></canvas></div>
       </div>
       <div>
         <div class="small" style="color:var(--rot);margin-bottom:6px"><b>coordinate magnitudes</b></div>
@@ -3515,13 +3516,8 @@ function drawDragTip(ctx, x, y, color) {
     const rx = c, ry = sn;
     ctx.strokeStyle = PR.blue; ctx.lineWidth = 2.2;
     ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + rx*s, cy - ry*s); ctx.stroke();
-    const ang = Math.atan2(-ry, rx);
-    ctx.fillStyle = PR.blue;
     const tx = cx + rx*s, ty = cy - ry*s;
-    ctx.beginPath(); ctx.moveTo(tx, ty);
-    ctx.lineTo(tx - 9*Math.cos(ang-0.42), ty - 9*Math.sin(ang-0.42));
-    ctx.lineTo(tx - 9*Math.cos(ang+0.42), ty - 9*Math.sin(ang+0.42));
-    ctx.closePath(); ctx.fill();
+    drawDragTip(ctx, tx, ty, PR.blue);
     // projections onto axes (showing the two coordinate magnitudes as shadows)
     ctx.strokeStyle = "rgba(251,113,133,0.55)"; ctx.lineWidth = 1.5; ctx.setLineDash([3,3]);
     ctx.beginPath(); ctx.moveTo(cx + rx*s, cy - ry*s); ctx.lineTo(cx + rx*s, cy); ctx.stroke();
@@ -3582,6 +3578,26 @@ function drawDragTip(ctx, x, y, color) {
     drawGeom(); drawBars();
   }
   aI.addEventListener("input", draw);
+  // tip-drag on unit circle: mirror angle into the slider so both inputs stay in sync
+  let dragging = false;
+  function handle(e) {
+    const r = gcv.getBoundingClientRect();
+    const px = (e.touches?e.touches[0].clientX:e.clientX) - r.left;
+    const py = (e.touches?e.touches[0].clientY:e.clientY) - r.top;
+    const cx = r.width/2, cy = r.height/2;
+    const th = Math.atan2(-(py - cy), px - cx); // canvas-y is flipped
+    let deg = Math.round(th * 180 / Math.PI);
+    if (deg > 180) deg = 180;
+    if (deg < -180) deg = -180;
+    aI.value = String(deg);
+    draw();
+  }
+  gcv.addEventListener("mousedown", e => { dragging = true; handle(e); });
+  window.addEventListener("mousemove", e => { if (dragging) handle(e); });
+  window.addEventListener("mouseup", () => dragging = false);
+  gcv.addEventListener("touchstart", e => { dragging = true; handle(e); e.preventDefault(); });
+  gcv.addEventListener("touchmove", e => { if (dragging) handle(e); e.preventDefault(); });
+  gcv.addEventListener("touchend", () => dragging = false);
   window.addEventListener("resize", draw);
   draw();
 })();
@@ -3593,28 +3609,15 @@ function drawDragTip(ctx, x, y, color) {
   const btn = document.getElementById("r3d-rotate");
   const mxOut = document.getElementById("r3d-mx");
   const lenOut = document.getElementById("r3d-len");
-  let yaw = 0.7, pitch = -0.45, dragging = false, lastMX = 0, lastMY = 0;
-  let R = eye3();
-  function eye3() { return [[1,0,0],[0,1,0],[0,0,1]]; }
-  function randRot3() {
-    // Gram-Schmidt on 3x3 Gaussian
-    const g = [[gauss(),gauss(),gauss()],[gauss(),gauss(),gauss()],[gauss(),gauss(),gauss()]];
-    const rows = [];
-    for (let i = 0; i < 3; i++) {
-      let v = g[i].slice();
-      for (const u of rows) {
-        const dot = v[0]*u[0]+v[1]*u[1]+v[2]*u[2];
-        v = [v[0]-dot*u[0], v[1]-dot*u[1], v[2]-dot*u[2]];
-      }
-      const n = Math.hypot(v[0],v[1],v[2]) || 1;
-      rows.push([v[0]/n, v[1]/n, v[2]/n]);
-    }
-    return rows;
-  }
-  function applyR(v) {
-    return [R[0][0]*v[0]+R[0][1]*v[1]+R[0][2]*v[2],
-            R[1][0]*v[0]+R[1][1]*v[1]+R[1][2]*v[2],
-            R[2][0]*v[0]+R[2][1]*v[1]+R[2][2]*v[2]];
+  let yaw = 0.7, pitch = -0.45;
+  let mode = null; // null | "orbit" | "tip"
+  let lastMX = 0, lastMY = 0;
+  // rv is the rotated tip position on the unit sphere. Any random rotation R applied to (1,0,0) is just a uniform random unit vector, so we store rv directly and let the reader drag it.
+  let rv = [1, 0, 0];
+  function randUnit3() {
+    const x = gauss(), y = gauss(), z = gauss();
+    const n = Math.hypot(x, y, z) || 1;
+    return [x/n, y/n, z/n];
   }
   function proj(p, cx, cy, s) {
     const cY = Math.cos(yaw), sY = Math.sin(yaw);
@@ -3625,15 +3628,15 @@ function drawDragTip(ctx, x, y, color) {
     z = p[1]*sP + z*cP;
     return { x: cx + x*s, y: cy - y*s, depth: z };
   }
-  function drawArrow3(ctx, x0, y0, x1, y1, color, lw) {
-    ctx.strokeStyle = color; ctx.lineWidth = lw;
-    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
-    const ang = Math.atan2(y1-y0, x1-x0);
-    ctx.fillStyle = color;
-    ctx.beginPath(); ctx.moveTo(x1, y1);
-    ctx.lineTo(x1 - 9*Math.cos(ang-0.42), y1 - 9*Math.sin(ang-0.42));
-    ctx.lineTo(x1 - 9*Math.cos(ang+0.42), y1 - 9*Math.sin(ang+0.42));
-    ctx.closePath(); ctx.fill();
+  // Invert proj: given camera-plane (u, v) in world units and a chosen depth z2, return the world point.
+  function unproject(u, v, z2) {
+    const cY = Math.cos(yaw), sY = Math.sin(yaw);
+    const cP = Math.cos(pitch), sP = Math.sin(pitch);
+    const z1 = z2*cP - v*sP;
+    const py = v*cP + z2*sP;
+    const px = u*cY - z1*sY;
+    const pz = u*sY + z1*cY;
+    return [px, py, pz];
   }
   function drawGeom() {
     const { ctx, w, h } = setupCanvas(gcv); clearHud(ctx, w, h);
@@ -3661,19 +3664,27 @@ function drawDragTip(ctx, x, y, color) {
     });
     // original spike (1,0,0) ghost
     const T0 = proj([1,0,0], cx, cy, s);
-    drawArrow3(ctx, O.x, O.y, T0.x, T0.y, accentRGBA(0.4), 2);
-    // rotated
-    const rv = applyR([1,0,0]);
+    ctx.strokeStyle = accentRGBA(0.4); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(O.x, O.y); ctx.lineTo(T0.x, T0.y); ctx.stroke();
+    const a0 = Math.atan2(T0.y-O.y, T0.x-O.x);
+    ctx.fillStyle = accentRGBA(0.4);
+    ctx.beginPath(); ctx.moveTo(T0.x, T0.y);
+    ctx.lineTo(T0.x - 9*Math.cos(a0-0.42), T0.y - 9*Math.sin(a0-0.42));
+    ctx.lineTo(T0.x - 9*Math.cos(a0+0.42), T0.y - 9*Math.sin(a0+0.42));
+    ctx.closePath(); ctx.fill();
+    // rotated, with the standard drag tip
     const T = proj(rv, cx, cy, s);
-    drawArrow3(ctx, O.x, O.y, T.x, T.y, PR.blue, 2.2);
+    ctx.strokeStyle = PR.blue; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.moveTo(O.x, O.y); ctx.lineTo(T.x, T.y); ctx.stroke();
+    drawDragTip(ctx, T.x, T.y, PR.blue);
     // readout
     ctx.fillStyle = accentRGBA(0.6); ctx.font = PR.font;
     ctx.fillText("x = (1, 0, 0)", 12, 18);
     ctx.fillStyle = PR.blue;
     ctx.fillText("Rx = (" + rv.map(v => v.toFixed(2)).join(", ") + ")", 12, 36);
     ctx.fillStyle = PR.mute; ctx.font = PR.fontSm;
-    ctx.fillText("drag to orbit · click button to re-roll R", 12, h - 10);
-    return rv;
+    ctx.fillText("drag tip to steer · drag empty space to orbit · button re-rolls", 12, h - 10);
+    return { tip: T, origin: O, s, cx, cy };
   }
   function drawBars(rv) {
     const { ctx, w, h } = setupCanvas(bcv); clearHud(ctx, w, h);
@@ -3708,33 +3719,72 @@ function drawDragTip(ctx, x, y, color) {
     mxOut.textContent = Math.max(...vals).toFixed(3);
     lenOut.textContent = Math.hypot(...rv).toFixed(3);
   }
+  let lastView = null;
   function draw() {
-    const rv = drawGeom();
+    lastView = drawGeom();
     drawBars(rv);
   }
-  gcv.addEventListener("mousedown", e => { dragging = true; lastMX = e.clientX; lastMY = e.clientY; });
-  window.addEventListener("mousemove", e => {
-    if (!dragging) return;
-    const dx = e.clientX - lastMX, dy = e.clientY - lastMY;
-    lastMX = e.clientX; lastMY = e.clientY;
-    yaw += dx * 0.01;
-    pitch = Math.max(-1.3, Math.min(1.3, pitch + dy * 0.01));
+  function tipDrag(px, py) {
+    if (!lastView) return;
+    const { s, cx, cy } = lastView;
+    // screen → camera-plane world units
+    const u = (px - cx) / s;
+    const v = -(py - cy) / s;
+    const r2 = u*u + v*v;
+    // invert proj on unit sphere: pick z2 on the near side (same sign as current tip).
+    const cP = Math.cos(pitch), sP = Math.sin(pitch);
+    const cY = Math.cos(yaw), sY = Math.sin(yaw);
+    const curZ2 = rv[1]*sP + (-rv[0]*sY + rv[2]*cY)*cP;
+    const sign = curZ2 >= 0 ? 1 : -1;
+    let z2;
+    if (r2 >= 1) {
+      // outside the sphere: snap to silhouette (z2 = 0) in the drag direction
+      const n = Math.sqrt(r2);
+      rv = unproject(u/n, v/n, 0);
+    } else {
+      z2 = sign * Math.sqrt(1 - r2);
+      rv = unproject(u, v, z2);
+    }
     draw();
-  });
-  window.addEventListener("mouseup", () => dragging = false);
-  gcv.addEventListener("touchstart", e => { dragging = true; lastMX = e.touches[0].clientX; lastMY = e.touches[0].clientY; e.preventDefault(); });
-  gcv.addEventListener("touchmove", e => {
-    if (!dragging) return;
-    const dx = e.touches[0].clientX - lastMX, dy = e.touches[0].clientY - lastMY;
-    lastMX = e.touches[0].clientX; lastMY = e.touches[0].clientY;
-    yaw += dx * 0.01;
-    pitch = Math.max(-1.3, Math.min(1.3, pitch + dy * 0.01));
-    draw(); e.preventDefault();
-  });
-  gcv.addEventListener("touchend", () => dragging = false);
-  btn.onclick = () => { R = randRot3(); draw(); };
+  }
+  function pointerStart(e) {
+    const r = gcv.getBoundingClientRect();
+    const px = (e.touches?e.touches[0].clientX:e.clientX) - r.left;
+    const py = (e.touches?e.touches[0].clientY:e.clientY) - r.top;
+    if (lastView) {
+      const dx = px - lastView.tip.x, dy = py - lastView.tip.y;
+      if (dx*dx + dy*dy <= 14*14) { mode = "tip"; tipDrag(px, py); return; }
+    }
+    mode = "orbit";
+    lastMX = e.touches?e.touches[0].clientX:e.clientX;
+    lastMY = e.touches?e.touches[0].clientY:e.clientY;
+  }
+  function pointerMove(e) {
+    if (!mode) return;
+    if (mode === "tip") {
+      const r = gcv.getBoundingClientRect();
+      const px = (e.touches?e.touches[0].clientX:e.clientX) - r.left;
+      const py = (e.touches?e.touches[0].clientY:e.clientY) - r.top;
+      tipDrag(px, py);
+    } else {
+      const mx = e.touches?e.touches[0].clientX:e.clientX;
+      const my = e.touches?e.touches[0].clientY:e.clientY;
+      const dx = mx - lastMX, dy = my - lastMY;
+      lastMX = mx; lastMY = my;
+      yaw += dx * 0.01;
+      pitch = Math.max(-1.3, Math.min(1.3, pitch + dy * 0.01));
+      draw();
+    }
+  }
+  gcv.addEventListener("mousedown", pointerStart);
+  window.addEventListener("mousemove", pointerMove);
+  window.addEventListener("mouseup", () => mode = null);
+  gcv.addEventListener("touchstart", e => { pointerStart(e); e.preventDefault(); });
+  gcv.addEventListener("touchmove", e => { pointerMove(e); e.preventDefault(); });
+  gcv.addEventListener("touchend", () => mode = null);
+  btn.onclick = () => { rv = randUnit3(); draw(); };
   window.addEventListener("resize", draw);
-  R = randRot3();
+  rv = randUnit3();
   draw();
 })();
 
@@ -4078,7 +4128,10 @@ function drawDragTip(ctx, x, y, color) {
   const lOut = document.getElementById("q3d-L");
   const gOut = document.getElementById("q3d-gp");
   let yaw = 0.7, pitch = -0.45;
-  let dragging = false, lastMX = 0, lastMY = 0;
+  let mode = null; // null | "orbit" | "tip"
+  let lastMX = 0, lastMY = 0;
+  let lastView = null;
+  let custom = [0.95, 0.15, 0.05];
 
   const presets = {
     spike:    [0.95, 0.15, 0.05],
@@ -4086,6 +4139,9 @@ function drawDragTip(ctx, x, y, color) {
     outlier:  [0.90, 0.40, 0.10],
     diag:     [0.70, 0.70, 0.10],
   };
+  function getVec() {
+    return iSel.value === "custom" ? custom : (presets[iSel.value] || presets.spike);
+  }
   function snap(v, b) {
     const K = 1 << b, step = 2 / (K - 1);
     let k = Math.round((v + 1) / step);
@@ -4101,6 +4157,21 @@ function drawDragTip(ctx, x, y, color) {
     let y = p[1]*cP - z*sP;
     z = p[1]*sP + z*cP;
     return { x: cx + x*s, y: cy - y*s, depth: z };
+  }
+  function unproject(u, v, z2) {
+    const cY = Math.cos(yaw), sY = Math.sin(yaw);
+    const cP = Math.cos(pitch), sP = Math.sin(pitch);
+    const z1 = z2*cP - v*sP;
+    const py = v*cP + z2*sP;
+    const px = u*cY - z1*sY;
+    const pz = u*sY + z1*cY;
+    return [px, py, pz];
+  }
+  function currentZ2(vec) {
+    const cY = Math.cos(yaw), sY = Math.sin(yaw);
+    const cP = Math.cos(pitch), sP = Math.sin(pitch);
+    const z1 = -vec[0]*sY + vec[2]*cY;
+    return vec[1]*sP + z1*cP;
   }
   function draw() {
     const { ctx, w, h } = setupCanvas(cv); clearHud(ctx, w, h);
@@ -4151,18 +4222,21 @@ function drawDragTip(ctx, x, y, color) {
     }
 
     // vector + snapped
-    const src = presets[iSel.value] || presets.spike;
+    const src = getVec();
     const qv = [snap(src[0], b), snap(src[1], b), snap(src[2], b)];
     const O = proj([0,0,0], cx, cy, s);
     const T = proj(src, cx, cy, s);
     const Q = proj(qv, cx, cy, s);
-    // original (green)
-    drawArrow3(ctx, O.x, O.y, T.x, T.y, PR.accent, 2.2);
+    // original (green), line only so the drag tip reads cleanly on top
+    ctx.strokeStyle = PR.accent; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.moveTo(O.x, O.y); ctx.lineTo(T.x, T.y); ctx.stroke();
     // quantized (blue)
     drawArrow3(ctx, O.x, O.y, Q.x, Q.y, PR.blue, 2.2);
     // error
     ctx.strokeStyle = PR.err; ctx.lineWidth = 1.5; ctx.setLineDash([4,3]);
     ctx.beginPath(); ctx.moveTo(T.x, T.y); ctx.lineTo(Q.x, Q.y); ctx.stroke(); ctx.setLineDash([]);
+    // drag handle on the original tip
+    drawDragTip(ctx, T.x, T.y, PR.accent);
 
     // readouts
     ctx.fillStyle = PR.accent; ctx.font = PR.font;
@@ -4173,8 +4247,9 @@ function drawDragTip(ctx, x, y, color) {
     const xn = Math.max(1e-9, Math.hypot(src[0], src[1], src[2]));
     ctx.fillStyle = PR.err;
     ctx.fillText("error = " + err.toFixed(3), 12, 54);
-    ctx.fillStyle = PR.mute; ctx.fillText("drag the canvas to orbit", 12, h - 10);
+    ctx.fillStyle = PR.mute; ctx.fillText("drag tip to steer · drag empty space to orbit", 12, h - 10);
     rOut.textContent = (err/xn).toFixed(3);
+    lastView = { tip: T, s, cx, cy };
   }
   function drawArrow3(ctx, x0, y0, x1, y1, color, lw) {
     ctx.strokeStyle = color; ctx.lineWidth = lw;
@@ -4186,30 +4261,57 @@ function drawDragTip(ctx, x, y, color) {
     ctx.lineTo(x1 - 9*Math.cos(ang+0.42), y1 - 9*Math.sin(ang+0.42));
     ctx.closePath(); ctx.fill();
   }
-  cv.addEventListener("mousedown", e => {
-    dragging = true; lastMX = e.clientX; lastMY = e.clientY;
-  });
-  window.addEventListener("mousemove", e => {
-    if (!dragging) return;
-    const dx = e.clientX - lastMX, dy = e.clientY - lastMY;
-    lastMX = e.clientX; lastMY = e.clientY;
-    yaw  += dx * 0.01;
-    pitch = Math.max(-1.3, Math.min(1.3, pitch + dy * 0.01));
+  function tipDrag(px, py) {
+    if (!lastView) return;
+    const { s, cx, cy } = lastView;
+    const u = (px - cx) / s;
+    const v = -(py - cy) / s;
+    // lock z2 to current tip's depth so dragging stays in the camera plane of the tip
+    const base = getVec();
+    const z2 = currentZ2(base);
+    let w = unproject(u, v, z2);
+    w = [Math.max(-1, Math.min(1, w[0])),
+         Math.max(-1, Math.min(1, w[1])),
+         Math.max(-1, Math.min(1, w[2]))];
+    custom = w;
+    if (iSel.value !== "custom") iSel.value = "custom";
     draw();
-  });
-  window.addEventListener("mouseup", () => dragging = false);
-  cv.addEventListener("touchstart", e => {
-    dragging = true; lastMX = e.touches[0].clientX; lastMY = e.touches[0].clientY; e.preventDefault();
-  });
-  cv.addEventListener("touchmove", e => {
-    if (!dragging) return;
-    const dx = e.touches[0].clientX - lastMX, dy = e.touches[0].clientY - lastMY;
-    lastMX = e.touches[0].clientX; lastMY = e.touches[0].clientY;
-    yaw  += dx * 0.01;
-    pitch = Math.max(-1.3, Math.min(1.3, pitch + dy * 0.01));
-    draw(); e.preventDefault();
-  });
-  cv.addEventListener("touchend", () => dragging = false);
+  }
+  function pointerStart(e) {
+    const r = cv.getBoundingClientRect();
+    const px = (e.touches?e.touches[0].clientX:e.clientX) - r.left;
+    const py = (e.touches?e.touches[0].clientY:e.clientY) - r.top;
+    if (lastView) {
+      const dx = px - lastView.tip.x, dy = py - lastView.tip.y;
+      if (dx*dx + dy*dy <= 14*14) { mode = "tip"; tipDrag(px, py); return; }
+    }
+    mode = "orbit";
+    lastMX = e.touches?e.touches[0].clientX:e.clientX;
+    lastMY = e.touches?e.touches[0].clientY:e.clientY;
+  }
+  function pointerMove(e) {
+    if (!mode) return;
+    if (mode === "tip") {
+      const r = cv.getBoundingClientRect();
+      const px = (e.touches?e.touches[0].clientX:e.clientX) - r.left;
+      const py = (e.touches?e.touches[0].clientY:e.clientY) - r.top;
+      tipDrag(px, py);
+    } else {
+      const mx = e.touches?e.touches[0].clientX:e.clientX;
+      const my = e.touches?e.touches[0].clientY:e.clientY;
+      const dx = mx - lastMX, dy = my - lastMY;
+      lastMX = mx; lastMY = my;
+      yaw  += dx * 0.01;
+      pitch = Math.max(-1.3, Math.min(1.3, pitch + dy * 0.01));
+      draw();
+    }
+  }
+  cv.addEventListener("mousedown", pointerStart);
+  window.addEventListener("mousemove", pointerMove);
+  window.addEventListener("mouseup", () => mode = null);
+  cv.addEventListener("touchstart", e => { pointerStart(e); e.preventDefault(); });
+  cv.addEventListener("touchmove", e => { pointerMove(e); e.preventDefault(); });
+  cv.addEventListener("touchend", () => mode = null);
   bI.addEventListener("input", draw);
   iSel.addEventListener("change", draw);
   window.addEventListener("resize", draw);
