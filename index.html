@@ -374,6 +374,18 @@
     color: var(--mute);
   }
   .plot .caption .t { color: var(--accent); }
+  .plot .hint {
+    position: absolute; top: 8px; right: 10px; z-index: 2;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--canvas-bg) 78%, transparent);
+    padding: 3px 8px; border-radius: 2px;
+    border: 1px solid rgba(var(--accent-rgb), 0.35);
+    pointer-events: none; user-select: none;
+  }
+  .plot.interactive canvas { cursor: grab; }
+  .plot.interactive canvas:active { cursor: grabbing; }
 
   .plot-grid { display: grid; gap: 16px; }
   .plot-grid.cols-2 { grid-template-columns: 1fr 1fr; }
@@ -611,7 +623,7 @@
         <b>arrow from the origin</b>. A <i>d-dimensional vector</i> is an arrow in $d$-space, hard
         to picture past 3-D, but the rules are the same.
       </div>
-      <div class="plot" style="height: 260px;"><canvas id="pr-vec-cv"></canvas></div>
+      <div class="plot interactive" style="height: 260px;"><span class="hint">&#8597; drag tip</span><canvas id="pr-vec-cv"></canvas></div>
       <div class="readout">
         <span><span class="k">coords</span><b id="pr-vec-co">[0.70, 0.50]</b></span>
         <span><span class="k">length</span><b id="pr-vec-len">0.86</b></span>
@@ -627,7 +639,7 @@
         <b>Inner product</b> $\langle x,y\rangle = x_1 y_1 + x_2 y_2 + \dots = \|x\|\|y\|\cos\theta$.
         When the arrows align it is large; perpendicular, zero; opposite, negative.
       </div>
-      <div class="plot" style="height: 280px;"><canvas id="pr-dot-cv"></canvas></div>
+      <div class="plot interactive" style="height: 280px;"><span class="hint">&#8597; drag either tip</span><canvas id="pr-dot-cv"></canvas></div>
       <div class="readout">
         <span><span class="k">‖x‖</span><b id="pr-dot-lx">1.00</b></span>
         <span><span class="k">‖y‖</span><b id="pr-dot-ly">1.00</b></span>
@@ -829,7 +841,7 @@
         </select>
       </div>
     </div>
-    <div class="plot" style="height:360px"><canvas id="q2d-cv"></canvas></div>
+    <div class="plot interactive" style="height:360px"><span class="hint">&#8597; drag tip</span><canvas id="q2d-cv"></canvas></div>
     <div class="metrics">
       <div class="metric"><div class="label">‖error‖ / ‖x‖</div><div class="value err" id="q2d-rel">–</div></div>
       <div class="metric"><div class="label">levels per axis</div><div class="value quant" id="q2d-L">4</div></div>
@@ -854,7 +866,7 @@
         </select>
       </div>
     </div>
-    <div class="plot" style="height:380px"><canvas id="q3d-cv"></canvas></div>
+    <div class="plot interactive" style="height:380px"><span class="hint">&#8635; drag to orbit</span><canvas id="q3d-cv"></canvas></div>
     <div class="metrics">
       <div class="metric"><div class="label">‖error‖ / ‖x‖</div><div class="value err" id="q3d-rel">–</div></div>
       <div class="metric"><div class="label">levels per axis</div><div class="value quant" id="q3d-L">4</div></div>
@@ -1050,7 +1062,7 @@
     <div class="plot-grid cols-2">
       <div>
         <div class="small" style="color:var(--orig);margin-bottom:6px"><b>geometry (drag to orbit)</b></div>
-        <div class="plot" style="height:320px"><canvas id="r3d-geom"></canvas></div>
+        <div class="plot interactive" style="height:320px"><span class="hint">&#8635; drag to orbit</span><canvas id="r3d-geom"></canvas></div>
       </div>
       <div>
         <div class="small" style="color:var(--rot);margin-bottom:6px"><b>coordinate magnitudes</b></div>
@@ -1162,7 +1174,7 @@
     <div class="plot-grid cols-2">
       <div>
         <div class="small" style="color:var(--rot);margin-bottom:6px"><b>points on the unit sphere</b></div>
-        <div class="plot" style="height:320px"><canvas id="c3d-scatter"></canvas></div>
+        <div class="plot interactive" style="height:320px"><span class="hint">&#8635; drag to orbit</span><canvas id="c3d-scatter"></canvas></div>
       </div>
       <div>
         <div class="small" style="color:var(--rot);margin-bottom:6px"><b>marginal of $x_1$</b></div>
@@ -2876,6 +2888,19 @@ function clearHud(ctx, w, h) {
   ctx.stroke();
 }
 
+// Unified draggable-tip handle. Uses the same look for every draggable vector
+// tip across the page so the reader learns the vocabulary once.
+function drawDragTip(ctx, x, y, color) {
+  ctx.strokeStyle = color;
+  ctx.globalAlpha = 0.22; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(x, y, 12, 0, Math.PI*2); ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = THEME.bg; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI*2); ctx.fill();
+}
+
 /* ---------- §0.1 Vector ---------- */
 (function(){
   const cv = document.getElementById("pr-vec-cv"); if (!cv) return;
@@ -2913,9 +2938,8 @@ function clearHud(ctx, w, h) {
     ctx.lineTo(tx - 10*Math.cos(ang-0.4), ty - 10*Math.sin(ang-0.4));
     ctx.lineTo(tx - 10*Math.cos(ang+0.4), ty - 10*Math.sin(ang+0.4));
     ctx.closePath(); ctx.fill();
-    // tip handle
-    ctx.fillStyle = THEME.bg; ctx.strokeStyle = PR.accent; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(tx, ty, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    // tip handle, standardized across all draggable canvases
+    drawDragTip(ctx, tx, ty, PR.accent);
     // component guides
     ctx.strokeStyle = accentRGBA(0.35); ctx.setLineDash([3,3]);
     ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx, P.cy);
@@ -2923,7 +2947,6 @@ function clearHud(ctx, w, h) {
     // labels
     ctx.fillStyle = PR.text; ctx.font = PR.font;
     ctx.fillText("x = [" + tip.x.toFixed(2) + ", " + tip.y.toFixed(2) + "]", 12, 18);
-    ctx.fillStyle = PR.mute; ctx.fillText("drag the tip", 12, h-10);
 
     coOut.textContent = "[" + tip.x.toFixed(2) + ", " + tip.y.toFixed(2) + "]";
     lenOut.textContent = Math.hypot(tip.x, tip.y).toFixed(2);
@@ -2978,10 +3001,9 @@ function clearHud(ctx, w, h) {
       ctx.lineTo(tx-10*Math.cos(ang-0.4), ty-10*Math.sin(ang-0.4));
       ctx.lineTo(tx-10*Math.cos(ang+0.4), ty-10*Math.sin(ang+0.4));
       ctx.closePath(); ctx.fill();
-      ctx.fillStyle = THEME.bg; ctx.strokeStyle = color; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(tx, ty, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+      drawDragTip(ctx, tx, ty, color);
       ctx.fillStyle = color; ctx.font = PR.fontLg;
-      ctx.fillText(label, tx + 10, ty - 4);
+      ctx.fillText(label, tx + 12, ty - 6);
     }
     drawVec(X, PR.accent, "x");
     drawVec(Y, PR.ocean,  "y");
@@ -4001,9 +4023,8 @@ function clearHud(ctx, w, h) {
     ctx.moveTo(cx + xr*s, cy - yr*s);
     ctx.lineTo(cx + qx*s, cy - qy*s);
     ctx.stroke(); ctx.setLineDash([]);
-    // tip handle
-    ctx.fillStyle = THEME.bg; ctx.strokeStyle = PR.accent; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(cx + xr*s, cy - yr*s, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    // tip handle, standardized
+    drawDragTip(ctx, cx + xr*s, cy - yr*s, PR.accent);
     // legend
     ctx.fillStyle = PR.accent; ctx.font = PR.font;
     ctx.fillText("x = (" + xr.toFixed(2) + ", " + yr.toFixed(2) + ")", 12, 18);
