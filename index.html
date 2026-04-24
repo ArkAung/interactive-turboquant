@@ -1228,8 +1228,9 @@
   <h2>Lloyd–Max: the optimal partition of a known distribution.</h2>
   <p>
     Problem: given a PDF $f_X$, partition $\mathbb{R}$ into $2^b$ cells with centroids $c_1 \le \dots \le c_{2^b}$
-    to minimize expected squared error $\int (x - c_{i(x)})^2 f_X(x)\,dx$. The solution (<a
-    href="#" onclick="return false">Lloyd 1982, Max 1960</a>) alternates two steps:
+    to minimize expected squared error $\int (x - c_{i(x)})^2 f_X(x)\,dx$. The solution
+    (<a href="https://doi.org/10.1109/TIT.1982.1056489" target="_blank" rel="noopener">Lloyd&nbsp;1957/82</a>,
+    <a href="https://doi.org/10.1109/TIT.1960.1057548" target="_blank" rel="noopener">Max&nbsp;1960</a>) alternates two steps:
   </p>
   <ul>
     <li><b>Assignment:</b> each centroid owns the Voronoi cell around it, boundaries are midpoints between adjacent centroids.</li>
