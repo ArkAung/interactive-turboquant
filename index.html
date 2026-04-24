@@ -930,10 +930,12 @@
 
   <div class="card caution">
     <b style="color:var(--err)">The catch.</b>
-    A <span class="mono">float16</span> scale + zero-point per 16&ndash;64-element block costs
-    <b>1&ndash;2 extra bits per quantized number</b>. At a 3-bit budget that is 33&ndash;66% overhead on top
-    of the payload. TurboQuant's goal is to match the worst-case quality of these schemes while storing
-    no per-block side information.
+    To decode any block you also need its scale and zero-point, two <span class="mono">float16</span>
+    numbers (32 extra bits) stored next to every 16&ndash;64 quantized values. Walk through one case:
+    a block of 32 numbers at 3 bits each is 96 payload bits, plus 32 metadata bits, which works out
+    to <b>4 bits per number, not 3</b>. Smaller blocks of 16 numbers push it to <b>5 bits per number</b>.
+    The advertised 3-bit scheme is really a 4&ndash;5-bit scheme once you count everything.
+    TurboQuant matches this worst-case quality while storing zero per-block metadata.
   </div>
 
   <div class="card">
@@ -968,7 +970,7 @@
         </div>
       </div>
       <div>
-        <div class="small" style="margin:0 0 4px"><b style="color:#e0a215">B. Per-block (production)</b></div>
+        <div class="small" style="margin:0 0 4px"><b style="color:#e0a215">B. Per-block scale + zero</b></div>
         <div class="small" style="color:var(--text-dim);margin:0 0 6px"><code>float16</code> scale+zero per block (dashed dividers). Outlier fits, header taxes you.</div>
         <div class="plot" style="height:88px"><canvas id="ot-b-cv"></canvas></div>
         <div class="metrics" style="margin:8px 0 0">
