@@ -1391,6 +1391,18 @@
   </div>
   <p>That $2/\pi \approx 0.637$ is a multiplicative <b>bias</b>. It shrinks as $b$ grows, but it never goes to zero cleanly, and for low-bit, high-dimensional settings (exactly where you want to be) the bias is painfully real.</p>
 
+  <div class="card insight">
+    <div class="panel-hd"><span class="tag">&#9632; HOW TO READ THE PLOT</span><span class="stat">each dot is one trial</span></div>
+    <p class="small" style="margin:0">
+      Each dot is one trial. Its <b>x-position</b> is the trial's answer divided by the true inner product,
+      so a dot at <b>1.0</b> (the crosshair) is a perfect trial. Less than 1 means the trial underestimated;
+      more than 1 means it overestimated. The big red circle is the <b>mean of every dot</b>. A quantizer
+      is <i>unbiased</i> when that red circle sits on the crosshair, no matter how wide the surrounding cloud.
+      The vertical spread is just jitter so you can see overlapping dots; only the horizontal position carries
+      information.
+    </p>
+  </div>
+
   <div class="card">
     <div class="controls">
       <div class="ctrl"><label>Bits&nbsp;<code>b</code>&nbsp;(MSE side)</label><input id="bias-b" type="range" min="1" max="5" value="1"><span class="val" id="bias-b-v">1</span></div>
@@ -1415,7 +1427,11 @@
       <div class="metric"><div class="label">truth</div><div class="value">1.0000</div></div>
     </div>
     <p class="small" style="margin:10px 0 0;color:var(--text-dim)">
-      Each dot is one trial's ratio $\langle\mathbf{y},\tilde{\mathbf{x}}\rangle / \langle\mathbf{y},\mathbf{x}\rangle$, placed on the horizontal axis with a bit of vertical jitter for visibility. Bullseye centre = truth = 1. Red dot = mean of all shots. The MSE cloud parks at $\approx 0.637$ and doesn't move with more trials; the QJL cloud is noisier but its mean lands on the bullseye.
+      <b>What to notice.</b> Left: MSE trials cluster near 1, but their red mean parks at $\approx 0.637$,
+      every trial shrunk by the same factor $2/\pi$. More trials cannot fix that, the bias is baked in.
+      Right: QJL trials scatter much further from 1 (noisier per-trial), but their red mean lands on 1.
+      That is the whole point, noisier per shot, correct on average, which is exactly what attention scores
+      and nearest-neighbour searches need.
     </p>
   </div>
 </section>
