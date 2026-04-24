@@ -702,7 +702,7 @@
         $\langle Rx,Ry\rangle=\langle x,y\rangle$. Rotation only changes the <i>basis</i> the coordinates
         are written in, not the geometry.
       </div>
-      <div class="plot" style="height: 280px;"><canvas id="pr-rot-cv"></canvas></div>
+      <div class="plot interactive" style="height: 280px;"><span class="hint">&#8597; drag tip</span><canvas id="pr-rot-cv"></canvas></div>
       <div class="controls" style="margin-top:10px;">
         <div class="ctrl"><label>Angle θ</label><input id="pr-rot-a" type="range" min="-180" max="180" step="1" value="0"><span class="val" id="pr-rot-av">0°</span></div>
       </div>
@@ -3223,8 +3223,9 @@ function drawDragTip(ctx, x, y, color) {
   const av = document.getElementById("pr-rot-av");
   const lenOut = document.getElementById("pr-rot-len");
   const okOut = document.getElementById("pr-rot-ok");
-  // an L-shape polygon
+  // an L-shape polygon, centred so one vertex sits at angle 0
   const shape = [ [0.1,0.1], [0.1,0.9], [0.3,0.9], [0.3,0.3], [0.8,0.3], [0.8,0.1] ].map(p => [p[0]-0.3, p[1]-0.3]);
+  const tipIdx = 4; // the (0.5, 0) vertex, our drag handle
 
   function draw(){
     const { ctx, w, h } = setupCanvas(cv); clearHud(ctx,w,h);
@@ -3253,14 +3254,15 @@ function drawDragTip(ctx, x, y, color) {
     });
     ctx.closePath(); ctx.fill(); ctx.stroke();
     // a vertex with length labels
-    const p0 = shape[4]; // outer tip
+    const p0 = shape[tipIdx]; // outer tip
     const rx = c*p0[0] - sn*p0[1], ry = sn*p0[0] + c*p0[1];
     ctx.fillStyle = PR.warn;
     ctx.beginPath(); ctx.arc(cx+p0[0]*s, cy-p0[1]*s, 3, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(cx+rx*s, cy-ry*s, 3, 0, Math.PI*2); ctx.fill();
     ctx.strokeStyle = PR.warn; ctx.setLineDash([2,3]);
     ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx+p0[0]*s, cy-p0[1]*s);
     ctx.moveTo(cx, cy); ctx.lineTo(cx+rx*s, cy-ry*s); ctx.stroke(); ctx.setLineDash([]);
+
+    drawDragTip(ctx, cx + rx*s, cy - ry*s, PR.accent);
 
     const lb = Math.hypot(p0[0], p0[1]);
     const la = Math.hypot(rx, ry);
@@ -3277,6 +3279,28 @@ function drawDragTip(ctx, x, y, color) {
     okOut.style.color = same ? PR.accent : PR.err;
   }
   a.addEventListener("input", draw);
+
+  // tip-drag: map mouse angle (around origin) directly to θ, since the
+  // original tip sits at angle 0 on the shape.
+  let dragging = false;
+  function handle(e) {
+    const r = cv.getBoundingClientRect();
+    const px = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+    const py = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
+    const cx = r.width/2, cy = r.height/2;
+    const th = Math.atan2(-(py - cy), px - cx); // canvas-y is flipped
+    let deg = Math.round(th * 180 / Math.PI);
+    if (deg > 180) deg = 180;
+    if (deg < -180) deg = -180;
+    a.value = String(deg);
+    draw();
+  }
+  cv.addEventListener("mousedown", e => { dragging = true; handle(e); });
+  window.addEventListener("mousemove", e => { if (dragging) handle(e); });
+  window.addEventListener("mouseup", () => dragging = false);
+  cv.addEventListener("touchstart", e => { dragging = true; handle(e); e.preventDefault(); });
+  cv.addEventListener("touchmove", e => { if (dragging) handle(e); e.preventDefault(); });
+  cv.addEventListener("touchend", () => dragging = false);
   window.addEventListener("resize", draw);
   draw();
 })();
