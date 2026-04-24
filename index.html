@@ -231,6 +231,7 @@
     50% { opacity: 0.35; }
   }
 
+  html { scroll-behavior: smooth; }
   a { color: var(--accent); text-decoration: none; border-bottom: 1px dashed rgba(var(--accent-rgb),0.3); }
   a:hover { border-bottom-color: var(--accent); }
   hr { border: none; border-top: 1px dashed var(--line); margin: 40px 0; }
@@ -495,7 +496,8 @@
   /* Primer mini-demo grid */
   .primer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 18px 0; }
   @media (max-width: 860px) { .primer-grid { grid-template-columns: 1fr; } }
-  .primer-cell { background: var(--panel); border: 1px solid var(--line); border-radius: 2px; padding: 16px 18px; position: relative; }
+  .primer-cell { background: var(--panel); border: 1px solid var(--line); border-radius: 2px; padding: 16px 18px; position: relative; scroll-margin-top: 24px; }
+  .primer-cell:target { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(var(--accent-rgb),0.15); }
   .primer-cell::before, .primer-cell::after {
     content: ""; position: absolute; width: 8px; height: 8px;
     border-color: var(--accent-soft); border-style: solid; pointer-events: none;
@@ -811,10 +813,10 @@
   </p>
   <div class="card insight">
     <div class="panel-hd"><span class="tag">■ DECODER · KEY WORDS</span><span class="stat">plain English</span></div>
-    <p class="small" style="margin:0 0 6px"><b>MSE distortion</b>: average squared error between the true vector and its reconstruction, primer §0.3.</p>
-    <p class="small" style="margin:0 0 6px"><b>Inner product</b> $\langle y, x\rangle$: how much two vectors point the same way, primer §0.2. This is what attention computes.</p>
+    <p class="small" style="margin:0 0 6px"><b>MSE distortion</b>: average squared error between the true vector and its reconstruction, <a href="#pr-mse">primer §0.3</a>.</p>
+    <p class="small" style="margin:0 0 6px"><b>Inner product</b> $\langle y, x\rangle$: how much two vectors point the same way, <a href="#pr-dot">primer §0.2</a>. This is what attention computes.</p>
     <p class="small" style="margin:0 0 6px"><b>Estimator</b>: a rule (here: quantize, then decode) that returns an approximation $\hat s$ of a true number $s$.</p>
-    <p class="small" style="margin:0"><b>Unbiased estimator</b>: across many queries, the average of $\hat s$ equals $s$. Individual estimates can be noisy; the mean is on target. Primer §0.4.</p>
+    <p class="small" style="margin:0"><b>Unbiased estimator</b>: across many queries, the average of $\hat s$ equals $s$. Individual estimates can be noisy; the mean is on target. <a href="#pr-bias">Primer §0.4</a>.</p>
   </div>
 
   <h3>The obvious quantizer</h3>
@@ -1030,7 +1032,7 @@
     Why a <i>random</i> rotation rather than a fixed one? Because after a uniformly random rotation,
     the marginal distribution of each new coordinate is the same, fixed Beta density (Lemma 1 of the paper),
     no matter what the input vector was. So one codebook, designed once for that known distribution, is
-    optimal for every input. We build that codebook in §5.
+    optimal for every input. We build that codebook in <a href="#codebook">§5</a>.
   </p>
 
   <h4 style="margin-top:14px">A spike in 2D</h4>
@@ -1278,8 +1280,8 @@
     at $b{=}1$ the paper reports a tighter ratio of $\approx 1.45$.
   </p>
   <p class="small" style="color:var(--text-dim)">
-    Where this codebook is used: §6 drops it onto the rotated coordinates to get TurboQuant-MSE.
-    §8 extends the scheme with one extra bit of QJL on the residual, which turns it into TurboQuant-prod
+    Where this codebook is used: <a href="#pipeline">§6</a> drops it onto the rotated coordinates to get TurboQuant-MSE.
+    <a href="#qjl">§8</a> extends the scheme with one extra bit of QJL on the residual, which turns it into TurboQuant-prod
     (the inner-product variant).
   </p>
 </section>
@@ -1354,7 +1356,7 @@
   <h2>MSE-optimal quantizers are biased for inner products.</h2>
 
   <div class="card insight">
-    <div class="panel-hd"><span class="tag">■ RECALL · §0.4</span><span class="stat">Bullseye test</span></div>
+    <div class="panel-hd"><span class="tag">■ RECALL · <a href="#pr-bias" style="color:inherit">§0.4</a></span><span class="stat">Bullseye test</span></div>
     <p style="margin:0">
       &ldquo;<b>Unbiased</b>&rdquo; is the bullseye-scatter picture from the primer: shots may wander, but their
       <i>average</i> lands on the truth. &ldquo;<b>Biased</b>&rdquo; means the cluster center is parked somewhere <i>else</i>, 
@@ -1456,7 +1458,7 @@
   </p>
   <p class="small" style="color:var(--text-dim)">
     The 1-bit form here is the 2024 QJL paper in a single line. TurboQuant-prod reuses it as the last bit of a
-    $b$-bit scheme: the first $b{-}1$ bits come from the Lloyd&ndash;Max codebook of §5, and the final bit is a
+    $b$-bit scheme: the first $b{-}1$ bits come from the Lloyd&ndash;Max codebook of <a href="#codebook">§5</a>, and the final bit is a
     sign applied to the residual. Lemma 4 extends the unbiasedness and the variance bound to that residual stage.
   </p>
 
