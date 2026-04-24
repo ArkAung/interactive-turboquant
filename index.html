@@ -600,7 +600,7 @@
 <!-- ======================= SECTION: PRIMER ======================= -->
 <section id="primer">
   <div class="eyebrow">§0 · Primer: jargon decoder</div>
-  <h2>Seven ideas the rest of the page is built on.</h2>
+  <h2>Eight ideas the rest of the page is built on.</h2>
   <p class="lede">
     Each mini-demo below covers one concept used later. Skip the ones you already know.
   </p>
@@ -715,7 +715,10 @@
       <div class="pb">
         The <b>Central Limit Theorem</b>: sum enough independent random numbers and the distribution
         converges to a bell curve, regardless of whether each piece is a coin flip, a uniform roll, or
-        something skewed. This is why a rotated coordinate ends up Gaussian-like.
+        something skewed.
+        A rotated coordinate is exactly that kind of sum: it is a weighted mix of every coordinate of the
+        original vector, with random weights. So when you rotate, each new coordinate naturally lands in
+        a bell-shaped distribution, a fact TurboQuant uses on every input.
       </div>
       <div class="plot" style="height: 240px;"><canvas id="pr-clt-cv"></canvas></div>
       <div class="controls" style="margin-top:10px;">
@@ -777,11 +780,14 @@
   </div>
 
   <div class="card insight">
-    <div class="panel-hd"><span class="tag">■ CHEAT SHEET</span><span class="stat">Seven ideas, one sentence each</span></div>
-    <p style="margin:0"><b>Vector</b>: ordered list of numbers / arrow from the origin. <b>Length</b>: $\sqrt{\sum x_i^2}$.
-    <b>Inner product</b>: how much two vectors point the same way. <b>MSE</b>: average squared error.
-    <b>Unbiased</b>: the average of the estimates equals the truth.
-    <b>Rotation</b>: change of basis that preserves lengths and angles. <b>CLT</b>: sum of many independent randoms converges to a Gaussian.</p>
+    <div class="panel-hd"><span class="tag">■ CHEAT SHEET</span><span class="stat">Eight ideas, one sentence each</span></div>
+    <p style="margin:0"><b>Vector</b>: ordered list of numbers / arrow from the origin.
+    <b>Length &amp; inner product</b>: the norm $\sqrt{\sum x_i^2}$ and how much two vectors point the same way.
+    <b>MSE</b>: average squared error. <b>Unbiased</b>: the average of many estimates equals the truth.
+    <b>Rotation</b>: change of basis that preserves lengths and angles.
+    <b>CLT</b>: sum of many independent randoms converges to a Gaussian.
+    <b>High-D concentration</b>: coordinates of a random unit vector in $d$-space cluster near $\pm 1/\sqrt d$.
+    <b>Quantization</b>: snap each number to one of $2^b$ levels; one extra bit quarters the squared error.</p>
   </div>
 </section>
 
@@ -999,6 +1005,11 @@
 <section id="rotation">
   <div class="eyebrow">§3 · The rotation trick</div>
   <h2>Multiply by a random rotation. Watch the spike dissolve.</h2>
+  <p class="small" style="color:var(--text-dim)">
+    <b>The rotation trick, in one line:</b> apply a random orthogonal transform, then quantize coordinate-wise.
+    The rotation is lossless (lengths and inner products are preserved). The quantization is where the bits
+    live, and the rotation chooses its job for you, the same job on every input.
+  </p>
   <p>
     Pick a random orthogonal matrix $\boldsymbol{\Pi}\in\mathbb{R}^{d\times d}$, concretely, generate a Gaussian
     matrix, then run QR decomposition to orthonormalize it. Now replace $\mathbf{x}$ with
@@ -1014,6 +1025,12 @@
   <p>
     So rotating, quantizing, then rotating back is lossless at the rotation step. The only error comes
     from quantizing the rotated coordinates, and that is where the rotation earns its keep.
+  </p>
+  <p>
+    Why a <i>random</i> rotation rather than a fixed one? Because after a uniformly random rotation,
+    the marginal distribution of each new coordinate is the same, fixed Beta density (Lemma 1 of the paper),
+    no matter what the input vector was. So one codebook, designed once for that known distribution, is
+    optimal for every input. We build that codebook in §5.
   </p>
 
   <h4 style="margin-top:14px">A spike in 2D</h4>
@@ -1256,8 +1273,14 @@
   <p class="small">
     For moderate $d$, the paper's explicit centroids (after normalising by $\sqrt{d}$) are:
     $b{=}1\!:\pm\sqrt{2/\pi}$, &nbsp; $b{=}2\!:\{\pm 0.453,\pm 1.510\}$, &nbsp; and so on.
-    Theorem 1 proves the per-coordinate MSE is $\lesssim \tfrac{\sqrt{3}\pi}{2d}\cdot 4^{-b}$, within a
-    factor of $\approx 2.7$ of Shannon's information-theoretic minimum $\tfrac{1}{d}\cdot 4^{-b}$.
+    Theorem 1 proves the per-coordinate MSE is $\lesssim \tfrac{\sqrt{3}\pi}{2d}\cdot 4^{-b}$. The constant
+    $\tfrac{\sqrt{3}\pi}{2}\approx 2.72$ is the asymptotic ratio to Shannon's minimum $\tfrac{1}{d}\cdot 4^{-b}$;
+    at $b{=}1$ the paper reports a tighter ratio of $\approx 1.45$.
+  </p>
+  <p class="small" style="color:var(--text-dim)">
+    Where this codebook is used: §6 drops it onto the rotated coordinates to get TurboQuant-MSE.
+    §8 extends the scheme with one extra bit of QJL on the residual, which turns it into TurboQuant-prod
+    (the inner-product variant).
   </p>
 </section>
 
@@ -1431,6 +1454,11 @@
     $\sqrt{\pi/2}$ pre-factor cancels that shrinkage exactly, leaving a clean, unbiased estimator whose variance
     is $\le \tfrac{\pi}{2d}\|\mathbf{y}\|^2$ (Lemma 4 in the paper).
   </p>
+  <p class="small" style="color:var(--text-dim)">
+    The 1-bit form here is the 2024 QJL paper in a single line. TurboQuant-prod reuses it as the last bit of a
+    $b$-bit scheme: the first $b{-}1$ bits come from the Lloyd&ndash;Max codebook of §5, and the final bit is a
+    sign applied to the residual. Lemma 4 extends the unbiasedness and the variance bound to that residual stage.
+  </p>
 
   <div class="card">
     <div class="controls">
@@ -1462,8 +1490,9 @@
   </ol>
   <p>
     The first stage nails the magnitude; the 1 bit of QJL on the leftover residual provides the un-biasing.
-    Total cost: still $b$ bits per coordinate. Inner products are exactly unbiased, and the variance is
-    provably small (Theorem 2).
+    Total cost: $b$ bits per coordinate, plus one float $\|\mathbf{r}\|$ per vector. That residual norm is the
+    only piece of side information in the whole scheme, one scalar per vector, not one per small block the way
+    GPTQ, AWQ, or KIVI need. Inner products are exactly unbiased, and the variance is bounded by Theorem 2.
   </p>
 </section>
 
@@ -1535,8 +1564,8 @@
         <tr><td>RabitQ</td><td class="mono">597 s</td><td class="mono">2267 s</td><td class="mono">3957 s</td></tr>
         <tr><td><b>TurboQuant</b></td><td class="mono">0.0007 s</td><td class="mono">0.0013 s</td><td class="mono">0.0021 s</td></tr>
       </table>
-      <p class="small">Six orders of magnitude faster indexing, and higher recall to boot. Because there is no
-      codebook to learn and no scales to fit: just rotate and round.</p>
+      <p class="small">Four to five orders of magnitude faster indexing at 4-bit, with higher recall to boot.
+      There is no codebook to learn and no scales to fit: just rotate and round.</p>
     </div>
   </div>
 
@@ -1544,7 +1573,7 @@
   <ol>
     <li><b>QJL (2024).</b> Take the sign of a random Gaussian projection. One bit per coordinate, unbiased inner product, zero overhead. The un-biaser primitive.</li>
     <li><b>PolarQuant (Feb 2025).</b> After random pre-conditioning, convert to polar coordinates. Radii are concentrated; angles are concentrated around $\pi/4$. Quantize those well-concentrated distributions independently. An alternative geometry that also avoids side-info.</li>
-    <li><b>TurboQuant (Apr 2025).</b> Unifies and strengthens the above: pre-rotation + Beta coordinates + optimal Lloyd-Max codebook (for MSE) + QJL on residual (for unbiasedness). Provably near-Shannon, fully GPU-parallel, online.</li>
+    <li><b>TurboQuant (Apr 2025).</b> Unifies and strengthens the above: pre-rotation + Beta coordinates + optimal Lloyd-Max codebook (for MSE) + QJL on residual (for unbiasedness). Provably within a constant factor of Shannon's minimum at every bit rate ($\approx 1.45\times$ at $b{=}1$, $\to \tfrac{\sqrt{3}\pi}{2}\approx 2.72\times$ asymptotically), fully GPU-parallel, online.</li>
   </ol>
 
   <div class="card insight">
