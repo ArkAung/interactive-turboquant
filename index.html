@@ -2654,39 +2654,47 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
     const cx = w / 2, cy = h / 2 + 6;
     const s = Math.min(w, h - 30) * 0.40; // half-extent
 
-    // target rings (4 concentric)
-    ctx.strokeStyle = THEME.lineBr || THEME.line; ctx.lineWidth = 1;
+    // target rings (4 concentric, kept subtle so they don't compete)
+    ctx.strokeStyle = THEME.line; ctx.lineWidth = 1;
     for (let r = 1; r <= 4; r++) {
       ctx.beginPath(); ctx.arc(cx, cy, s * r / 4, 0, Math.PI * 2); ctx.stroke();
     }
 
-    // truth crosshair (yellow dashed, at origin = bullseye centre)
-    ctx.strokeStyle = COL_TRUTH; ctx.lineWidth = 1.5; ctx.setLineDash([3, 3]);
-    ctx.beginPath();
-    ctx.moveTo(cx - 14, cy); ctx.lineTo(cx + 14, cy);
-    ctx.moveTo(cx, cy - 14); ctx.lineTo(cx, cy + 14);
-    ctx.stroke(); ctx.setLineDash([]);
-    ctx.fillStyle = COL_TRUTH; ctx.font = PR.fontSm;
-    ctx.fillText("truth", cx + 16, cy - 4);
-
-    // shots
-    ctx.fillStyle = accent + "aa";
+    // shots: drawn FIRST as a translucent fog so the mean/truth markers
+    // can punch through on top.
+    ctx.fillStyle = accent + "44"; // alpha ~ 0.27
     for (const p of shots) {
       const px = Math.max(-1.05, Math.min(1.05, p[0]));
       const py = Math.max(-1.05, Math.min(1.05, p[1]));
       ctx.beginPath();
-      ctx.arc(cx + px * s, cy + py * s, 1.6, 0, Math.PI * 2);
+      ctx.arc(cx + px * s, cy + py * s, 1.2, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // mean (red dot + halo + bias arrow from origin)
+    // truth crosshair on top of the cloud (yellow, dashed) + a filled
+    // yellow disk so the centre is anchored even at high shot density.
+    ctx.strokeStyle = COL_TRUTH; ctx.lineWidth = 1.6; ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(cx - 18, cy); ctx.lineTo(cx + 18, cy);
+    ctx.moveTo(cx, cy - 18); ctx.lineTo(cx, cy + 18);
+    ctx.stroke(); ctx.setLineDash([]);
+    // background-coloured outer disk + yellow inner disk = "punched through" look
+    ctx.fillStyle = THEME.bg;
+    ctx.beginPath(); ctx.arc(cx, cy, 4.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = COL_TRUTH;
+    ctx.beginPath(); ctx.arc(cx, cy, 2.6, 0, Math.PI * 2); ctx.fill();
+    ctx.font = PR.fontSm;
+    ctx.fillText("truth", cx + 20, cy - 4);
+
+    // mean (red dot + halo + bias arrow from origin) — drawn LAST so it
+    // sits on top of every shot.
     if (isFinite(mx) && isFinite(my)) {
       const cmx = cx + Math.max(-1.1, Math.min(1.1, mx)) * s;
       const cmy = cy + Math.max(-1.1, Math.min(1.1, my)) * s;
       const biasMag = Math.hypot(mx, my);
 
       if (biasMag > 0.02) {
-        ctx.strokeStyle = THEME.err; ctx.lineWidth = 1.2; ctx.setLineDash([3, 3]);
+        ctx.strokeStyle = THEME.err; ctx.lineWidth = 1.4; ctx.setLineDash([3, 3]);
         ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cmx, cmy); ctx.stroke();
         ctx.setLineDash([]);
         const ang = Math.atan2(cmy - cy, cmx - cx), ah = 6;
@@ -2698,15 +2706,17 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
         ctx.closePath(); ctx.fill();
       }
 
+      // contrast halo (canvas-bg) so red punches through any cloud density
+      ctx.fillStyle = THEME.bg;
+      ctx.beginPath(); ctx.arc(cmx, cmy, 8, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = THEME.err;
-      ctx.beginPath(); ctx.arc(cmx, cmy, 5, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = THEME.err; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.arc(cmx, cmy, 9, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cmx, cmy, 5.5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = THEME.err; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.arc(cmx, cmy, 10, 0, Math.PI * 2); ctx.stroke();
       ctx.fillStyle = THEME.err; ctx.font = PR.fontSm;
-      // place label to keep it on-canvas
       const labelLeft = cmx > w - 90;
       ctx.textAlign = labelLeft ? "right" : "left";
-      const lx = labelLeft ? cmx - 11 : cmx + 11;
+      const lx = labelLeft ? cmx - 13 : cmx + 13;
       ctx.fillText("mean  bias=" + biasMag.toFixed(3), lx, cmy + 3);
       ctx.textAlign = "left";
     }
