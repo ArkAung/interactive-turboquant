@@ -1464,33 +1464,25 @@
       the red dot sits on the crosshair, no matter how wide the cloud of shots around it.
     </p>
     <div class="controls">
-      <div class="ctrl"><label>Bits&nbsp;<code>b</code>&nbsp;(MSE side)</label><input id="bias-b" type="range" min="1" max="5" value="1"><span class="val" id="bias-b-v">1</span></div>
+      <div class="ctrl"><label>Bits&nbsp;<code>b</code></label><input id="bias-b" type="range" min="1" max="5" value="1"><span class="val" id="bias-b-v">1</span></div>
       <div class="ctrl"><label>Dimension&nbsp;<code>d</code></label><input id="bias-d" type="range" min="16" max="256" step="8" value="128"><span class="val" id="bias-d-v">128</span></div>
       <div class="ctrl"><label>Trials</label><input id="bias-n" type="range" min="500" max="5000" step="500" value="2000"><span class="val" id="bias-n-v">2000</span></div>
-      <button id="bias-run">Run both</button>
+      <button id="bias-run">Run</button>
     </div>
-    <div class="plot-grid cols-2">
-      <div>
-        <div class="small" style="color:#f472b6;margin:0 0 4px">MSE-optimal&nbsp;·&nbsp;biased (mean parks short)</div>
-        <div class="plot" style="height:300px"><canvas id="bias-mse-cv"></canvas></div>
-      </div>
-      <div>
-        <div class="small" style="color:#6ee7b7;margin:0 0 4px">QJL 1-bit&nbsp;·&nbsp;unbiased (mean sits on truth)</div>
-        <div class="plot" style="height:300px"><canvas id="bias-qjl-cv"></canvas></div>
-      </div>
+    <div style="margin-top:8px">
+      <div class="small" style="color:#f472b6;margin:0 0 4px">MSE-optimal codebook&nbsp;·&nbsp;biased (mean parks short)</div>
+      <div class="plot" style="height:360px"><canvas id="bias-mse-cv"></canvas></div>
     </div>
     <div class="metrics">
       <div class="metric"><div class="label">MSE mean ratio</div><div class="value quant" id="bias-mse-mean">&ndash;</div></div>
-      <div class="metric"><div class="label">QJL mean ratio</div><div class="value" id="bias-qjl-mean" style="color:#6ee7b7">&ndash;</div></div>
-      <div class="metric"><div class="label">MSE theory (b=1)</div><div class="value gold" id="bias-theory">0.6366</div></div>
+      <div class="metric"><div class="label">MSE theory</div><div class="value gold" id="bias-theory">0.6366</div></div>
       <div class="metric"><div class="label">truth</div><div class="value">1.0000</div></div>
     </div>
     <p class="small" style="margin:14px 0 0;color:var(--text)">
-      <b>What to notice.</b> At $b{=}1$ the MSE red dot parks roughly $0.36$ <i>southwest</i> of the
+      <b>What to notice.</b> At $b{=}1$ the red dot parks roughly $0.36$ <i>southwest</i> of the
       crosshair, the $2/\pi$ shift showing up on both axes at once. Drag $b$ up: the red dot creeps
-      back toward the centre but never quite lands. The QJL red dot sits on the centre from the start,
-      even though its cloud of shots is wider. <b>Noisier per shot, correct on average</b>, which is
-      exactly what attention scores and nearest-neighbour search need.
+      toward the centre but never quite lands. <b>The bias shrinks with bits, but it never goes to
+      zero, no matter how many bits you spend.</b>
     </p>
   </div>
 
@@ -1520,12 +1512,14 @@
 
   <!-- 5 · TAKEAWAY + POINTER -->
   <div class="card insight">
-    <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY · NEXT <a href="#qjl" style="color:inherit">§8</a></span><span class="stat">how to fix it</span></div>
+    <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY · NEXT <a href="#qjl" style="color:inherit">§8</a></span><span class="stat">we need a different kind of estimator</span></div>
     <p style="margin:0">
-      MSE quantization is best at minimising squared reconstruction error, but it underestimates inner
-      products by $\approx 2/\pi$ at $b{=}1$. Attention scores need an estimator whose <i>mean</i> is
-      correct. <b>Next:</b> <a href="#qjl">§8</a> introduces the QJL trick that fixes this with one extra
-      bit per coordinate.
+      MSE-optimal quantizers minimise squared reconstruction error, and they pay for it with a
+      systematic shrinkage on inner products that no amount of bits can drive to zero. Attention scores
+      and nearest-neighbour search need an estimator whose <i>mean</i> is correct. <b>Next:</b>
+      <a href="#qjl">§8</a> builds one, an asymmetric trick that gives up trying to reconstruct
+      $\mathbf{x}$ at all and instead spends a single bit per coordinate to bake unbiasedness in by
+      construction.
     </p>
   </div>
 </section>
@@ -2631,9 +2625,8 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
 })();
 
 /* ================================================================
-   §7 BIAS, side-by-side bullseye scatter.
-   Left: MSE-optimal 1..5-bit, cloud parks short of truth.
-   Right: QJL 1-bit preview, cloud centers on truth.
+   §7 BIAS, single bullseye scatter for the MSE codebook.
+   Cloud parks short of truth; mean drifts SW as b stays low.
    ================================================================ */
 (function(){
   const cB = document.getElementById("bias-b");
@@ -2644,13 +2637,10 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
   const dV = document.getElementById("bias-d-v");
   const nV = document.getElementById("bias-n-v");
   const cvM = document.getElementById("bias-mse-cv");
-  const cvQ = document.getElementById("bias-qjl-cv");
   const outM = document.getElementById("bias-mse-mean");
-  const outQ = document.getElementById("bias-qjl-mean");
   const outT = document.getElementById("bias-theory");
 
   const COL_MSE = "#f472b6";
-  const COL_QJL = "#6ee7b7";
   const COL_TRUTH = "#fbbf24";
 
   function labels() {
@@ -2760,33 +2750,7 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
     mMSEx /= denomM; mMSEy /= denomM;
     const mMSEratio = (mMSEx + mMSEy) / 2 + 1;
 
-    // QJL is O(d²) per trial; cap trial count.
-    const qjlN = Math.min(trials.length, Math.max(120, Math.floor(1.5e5 / d)));
-    const qjlShots = [];
-    const prefactor = Math.sqrt(Math.PI / 2) / d;
-    for (let t = 0; t < qjlN; t++) {
-      const { x, y1, y2, yx1, yx2 } = trials[t];
-      let acc1 = 0, acc2 = 0;
-      for (let i = 0; i < d; i++) {
-        let Six = 0, Siy1 = 0, Siy2 = 0;
-        for (let j = 0; j < d; j++) {
-          const s = gauss();
-          Six += s * x[j]; Siy1 += s * y1[j]; Siy2 += s * y2[j];
-        }
-        const sgn = Six >= 0 ? 1 : -1;
-        acc1 += Siy1 * sgn; acc2 += Siy2 * sgn;
-      }
-      const r1 = (prefactor * acc1) / yx1;
-      const r2 = (prefactor * acc2) / yx2;
-      qjlShots.push([r1 - 1, r2 - 1]);
-    }
-    let mQJLx = 0, mQJLy = 0;
-    for (const p of qjlShots) { mQJLx += p[0]; mQJLy += p[1]; }
-    const denomQ = qjlShots.length || 1;
-    mQJLx /= denomQ; mQJLy /= denomQ;
-    const mQJLratio = (mQJLx + mQJLy) / 2 + 1;
-
-    cache = { b, d, mseShots, mMSEx, mMSEy, mMSEratio, qjlShots, mQJLx, mQJLy, mQJLratio, qjlN };
+    cache = { b, d, mseShots, mMSEx, mMSEy, mMSEratio };
   }
 
   function placeholder(cv, msg) {
@@ -2801,17 +2765,14 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
 
   function render() {
     if (!cache) {
-      placeholder(cvM, "Click \u201CRun both\u201D to simulate");
-      placeholder(cvQ, "Click \u201CRun both\u201D to simulate");
+      placeholder(cvM, "Click \u201CRun\u201D to simulate");
       return;
     }
-    const { b, d, mseShots, mMSEx, mMSEy, mMSEratio, qjlShots, mQJLx, mQJLy, mQJLratio, qjlN } = cache;
+    const { b, d, mseShots, mMSEx, mMSEy, mMSEratio } = cache;
     outM.textContent = mMSEratio.toFixed(4);
-    outQ.textContent = mQJLratio.toFixed(4);
     const theoryMap = { 1: "2/π ≈ 0.637", 2: "≈ 0.88", 3: "≈ 0.97", 4: "≈ 0.99", 5: "≈ 1.00" };
     outT.textContent = theoryMap[b] || "–";
     drawBullseye(cvM, mseShots, mMSEx, mMSEy, COL_MSE, "MSE-optimal b=" + b + " bit, d=" + d);
-    drawBullseye(cvQ, qjlShots, mQJLx, mQJLy, COL_QJL, "QJL 1-bit, d=" + d + " (n=" + qjlN + ")");
   }
 
   function run() { labels(); compute(); render(); }
