@@ -1379,29 +1379,18 @@
   <div class="eyebrow">§7 · The inner-product bias</div>
   <h2>MSE-optimal quantizers underestimate inner products.</h2>
 
-  <!-- 1 · BRIDGE -->
-  <div class="card insight">
-    <div class="panel-hd"><span class="tag">&#9632; COMING FROM <a href="#pipeline" style="color:inherit">§6</a></span><span class="stat">a new failure mode</span></div>
-    <p style="margin:0">
-      <a href="#pipeline">§6</a> gave you TurboQuant-MSE: pointwise reconstruction within a constant factor
-      of Shannon. But attention does not ask &ldquo;how close is $\tilde{\mathbf{x}}$ to $\mathbf{x}$?&rdquo;,
-      it asks &ldquo;what is $\langle \mathbf{q}, \tilde{\mathbf{k}}\rangle$?&rdquo; That is a different
-      question, and the MSE-optimal codebook gets it systematically wrong.
-    </p>
-  </div>
-
-  <!-- 2 · THE QUESTION -->
+  <!-- 1 · INTRO (single short paragraph, no spoilers) -->
   <p>
-    Run many trials, ask the quantizer for the inner product each time, and average the answers. A good
-    estimator's average lands on the true value. The MSE codebook does not: every estimate is shrunk by
-    the same factor (about $0.637$ at $b{=}1$), so the average parks below the truth and stays there no
-    matter how many trials you run. That fixed shift is what we call <b>bias</b>, and it is the bullseye
-    picture from <a href="#pr-bias">primer §0.4</a>.
+    <a href="#pipeline">§6</a> gave us TurboQuant-MSE: pointwise reconstruction within a constant factor
+    of Shannon. But attention does not ask &ldquo;how close is $\tilde{\mathbf{x}}$ to $\mathbf{x}$?&rdquo;,
+    it asks &ldquo;what is $\langle \mathbf{q}, \tilde{\mathbf{k}}\rangle$?&rdquo; Run that question
+    many times and average the answers, an unbiased estimator's average lands on the truth. Does the
+    MSE codebook?
   </p>
 
-  <!-- 3 · DEMO FIRST -->
+  <!-- 2 · DEMO + WHAT TO NOTICE (one unit) -->
   <div class="card">
-    <div class="panel-hd"><span class="tag">&#9632; HOW TO READ</span><span class="stat">drag b, watch the gap close</span></div>
+    <div class="panel-hd"><span class="tag">&#9632; HOW TO READ</span><span class="stat">drag b, watch the red circle</span></div>
     <p class="small" style="margin:0 0 14px;color:var(--text-dim)">
       Each dot is one trial. Its <b>x-position</b> is the trial's answer divided by the true inner product,
       so a dot at <b>1.0</b> (the crosshair) is a perfect trial. The big red circle is the <b>mean of every
@@ -1431,16 +1420,11 @@
       <div class="metric"><div class="label">MSE theory (b=1)</div><div class="value gold" id="bias-theory">0.6366</div></div>
       <div class="metric"><div class="label">truth</div><div class="value">1.0000</div></div>
     </div>
-  </div>
-
-  <!-- 3b · WHAT TO NOTICE -->
-  <div class="card insight">
-    <div class="panel-hd"><span class="tag">&#9632; WHAT TO NOTICE</span><span class="stat">try b = 1, 2, 3, 4</span></div>
-    <p style="margin:0">
-      At $b{=}1$, the MSE mean parks at $\approx 0.637$ (the $2/\pi$ shift). Drag $b$ up: the mean
-      creeps toward 1 but never lands on it cleanly, the bias is just smaller. The QJL mean sits on 1
-      from the start, even though its cloud is much wider. <b>Noisier per shot, correct on average</b>,
-      which is exactly what attention scores and nearest-neighbour searches need.
+    <p class="small" style="margin:14px 0 0;color:var(--text)">
+      <b>What to notice.</b> At $b{=}1$ the MSE mean parks at $\approx 0.637$, the $2/\pi$ shift. Drag $b$
+      up and the mean creeps toward 1 but never lands on it cleanly, the bias is just smaller. The QJL
+      mean sits on 1 from the start even though its cloud is much wider. <b>Noisier per shot, correct on
+      average</b>, which is exactly what attention scores and nearest-neighbour search need.
     </p>
   </div>
 
