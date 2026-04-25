@@ -1042,16 +1042,9 @@
 <section id="rotation">
   <div class="eyebrow">§3 · The rotation trick</div>
   <h2>Multiply by a random rotation. Watch the spike dissolve.</h2>
-  <p class="small" style="color:var(--text-dim)">
-    <b>The rotation trick, in one line:</b> apply a random orthogonal transform, then quantize coordinate-wise.
-    The rotation is lossless (lengths and inner products are preserved). The quantization is where the bits
-    live, and the rotation chooses its job for you, the same job on every input.
-  </p>
   <p>
-    Pick a random orthogonal matrix $\boldsymbol{\Pi}\in\mathbb{R}^{d\times d}$, concretely, generate a Gaussian
-    matrix, then run QR decomposition to orthonormalize it. Now replace $\mathbf{x}$ with
-    $\mathbf{y} = \boldsymbol{\Pi}\mathbf{x}$. Because $\boldsymbol{\Pi}$ is a rotation it preserves every geometric
-    property we care about:
+    <b>The rotation trick:</b> apply a random orthogonal transform $\boldsymbol{\Pi}$, then quantize
+    coordinate-wise. Rotation is lossless, it preserves length and inner products exactly:
   </p>
   <div class="formula">
     $\|\boldsymbol{\Pi}\mathbf{x}\|_2 = \|\mathbf{x}\|_2$ &nbsp;·&nbsp;
@@ -1060,15 +1053,22 @@
     $\boldsymbol{\Pi}^{\!\top}\boldsymbol{\Pi} = \mathbf{I}$
   </div>
   <p>
-    So rotating, quantizing, then rotating back is lossless at the rotation step. The only error comes
-    from quantizing the rotated coordinates, and that is where the rotation earns its keep.
+    All the loss happens in the quantization step. Here is the conceptual payoff: after a uniformly
+    <i>random</i> rotation, every coordinate of $\boldsymbol{\Pi}\mathbf{x}$ has the same fixed Beta
+    density (Lemma 1 of the paper), no matter what $\mathbf{x}$ was. <b>One codebook, designed once
+    for that one distribution, is optimal for every input.</b> We build it in <a href="#codebook">§5</a>.
   </p>
-  <p>
-    Why a <i>random</i> rotation rather than a fixed one? Because after a uniformly random rotation,
-    the marginal distribution of each new coordinate is the same, fixed Beta density (Lemma 1 of the paper),
-    no matter what the input vector was. So one codebook, designed once for that known distribution, is
-    optimal for every input. We build that codebook in <a href="#codebook">§5</a>.
-  </p>
+
+  <details class="deriv">
+    <summary>How to construct $\boldsymbol{\Pi}$</summary>
+    <div class="deriv-body">
+      <p class="small">
+        Generate a $d\times d$ matrix of i.i.d. $\mathcal{N}(0,1)$ entries and run QR decomposition;
+        keep the orthogonal factor $Q$. The result is uniform on the orthogonal group $O(d)$, which is
+        what Lemma 1 needs.
+      </p>
+    </div>
+  </details>
 
   <h4 style="margin-top:14px">A spike in 2D</h4>
   <p class="small">
@@ -1178,20 +1178,32 @@
   <div class="eyebrow">§4 · Why rotation works</div>
   <h2>Coordinates of random unit vectors are nearly Gaussian.</h2>
   <p>
-    The fact that makes the whole paper work: sample a point uniformly from the sphere
-    $\mathbb{S}^{d-1}$. What is the distribution of a single coordinate $x_j$? Lemma 1 of the paper gives the exact
-    density:
+    Rotating $\mathbf{x}$ by a uniformly random $\boldsymbol{\Pi}$ is the same as picking a random
+    point on the sphere of radius $\|\mathbf{x}\|$. So the question &ldquo;what does a coordinate of
+    $\boldsymbol{\Pi}\mathbf{x}$ look like?&rdquo; is the same question as &ldquo;what does a coordinate
+    of a uniform point on the sphere look like?&rdquo;
   </p>
-  <div class="formula">
-    $f_X(x) \;=\; \dfrac{\Gamma(d/2)}{\sqrt{\pi}\,\Gamma((d-1)/2)}\,(1-x^2)^{(d-3)/2}\,,\quad x\in[-1,1]$
-    <br><small>,  a scaled/shifted Beta distribution.</small>
-  </div>
   <p>
-    As $d$ grows this density converges to $\mathcal{N}\!\left(0,\,\tfrac{1}{d}\right)$, a narrow bell curve with
-    variance $1/d$. Rotating a fixed $\mathbf{x}$ by a random orthogonal $\boldsymbol{\Pi}$ is equivalent to sampling
-    a random point on the sphere of radius $\|\mathbf{x}\|$, so each coordinate
-    $(\boldsymbol{\Pi}\mathbf{x})_j$ has this near-Gaussian distribution regardless of $\mathbf{x}$.
+    In low dimensions the answer is far from a bell curve, a semicircle in 2-D, uniform on $[-1,1]$
+    in 3-D. As $d$ grows the marginal narrows and converges to a Gaussian with variance $1/d$. Watch
+    it happen.
   </p>
+
+  <details class="deriv">
+    <summary>The exact density (Lemma 1)</summary>
+    <div class="deriv-body">
+      <p class="small">
+        For a uniform point on $\mathbb{S}^{d-1}$, the marginal density of any single coordinate is
+      </p>
+      <div class="formula">
+        $f_X(x) \;=\; \dfrac{\Gamma(d/2)}{\sqrt{\pi}\,\Gamma((d-1)/2)}\,(1-x^2)^{(d-3)/2},\quad x\in[-1,1]$
+      </div>
+      <p class="small">
+        a scaled/shifted Beta distribution. It converges pointwise to $\mathcal{N}(0,\,1/d)$ as
+        $d\to\infty$.
+      </p>
+    </div>
+  </details>
 
   <h4 style="margin-top:14px">Step one: the circle ($d=2$)</h4>
   <p class="small">
@@ -1280,19 +1292,32 @@
   <div class="eyebrow">§5 · The universal codebook</div>
   <h2>Lloyd–Max: the optimal partition of a known distribution.</h2>
   <p>
-    Problem: given a PDF $f_X$, partition $\mathbb{R}$ into $2^b$ cells with centroids $c_1 \le \dots \le c_{2^b}$
-    to minimize expected squared error $\int (x - c_{i(x)})^2 f_X(x)\,dx$. The solution
+    From <a href="#concentration">§4</a> we know the shape of every rotated coordinate, near-Gaussian
+    with variance $1/d$. Scalar quantization for a known density is a textbook problem: place $2^b$
+    levels to minimise expected squared error. The classical solution is <b>Lloyd&ndash;Max</b>
     (<a href="https://doi.org/10.1109/TIT.1982.1056489" target="_blank" rel="noopener">Lloyd&nbsp;1957/82</a>,
-    <a href="https://doi.org/10.1109/TIT.1960.1057548" target="_blank" rel="noopener">Max&nbsp;1960</a>) alternates two steps:
+    <a href="https://doi.org/10.1109/TIT.1960.1057548" target="_blank" rel="noopener">Max&nbsp;1960</a>).
   </p>
-  <ul>
-    <li><b>Assignment:</b> each centroid owns the Voronoi cell around it, boundaries are midpoints between adjacent centroids.</li>
-    <li><b>Update:</b> each centroid moves to the conditional mean of its cell: $c_k \leftarrow \mathbb{E}[X \mid X \in \text{cell}_k]$.</li>
-  </ul>
   <p>
-    Repeat until stable. Because we know $f_X$ analytically (the Beta density above), we compute these once,
-    for $b=1,2,3,4,5,6$, and bake them into a tiny lookup table.
+    Solve once for the Beta density, bake the resulting centroids into a per-$b$ lookup table, and
+    encoding becomes a snap-to-nearest-entry. No per-vector optimisation, no learning, no scales.
+    Drag $b$ to watch the table find its layout.
   </p>
+
+  <details class="deriv">
+    <summary>The Lloyd&ndash;Max iteration</summary>
+    <div class="deriv-body">
+      <p class="small">
+        Given a PDF $f_X$, choose centroids $c_1 \le \dots \le c_{2^b}$ minimising
+        $\int (x - c_{i(x)})^2 f_X(x)\,dx$ by alternating:
+      </p>
+      <ul class="small">
+        <li><b>Assignment:</b> each centroid owns the Voronoi cell around it, boundaries are midpoints between adjacent centroids.</li>
+        <li><b>Update:</b> each centroid moves to the conditional mean of its cell, $c_k \leftarrow \mathbb{E}[X \mid X \in \text{cell}_k]$.</li>
+      </ul>
+      <p class="small">Repeat until stable. The demo runs this on the Beta density of <a href="#concentration">§4</a>.</p>
+    </div>
+  </details>
 
   <div class="card">
     <div class="controls">
@@ -1501,32 +1526,35 @@
 
   <p>
     <a href="#bias">§7</a> showed the bias is a <i>known</i> number, $\sqrt{2/\pi}$ per application of
-    sign-then-dot. If it is known, we can cancel it. QJL does exactly that: multiply by $\sqrt{\pi/2}/d$ on
-    the decode side and the shrinkage cancels exactly. The quantization stays lossy, it is still 1 bit, but
-    the <i>average</i> estimate lands on the bullseye.
-  </p>
-
-  <p>
-    The Quantized Johnson-Lindenstrauss transform is the second ingredient. Let
-    $\mathbf{S}\in\mathbb{R}^{d\times d}$ have i.i.d. $\mathcal{N}(0,1)$ entries (a fresh random Gaussian matrix).
-    Define the 1-bit encoding and its decoder
+    sign-then-dot. If it is known, we can cancel it on the decode side. The Quantized
+    Johnson&ndash;Lindenstrauss transform does exactly this: take the sign of a random Gaussian
+    projection, then divide by the same shrinkage factor on the way back.
   </p>
   <div class="formula">
     $Q_{\text{jl}}(\mathbf{x}) \;=\; \operatorname{sign}(\mathbf{S}\mathbf{x}) \in\{-1,+1\}^d,\quad
-    Q_{\text{jl}}^{-1}(\mathbf{z}) \;=\; \dfrac{\sqrt{\pi/2}}{d}\cdot\mathbf{S}^{\!\top}\mathbf{z}.$
+    Q_{\text{jl}}^{-1}(\mathbf{z}) \;=\; \dfrac{\sqrt{\pi/2}}{d}\cdot\mathbf{S}^{\!\top}\mathbf{z}$
   </div>
   <p>
-    One bit per coordinate. No scales, no side info, same as before. But this one is
-    <b>unbiased</b> for inner products, exactly:
+    where $\mathbf{S}\in\mathbb{R}^{d\times d}$ has i.i.d. $\mathcal{N}(0,1)$ entries. One bit per
+    coordinate. No scales, no side info. The result is exactly unbiased for inner products and the
+    variance is bounded by $\tfrac{\pi}{2d}\|\mathbf{y}\|^2$ (Lemma 4):
   </p>
   <div class="formula">
-    $\mathbb{E}\big[\langle \mathbf{y}, Q_{\text{jl}}^{-1}(Q_{\text{jl}}(\mathbf{x}))\rangle\big] \;=\; \langle\mathbf{y},\mathbf{x}\rangle.$
+    $\mathbb{E}\big[\langle \mathbf{y}, Q_{\text{jl}}^{-1}(Q_{\text{jl}}(\mathbf{x}))\rangle\big] \;=\; \langle\mathbf{y},\mathbf{x}\rangle$
   </div>
-  <p>
-    The magic that makes it work: for a standard Gaussian $g$, $\mathbb{E}[|g|]=\sqrt{2/\pi}$. The
-    $\sqrt{\pi/2}$ pre-factor cancels that shrinkage exactly, leaving a clean, unbiased estimator whose variance
-    is $\le \tfrac{\pi}{2d}\|\mathbf{y}\|^2$ (Lemma 4 in the paper).
-  </p>
+
+  <details class="deriv">
+    <summary>Where the $\sqrt{\pi/2}/d$ pre-factor comes from</summary>
+    <div class="deriv-body">
+      <p class="small">
+        For a standard Gaussian $g$, $\mathbb{E}[|g|]=\sqrt{2/\pi}$. Each entry of
+        $\mathbf{S}\mathbf{x}$ is Gaussian with standard deviation $\|\mathbf{x}\|$, so taking its
+        sign and dotting back against $\mathbf{S}^\top\mathbf{y}$ shrinks the inner product by
+        $\sqrt{2/\pi}$ in expectation. The $\sqrt{\pi/2}/d$ pre-factor cancels that shrinkage and
+        normalises the sum over $d$ terms.
+      </p>
+    </div>
+  </details>
   <p class="small" style="color:var(--text-dim)">
     The 1-bit form here is the 2024 QJL paper in a single line. TurboQuant-prod reuses it as the last bit of a
     $b$-bit scheme: the first $b{-}1$ bits come from the Lloyd&ndash;Max codebook of <a href="#codebook">§5</a>, and the final bit is a
