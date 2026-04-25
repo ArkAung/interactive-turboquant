@@ -287,6 +287,26 @@
   .panel-hd .tag { color: var(--accent); }
   .panel-hd .stat { color: var(--text-dim); }
 
+  /* Collapsible derivation */
+  details.deriv {
+    margin: 18px 0; border: 1px dashed var(--line); border-radius: 2px;
+    background: rgba(var(--accent-rgb),0.02);
+  }
+  details.deriv > summary {
+    cursor: pointer; list-style: none;
+    padding: 12px 16px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  details.deriv > summary::-webkit-details-marker { display: none; }
+  details.deriv > summary::before { content: "\25B8  "; color: var(--accent); }
+  details.deriv[open] > summary::before { content: "\25BE  "; }
+  details.deriv > summary:hover { color: var(--accent); }
+  details.deriv[open] > summary { border-bottom: 1px dashed var(--line); }
+  details.deriv .deriv-body { padding: 12px 16px 16px; }
+  details.deriv .deriv-body p:last-child { margin-bottom: 0; }
+
   /* Pills */
   .pill {
     display: inline-block; padding: 2px 9px; border-radius: 2px;
@@ -1357,53 +1377,38 @@
 <!-- ======================= SECTION: BIAS ======================= -->
 <section id="bias">
   <div class="eyebrow">§7 · The inner-product bias</div>
-  <h2>MSE-optimal quantizers are biased for inner products.</h2>
+  <h2>MSE-optimal quantizers underestimate inner products.</h2>
 
+  <!-- 1 · BRIDGE -->
   <div class="card insight">
-    <div class="panel-hd"><span class="tag">■ RECALL · <a href="#pr-bias" style="color:inherit">§0.4</a></span><span class="stat">Bullseye test</span></div>
+    <div class="panel-hd"><span class="tag">&#9632; COMING FROM <a href="#pipeline" style="color:inherit">§6</a></span><span class="stat">a new failure mode</span></div>
     <p style="margin:0">
-      &ldquo;<b>Unbiased</b>&rdquo; is the bullseye-scatter picture from the primer: shots may wander, but their
-      <i>average</i> lands on the truth. &ldquo;<b>Biased</b>&rdquo; means the cluster center is parked somewhere <i>else</i>, 
-      no amount of averaging saves you. Everything in this section is about: <i>our attention scores are a
-      cluster that is systematically parked too low</i>.
+      <a href="#pipeline">§6</a> gave you TurboQuant-MSE: pointwise reconstruction within a constant factor
+      of Shannon. But attention does not ask &ldquo;how close is $\tilde{\mathbf{x}}$ to $\mathbf{x}$?&rdquo;,
+      it asks &ldquo;what is $\langle \mathbf{q}, \tilde{\mathbf{k}}\rangle$?&rdquo; That is a different
+      question, and the MSE-optimal codebook gets it systematically wrong.
     </p>
   </div>
 
+  <!-- 2 · THE QUESTION -->
   <p>
-    Attention does not want $\tilde{\mathbf{x}}$; it wants $\langle \mathbf{q}, \mathbf{k}\rangle$. And it turns
-    out that an MSE-optimal quantizer, while minimizing pointwise squared error, systematically
-    <i>underestimates</i> inner products. The reason is that rounding toward a centroid biases the vector
-    length, the projection onto any query direction shrinks by a predictable factor.
+    Run many trials, ask the quantizer for the inner product each time, and average the answers. A good
+    estimator's average lands on the true value. The MSE codebook does not: every estimate is shrunk by
+    the same factor (about $0.637$ at $b{=}1$), so the average parks below the truth and stays there no
+    matter how many trials you run. That fixed shift is what we call <b>bias</b>, and it is the bullseye
+    picture from <a href="#pr-bias">primer §0.4</a>.
   </p>
-  <p class="small" style="max-width:780px">
-    <b>Where does $2/\pi$ come from?</b> &nbsp;For a standard Gaussian $g$, $\mathbb{E}[|g|]=\sqrt{2/\pi}$, 
-    the &ldquo;half-normal&rdquo; mean. The 1-bit MSE codebook rounds each rotated coordinate to $\pm\sqrt{2/\pi}/\sqrt d$;
-    when you dot-product that reconstruction back against $\mathbf{y}$, you pick up another $\sqrt{2/\pi}$ factor
-    in expectation. Multiply: $2/\pi \approx 0.637$. That is the entire bias, from first principles.
-  </p>
-  <p>
-    The easiest case to see: $b{=}1$. The optimal MSE codebook is
-    $\{-\sqrt{2/\pi}/\sqrt{d},\,+\sqrt{2/\pi}/\sqrt{d}\}$, so
-    $Q(\mathbf{x}) = \sqrt{2/(\pi d)}\cdot \operatorname{sign}(\boldsymbol{\Pi}\mathbf{x})$. A calculation gives
-  </p>
-  <div class="formula">
-    $\mathbb{E}\big[\langle\mathbf{y},\tilde{\mathbf{x}}\rangle\big] \;=\; \dfrac{2}{\pi}\cdot\langle\mathbf{y},\mathbf{x}\rangle \;\ne\; \langle\mathbf{y},\mathbf{x}\rangle.$
-  </div>
-  <p>That $2/\pi \approx 0.637$ is a multiplicative <b>bias</b>. It shrinks as $b$ grows, but it never goes to zero cleanly, and for low-bit, high-dimensional settings (exactly where you want to be) the bias is painfully real.</p>
 
-  <div class="card insight">
-    <div class="panel-hd"><span class="tag">&#9632; HOW TO READ THE PLOT</span><span class="stat">each dot is one trial</span></div>
-    <p class="small" style="margin:0">
+  <!-- 3 · DEMO FIRST -->
+  <div class="card">
+    <div class="panel-hd"><span class="tag">&#9632; HOW TO READ</span><span class="stat">drag b, watch the gap close</span></div>
+    <p class="small" style="margin:0 0 14px;color:var(--text-dim)">
       Each dot is one trial. Its <b>x-position</b> is the trial's answer divided by the true inner product,
-      so a dot at <b>1.0</b> (the crosshair) is a perfect trial. Less than 1 means the trial underestimated;
-      more than 1 means it overestimated. The big red circle is the <b>mean of every dot</b>. A quantizer
-      is <i>unbiased</i> when that red circle sits on the crosshair, no matter how wide the surrounding cloud.
-      The vertical spread is just jitter so you can see overlapping dots; only the horizontal position carries
+      so a dot at <b>1.0</b> (the crosshair) is a perfect trial. The big red circle is the <b>mean of every
+      dot</b>. A quantizer is <i>unbiased</i> when the red circle sits on the crosshair, no matter how wide
+      the surrounding cloud. Vertical jitter is purely cosmetic, only the horizontal position carries
       information.
     </p>
-  </div>
-
-  <div class="card">
     <div class="controls">
       <div class="ctrl"><label>Bits&nbsp;<code>b</code>&nbsp;(MSE side)</label><input id="bias-b" type="range" min="1" max="5" value="1"><span class="val" id="bias-b-v">1</span></div>
       <div class="ctrl"><label>Dimension&nbsp;<code>d</code></label><input id="bias-d" type="range" min="16" max="256" step="8" value="128"><span class="val" id="bias-d-v">128</span></div>
@@ -1412,26 +1417,65 @@
     </div>
     <div class="plot-grid cols-2">
       <div>
-        <div class="small" style="color:#f472b6;margin:0 0 4px">MSE-optimal 1-bit&nbsp;·&nbsp;biased (shots park short)</div>
+        <div class="small" style="color:#f472b6;margin:0 0 4px">MSE-optimal&nbsp;·&nbsp;biased (mean parks short)</div>
         <div class="plot" style="height:300px"><canvas id="bias-mse-cv"></canvas></div>
       </div>
       <div>
-        <div class="small" style="color:#6ee7b7;margin:0 0 4px">QJL 1-bit&nbsp;·&nbsp;unbiased (shots center on truth)</div>
+        <div class="small" style="color:#6ee7b7;margin:0 0 4px">QJL 1-bit&nbsp;·&nbsp;unbiased (mean sits on truth)</div>
         <div class="plot" style="height:300px"><canvas id="bias-qjl-cv"></canvas></div>
       </div>
     </div>
     <div class="metrics">
-      <div class="metric"><div class="label">MSE mean ratio</div><div class="value quant" id="bias-mse-mean">–</div></div>
-      <div class="metric"><div class="label">QJL mean ratio</div><div class="value" id="bias-qjl-mean" style="color:#6ee7b7">–</div></div>
+      <div class="metric"><div class="label">MSE mean ratio</div><div class="value quant" id="bias-mse-mean">&ndash;</div></div>
+      <div class="metric"><div class="label">QJL mean ratio</div><div class="value" id="bias-qjl-mean" style="color:#6ee7b7">&ndash;</div></div>
       <div class="metric"><div class="label">MSE theory (b=1)</div><div class="value gold" id="bias-theory">0.6366</div></div>
       <div class="metric"><div class="label">truth</div><div class="value">1.0000</div></div>
     </div>
-    <p class="small" style="margin:10px 0 0;color:var(--text-dim)">
-      <b>What to notice.</b> Left: MSE trials cluster near 1, but their red mean parks at $\approx 0.637$,
-      every trial shrunk by the same factor $2/\pi$. More trials cannot fix that, the bias is baked in.
-      Right: QJL trials scatter much further from 1 (noisier per-trial), but their red mean lands on 1.
-      That is the whole point, noisier per shot, correct on average, which is exactly what attention scores
-      and nearest-neighbour searches need.
+  </div>
+
+  <!-- 3b · WHAT TO NOTICE -->
+  <div class="card insight">
+    <div class="panel-hd"><span class="tag">&#9632; WHAT TO NOTICE</span><span class="stat">try b = 1, 2, 3, 4</span></div>
+    <p style="margin:0">
+      At $b{=}1$, the MSE mean parks at $\approx 0.637$ (the $2/\pi$ shift). Drag $b$ up: the mean
+      creeps toward 1 but never lands on it cleanly, the bias is just smaller. The QJL mean sits on 1
+      from the start, even though its cloud is much wider. <b>Noisier per shot, correct on average</b>,
+      which is exactly what attention scores and nearest-neighbour searches need.
+    </p>
+  </div>
+
+  <!-- 4 · DERIVATION (collapsed) -->
+  <details class="deriv">
+    <summary>Derivation: where the $2/\pi$ factor comes from</summary>
+    <div class="deriv-body">
+      <p class="small">
+        For a standard Gaussian $g$, $\mathbb{E}[|g|]=\sqrt{2/\pi}$, the &ldquo;half-normal&rdquo; mean.
+        The 1-bit MSE codebook rounds each rotated coordinate to $\pm\sqrt{2/\pi}/\sqrt d$; when you
+        dot-product that reconstruction back against $\mathbf{y}$, you pick up another $\sqrt{2/\pi}$
+        factor in expectation. Multiply: $2/\pi \approx 0.637$.
+      </p>
+      <p class="small">
+        Concretely at $b{=}1$, the optimal MSE codebook is
+        $\{-\sqrt{2/\pi}/\sqrt{d},\,+\sqrt{2/\pi}/\sqrt{d}\}$, so
+        $Q(\mathbf{x}) = \sqrt{2/(\pi d)}\cdot \operatorname{sign}(\boldsymbol{\Pi}\mathbf{x})$ and
+      </p>
+      <div class="formula">
+        $\mathbb{E}\big[\langle\mathbf{y},\tilde{\mathbf{x}}\rangle\big] \;=\; \dfrac{2}{\pi}\cdot\langle\mathbf{y},\mathbf{x}\rangle.$
+      </div>
+      <p class="small">
+        The factor shrinks as $b$ grows but never vanishes, which is what the demo above shows.
+      </p>
+    </div>
+  </details>
+
+  <!-- 5 · TAKEAWAY + POINTER -->
+  <div class="card insight">
+    <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY · NEXT <a href="#qjl" style="color:inherit">§8</a></span><span class="stat">how to fix it</span></div>
+    <p style="margin:0">
+      MSE quantization is best at minimising squared reconstruction error, but it underestimates inner
+      products by $\approx 2/\pi$ at $b{=}1$. Attention scores need an estimator whose <i>mean</i> is
+      correct. <b>Next:</b> <a href="#qjl">§8</a> introduces the QJL trick that fixes this with one extra
+      bit per coordinate.
     </p>
   </div>
 </section>
