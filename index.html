@@ -1527,86 +1527,125 @@
 <!-- ======================= SECTION: QJL ======================= -->
 <section id="qjl">
   <div class="eyebrow">§8 · QJL: the un-biaser</div>
-  <h2>QJL: squeezing unbiased inner products out of 1 bit per coordinate.</h2>
+  <h2>If the bias is a known number, multiply it out.</h2>
 
+  <!-- 1 · INTRO (bridge + payoff in one short paragraph) -->
   <p>
-    <a href="#bias">§7</a> showed the bias is a <i>known</i> number, $\sqrt{2/\pi}$ per application of
-    sign-then-dot. If it is known, we can cancel it on the decode side. The Quantized
-    Johnson&ndash;Lindenstrauss transform does exactly this: take the sign of a random Gaussian
-    projection, then divide by the same shrinkage factor on the way back.
+    <a href="#bias">§7</a>'s red dot parked $0.36$ short of truth, no matter how many bits we spent.
+    But that $0.36$ shortfall is not an accident: it's a fixed constant, the same on every trial, the
+    same against every query. <b>If you know exactly how much your estimator shrinks an inner product,
+    you can multiply by the inverse and cancel the bias by construction.</b> QJL is that idea, in 1 bit
+    per coordinate.
   </p>
-  <div class="formula">
-    $Q_{\text{jl}}(\mathbf{x}) \;=\; \operatorname{sign}(\mathbf{S}\mathbf{x}) \in\{-1,+1\}^d,\quad
-    Q_{\text{jl}}^{-1}(\mathbf{z}) \;=\; \dfrac{\sqrt{\pi/2}}{d}\cdot\mathbf{S}^{\!\top}\mathbf{z}$
-  </div>
+
+  <!-- 2 · CORE IDEA (encoder / decoder in plain English) -->
   <p>
-    where $\mathbf{S}\in\mathbb{R}^{d\times d}$ has i.i.d. $\mathcal{N}(0,1)$ entries. One bit per
-    coordinate. No scales, no side info. The result is exactly unbiased for inner products and the
-    variance is bounded by $\tfrac{\pi}{2d}\|\mathbf{y}\|^2$ (Lemma 4):
+    <b>Encoder.</b> Pick one random Gaussian matrix $\mathbf{S}$ once, share it. To store $\mathbf{x}$,
+    write down the <i>signs</i> of $\mathbf{S}\mathbf{x}$, one bit per coordinate. Nothing else, no
+    scale, no offset.
   </p>
-  <div class="formula">
-    $\mathbb{E}\big[\langle \mathbf{y}, Q_{\text{jl}}^{-1}(Q_{\text{jl}}(\mathbf{x}))\rangle\big] \;=\; \langle\mathbf{y},\mathbf{x}\rangle$
-  </div>
-
-  <details class="deriv">
-    <summary>Where the $\sqrt{\pi/2}/d$ pre-factor comes from</summary>
-    <div class="deriv-body">
-      <p class="small">
-        For a standard Gaussian $g$, $\mathbb{E}[|g|]=\sqrt{2/\pi}$. Each entry of
-        $\mathbf{S}\mathbf{x}$ is Gaussian with standard deviation $\|\mathbf{x}\|$, so taking its
-        sign and dotting back against $\mathbf{S}^\top\mathbf{y}$ shrinks the inner product by
-        $\sqrt{2/\pi}$ in expectation. The $\sqrt{\pi/2}/d$ pre-factor cancels that shrinkage and
-        normalises the sum over $d$ terms.
-      </p>
-    </div>
-  </details>
-  <p class="small" style="color:var(--text-dim)">
-    The 1-bit form here is the 2024 QJL paper in a single line. TurboQuant-prod reuses it as the last bit of a
-    $b$-bit scheme: the first $b{-}1$ bits come from the Lloyd&ndash;Max codebook of <a href="#codebook">§5</a>, and the final bit is a
-    sign applied to the residual. Lemma 4 extends the unbiasedness and the variance bound to that residual stage.
+  <p>
+    <b>Decoder.</b> When a query $\mathbf{y}$ arrives at full precision, compute
+    $\langle \mathbf{S}\mathbf{y},\,\text{stored signs}\rangle$ and multiply by the fixed constant
+    $\sqrt{\pi/2}/d$. That constant is sized to be the exact inverse of the shrinkage signs introduce,
+    so the answer is unbiased <b>in expectation</b>. Per-shot it is noisier than MSE; the average lands
+    on truth.
   </p>
 
+  <!-- 3 · DEMO + WHAT TO NOTICE -->
   <div class="card">
+    <div class="panel-hd"><span class="tag">&#9632; HOW TO READ</span><span class="stat">same target, two estimators</span></div>
+    <p class="small" style="margin:0 0 14px;color:var(--text-dim)">
+      Both panels use <b>exactly 1 bit per coordinate</b>. Left: the MSE-optimal codebook from
+      <a href="#bias">§7</a>, biased. Right: QJL with its calibration constant baked in. Each trial
+      fires two shots (against independent $\mathbf{y}_1$ and $\mathbf{y}_2$). Same number of trials,
+      same target. Watch where the red dot lands.
+    </p>
     <div class="controls">
-      <div class="ctrl"><label>Dimension&nbsp;<code>d</code></label><input id="qjl-d" type="range" min="16" max="1024" step="16" value="256"><span class="val" id="qjl-d-v">256</span></div>
-      <div class="ctrl"><label>Trials</label><input id="qjl-n" type="range" min="500" max="10000" step="500" value="3000"><span class="val" id="qjl-n-v">3000</span></div>
-      <button id="qjl-run">Run</button>
+      <div class="ctrl"><label>Dimension&nbsp;<code>d</code></label><input id="qjl-d" type="range" min="32" max="256" step="8" value="128"><span class="val" id="qjl-d-v">128</span></div>
+      <div class="ctrl"><label>Trials</label><input id="qjl-n" type="range" min="500" max="3000" step="500" value="1500"><span class="val" id="qjl-n-v">1500</span></div>
+      <button id="qjl-run">Run both</button>
     </div>
-    <div class="plot" style="height:220px"><canvas id="qjl-plot"></canvas>
-      <div class="legend">
-        <span class="sw" style="background:var(--quant)"></span>QJL (unbiased) &nbsp;
-        <span class="sw" style="background:var(--err)"></span>MSE-1bit (biased) &nbsp;
-        <span class="sw" style="background:var(--orig)"></span>truth = 1
+    <div class="plot-grid cols-2">
+      <div>
+        <div class="small" style="color:#f472b6;margin:0 0 4px">MSE-optimal&nbsp;·&nbsp;1 bit (biased)</div>
+        <div class="plot" style="height:300px"><canvas id="qjl-mse-cv"></canvas></div>
+      </div>
+      <div>
+        <div class="small" style="color:#6ee7b7;margin:0 0 4px">QJL&nbsp;·&nbsp;1 bit (unbiased)</div>
+        <div class="plot" style="height:300px"><canvas id="qjl-qjl-cv"></canvas></div>
       </div>
     </div>
     <div class="metrics">
-      <div class="metric"><div class="label">QJL mean</div><div class="value quant" id="qjl-mean">–</div></div>
-      <div class="metric"><div class="label">MSE-1bit mean</div><div class="value err" id="qjl-mean2">–</div></div>
-      <div class="metric"><div class="label">QJL std</div><div class="value" id="qjl-std">–</div></div>
+      <div class="metric"><div class="label">MSE mean ratio</div><div class="value quant" id="qjl-mse-mean">&ndash;</div></div>
+      <div class="metric"><div class="label">QJL mean ratio</div><div class="value" id="qjl-qjl-mean" style="color:#6ee7b7">&ndash;</div></div>
+      <div class="metric"><div class="label">truth</div><div class="value">1.0000</div></div>
     </div>
+    <p class="small" style="margin:14px 0 0;color:var(--text)">
+      <b>What to notice.</b> MSE's red dot still parks SW of the centre, exactly as in
+      <a href="#bias">§7</a>. QJL's red dot lands on the centre. Look at the cloud widths: QJL's is
+      visibly wider, that is the price you pay for an honest mean. <b>Same 1 bit per coordinate, used
+      differently.</b> MSE optimises reconstruction error and pays in bias; QJL bakes the calibration
+      into the decoder and pays in per-shot variance.
+    </p>
   </div>
 
-  <h3>Putting it all together: TurboQuant-prod</h3>
-  <p>For a $b$-bit inner-product quantizer:</p>
-  <ol>
-    <li>Rotate $\mathbf{x}\to \boldsymbol{\Pi}\mathbf{x}$ as before.</li>
-    <li>Apply $b{-}1$-bit MSE-optimal quantization. Call the result $\tilde{\mathbf{y}}_{\text{mse}}$.</li>
-    <li>Compute the <b>residual</b> $\mathbf{r} = \boldsymbol{\Pi}\mathbf{x} - \tilde{\mathbf{y}}_{\text{mse}}$ and quantize it with a single bit of QJL: store $\operatorname{sign}(\mathbf{S}\mathbf{r})$ and the residual norm $\|\mathbf{r}\|$.</li>
-    <li>Decode: $\tilde{\mathbf{x}} = \boldsymbol{\Pi}^{\!\top}\big(\tilde{\mathbf{y}}_{\text{mse}} + \|\mathbf{r}\|\cdot \tfrac{\sqrt{\pi/2}}{d}\mathbf{S}^{\!\top}\operatorname{sign}(\mathbf{S}\mathbf{r})\big)$.</li>
-  </ol>
-  <p>
-    The first stage nails the magnitude; the 1 bit of QJL on the leftover residual provides the un-biasing.
-    Total cost: $b$ bits per coordinate, plus one float $\|\mathbf{r}\|$ per vector. That residual norm is the
-    only piece of side information in the whole scheme, one scalar per vector, not one per small block the way
-    GPTQ, AWQ, or KIVI need. Inner products are exactly unbiased, and the variance is bounded by Theorem 2.
-  </p>
+  <!-- 4 · DERIVATION (collapsed) -->
+  <details class="deriv">
+    <summary>The math: definition and where $\sqrt{\pi/2}/d$ comes from</summary>
+    <div class="deriv-body">
+      <p class="small">
+        With $\mathbf{S}\in\mathbb{R}^{d\times d}$ i.i.d. $\mathcal{N}(0,1)$:
+      </p>
+      <div class="formula">
+        $Q_{\text{jl}}(\mathbf{x}) = \operatorname{sign}(\mathbf{S}\mathbf{x}) \in \{-1,+1\}^d, \quad
+        \widehat{\langle \mathbf{x},\mathbf{y}\rangle} = \frac{\sqrt{\pi/2}}{d}\,
+        \langle \mathbf{S}\mathbf{y},\,Q_{\text{jl}}(\mathbf{x})\rangle.$
+      </div>
+      <p class="small">
+        Each row $\mathbf{s}_i$ makes $\mathbf{s}_i\mathbf{x}$ and $\mathbf{s}_i\mathbf{y}$ jointly
+        Gaussian with covariance $\langle\mathbf{x},\mathbf{y}\rangle$. The half-normal identity gives
+        $\mathbb{E}[(\mathbf{s}_i\mathbf{y})\,\text{sign}(\mathbf{s}_i\mathbf{x})] = \sqrt{2/\pi}\cdot\langle\mathbf{x},\mathbf{y}\rangle/\|\mathbf{x}\|$.
+        Sum over $d$ rows and multiply by $\sqrt{\pi/2}/d$: the $\sqrt{2/\pi}$ shrinkage cancels, and
+        the result is $\langle\mathbf{x},\mathbf{y}\rangle$ in expectation. Variance is bounded by
+        $\tfrac{\pi}{2d}\|\mathbf{x}\|^2\|\mathbf{y}\|^2$ (Lemma 4 of the paper).
+      </p>
+    </div>
+  </details>
 
+  <!-- 5 · STRETCH: how QJL plugs back into TurboQuant -->
+  <h3 style="margin-top:32px">Stretching it: TurboQuant-prod</h3>
+  <p>
+    QJL on its own is a 1-bit estimator. For a $b$-bit budget, TurboQuant-prod splits the bits:
+    the first $b{-}1$ bits run the MSE codebook of <a href="#pipeline">§6</a> to nail the magnitude,
+    and the last bit runs QJL on the leftover residual to remove the bias. Same total cost as
+    TurboQuant-MSE, plus one scalar (the residual norm) per vector, and inner products come out
+    exactly unbiased.
+  </p>
+  <details class="deriv">
+    <summary>The full TurboQuant-prod recipe</summary>
+    <div class="deriv-body">
+      <ol class="small">
+        <li>Rotate $\mathbf{x}\to \boldsymbol{\Pi}\mathbf{x}$ as in <a href="#rotation">§3</a>.</li>
+        <li>Apply $(b{-}1)$-bit MSE-optimal quantization. Call the result $\tilde{\mathbf{y}}_{\text{mse}}$.</li>
+        <li>Form the residual $\mathbf{r} = \boldsymbol{\Pi}\mathbf{x} - \tilde{\mathbf{y}}_{\text{mse}}$ and quantize it with one bit of QJL: store $\text{sign}(\mathbf{S}\mathbf{r})$ and the residual norm $\|\mathbf{r}\|$.</li>
+        <li>Decode: $\tilde{\mathbf{x}} = \boldsymbol{\Pi}^{\top}\big(\tilde{\mathbf{y}}_{\text{mse}} + \|\mathbf{r}\|\cdot \tfrac{\sqrt{\pi/2}}{d}\,\mathbf{S}^{\top}\text{sign}(\mathbf{S}\mathbf{r})\big)$.</li>
+      </ol>
+      <p class="small">
+        The residual norm is the only piece of side info in the whole scheme, one scalar per vector,
+        not one per small block the way GPTQ, AWQ, or KIVI need. Variance is bounded by Theorem 2.
+      </p>
+    </div>
+  </details>
+
+  <!-- 6 · TAKEAWAY + POINTER -->
   <div class="card insight">
     <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY · NEXT <a href="#bounds" style="color:inherit">§9</a></span><span class="stat">two recipes, one budget</span></div>
     <p style="margin:0">
-      <b>TurboQuant-MSE</b> minimises reconstruction error; <b>TurboQuant-prod</b> minimises bias on inner
-      products by spending one of its $b$ bits on a QJL residual. Both cost $b\!\cdot\!d$ bits plus one scalar
-      per vector. <b>Next:</b> <a href="#bounds">§9</a> compares both against Shannon's lower bound.
+      <b>TurboQuant-MSE</b> minimises reconstruction error and pays a known bias on inner products.
+      <b>TurboQuant-prod</b> spends one of its $b$ bits on a QJL residual to make inner products
+      unbiased. Both cost $b\!\cdot\!d$ bits plus one scalar per vector. <b>Next:</b>
+      <a href="#bounds">§9</a> stacks both against the information-theoretic floor.
     </p>
   </div>
 </section>
@@ -2625,6 +2664,85 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
 })();
 
 /* ================================================================
+   Shared chart helper: 2D bullseye scatter (used by §7 and §8).
+   shots: array of [x, y] in [-1, 1]. (mx, my): mean offset from truth.
+   ================================================================ */
+function drawBullseye(cv, shots, mx, my, accent, title) {
+  const { ctx, w, h } = setupCanvas(cv);
+  ctx.fillStyle = THEME.bg; ctx.fillRect(0, 0, w, h);
+
+  const cx = w / 2, cy = h / 2 + 6;
+  const s = Math.min(w, h - 30) * 0.40; // half-extent
+
+  // target rings (4 concentric, subtle)
+  ctx.strokeStyle = THEME.line; ctx.lineWidth = 1;
+  for (let r = 1; r <= 4; r++) {
+    ctx.beginPath(); ctx.arc(cx, cy, s * r / 4, 0, Math.PI * 2); ctx.stroke();
+  }
+
+  // shots: translucent fog so mean/truth markers punch through on top
+  ctx.fillStyle = accent + "44"; // alpha ~ 0.27
+  for (const p of shots) {
+    const px = Math.max(-1.05, Math.min(1.05, p[0]));
+    const py = Math.max(-1.05, Math.min(1.05, p[1]));
+    ctx.beginPath();
+    ctx.arc(cx + px * s, cy + py * s, 1.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // truth crosshair on top of the cloud (yellow, dashed) + filled disk
+  ctx.strokeStyle = THEME.warn; ctx.lineWidth = 1.6; ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  ctx.moveTo(cx - 18, cy); ctx.lineTo(cx + 18, cy);
+  ctx.moveTo(cx, cy - 18); ctx.lineTo(cx, cy + 18);
+  ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = THEME.bg;
+  ctx.beginPath(); ctx.arc(cx, cy, 4.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = THEME.warn;
+  ctx.beginPath(); ctx.arc(cx, cy, 2.6, 0, Math.PI * 2); ctx.fill();
+  ctx.font = PR.fontSm;
+  ctx.fillText("truth", cx + 20, cy - 4);
+
+  // mean (drawn LAST so it sits on top of every shot)
+  if (isFinite(mx) && isFinite(my)) {
+    const cmx = cx + Math.max(-1.1, Math.min(1.1, mx)) * s;
+    const cmy = cy + Math.max(-1.1, Math.min(1.1, my)) * s;
+    const biasMag = Math.hypot(mx, my);
+
+    if (biasMag > 0.02) {
+      ctx.strokeStyle = THEME.err; ctx.lineWidth = 1.4; ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cmx, cmy); ctx.stroke();
+      ctx.setLineDash([]);
+      const ang = Math.atan2(cmy - cy, cmx - cx), ah = 6;
+      ctx.fillStyle = THEME.err;
+      ctx.beginPath();
+      ctx.moveTo(cmx, cmy);
+      ctx.lineTo(cmx - ah * Math.cos(ang - 0.4), cmy - ah * Math.sin(ang - 0.4));
+      ctx.lineTo(cmx - ah * Math.cos(ang + 0.4), cmy - ah * Math.sin(ang + 0.4));
+      ctx.closePath(); ctx.fill();
+    }
+
+    // contrast halo so red punches through any cloud density
+    ctx.fillStyle = THEME.bg;
+    ctx.beginPath(); ctx.arc(cmx, cmy, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = THEME.err;
+    ctx.beginPath(); ctx.arc(cmx, cmy, 5.5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = THEME.err; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(cmx, cmy, 10, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = THEME.err; ctx.font = PR.fontSm;
+    const labelLeft = cmx > w - 90;
+    ctx.textAlign = labelLeft ? "right" : "left";
+    const lx = labelLeft ? cmx - 13 : cmx + 13;
+    ctx.fillText("mean  bias=" + biasMag.toFixed(3), lx, cmy + 3);
+    ctx.textAlign = "left";
+  }
+
+  // title (top-left)
+  ctx.fillStyle = THEME.text; ctx.font = PR.font;
+  ctx.fillText(title, 12, 16);
+}
+
+/* ================================================================
    §7 BIAS, single bullseye scatter for the MSE codebook.
    Cloud parks short of truth; mean drifts SW as b stays low.
    ================================================================ */
@@ -2641,89 +2759,9 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
   const outT = document.getElementById("bias-theory");
 
   const COL_MSE = "#f472b6";
-  const COL_TRUTH = "#fbbf24";
 
   function labels() {
     bV.textContent = cB.value; dV.textContent = cD.value; nV.textContent = cN.value;
-  }
-
-  function drawBullseye(cv, shots, mx, my, accent, title) {
-    const { ctx, w, h } = setupCanvas(cv);
-    ctx.fillStyle = THEME.bg; ctx.fillRect(0, 0, w, h);
-
-    const cx = w / 2, cy = h / 2 + 6;
-    const s = Math.min(w, h - 30) * 0.40; // half-extent
-
-    // target rings (4 concentric, kept subtle so they don't compete)
-    ctx.strokeStyle = THEME.line; ctx.lineWidth = 1;
-    for (let r = 1; r <= 4; r++) {
-      ctx.beginPath(); ctx.arc(cx, cy, s * r / 4, 0, Math.PI * 2); ctx.stroke();
-    }
-
-    // shots: drawn FIRST as a translucent fog so the mean/truth markers
-    // can punch through on top.
-    ctx.fillStyle = accent + "44"; // alpha ~ 0.27
-    for (const p of shots) {
-      const px = Math.max(-1.05, Math.min(1.05, p[0]));
-      const py = Math.max(-1.05, Math.min(1.05, p[1]));
-      ctx.beginPath();
-      ctx.arc(cx + px * s, cy + py * s, 1.2, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // truth crosshair on top of the cloud (yellow, dashed) + a filled
-    // yellow disk so the centre is anchored even at high shot density.
-    ctx.strokeStyle = COL_TRUTH; ctx.lineWidth = 1.6; ctx.setLineDash([3, 3]);
-    ctx.beginPath();
-    ctx.moveTo(cx - 18, cy); ctx.lineTo(cx + 18, cy);
-    ctx.moveTo(cx, cy - 18); ctx.lineTo(cx, cy + 18);
-    ctx.stroke(); ctx.setLineDash([]);
-    // background-coloured outer disk + yellow inner disk = "punched through" look
-    ctx.fillStyle = THEME.bg;
-    ctx.beginPath(); ctx.arc(cx, cy, 4.5, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = COL_TRUTH;
-    ctx.beginPath(); ctx.arc(cx, cy, 2.6, 0, Math.PI * 2); ctx.fill();
-    ctx.font = PR.fontSm;
-    ctx.fillText("truth", cx + 20, cy - 4);
-
-    // mean (red dot + halo + bias arrow from origin) — drawn LAST so it
-    // sits on top of every shot.
-    if (isFinite(mx) && isFinite(my)) {
-      const cmx = cx + Math.max(-1.1, Math.min(1.1, mx)) * s;
-      const cmy = cy + Math.max(-1.1, Math.min(1.1, my)) * s;
-      const biasMag = Math.hypot(mx, my);
-
-      if (biasMag > 0.02) {
-        ctx.strokeStyle = THEME.err; ctx.lineWidth = 1.4; ctx.setLineDash([3, 3]);
-        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cmx, cmy); ctx.stroke();
-        ctx.setLineDash([]);
-        const ang = Math.atan2(cmy - cy, cmx - cx), ah = 6;
-        ctx.fillStyle = THEME.err;
-        ctx.beginPath();
-        ctx.moveTo(cmx, cmy);
-        ctx.lineTo(cmx - ah * Math.cos(ang - 0.4), cmy - ah * Math.sin(ang - 0.4));
-        ctx.lineTo(cmx - ah * Math.cos(ang + 0.4), cmy - ah * Math.sin(ang + 0.4));
-        ctx.closePath(); ctx.fill();
-      }
-
-      // contrast halo (canvas-bg) so red punches through any cloud density
-      ctx.fillStyle = THEME.bg;
-      ctx.beginPath(); ctx.arc(cmx, cmy, 8, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = THEME.err;
-      ctx.beginPath(); ctx.arc(cmx, cmy, 5.5, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = THEME.err; ctx.lineWidth = 1.2;
-      ctx.beginPath(); ctx.arc(cmx, cmy, 10, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillStyle = THEME.err; ctx.font = PR.fontSm;
-      const labelLeft = cmx > w - 90;
-      ctx.textAlign = labelLeft ? "right" : "left";
-      const lx = labelLeft ? cmx - 13 : cmx + 13;
-      ctx.fillText("mean  bias=" + biasMag.toFixed(3), lx, cmy + 3);
-      ctx.textAlign = "left";
-    }
-
-    // title (top-left)
-    ctx.fillStyle = THEME.text; ctx.font = PR.font;
-    ctx.fillText(title, 12, 16);
   }
 
   // Cached last-run data so theme change only repaints, not resimulates.
@@ -2798,8 +2836,10 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
 })();
 
 /* ================================================================
-   §8 QJL, unbiasedness demo. Fresh S per trial.
-   Button-triggered.
+   §8 QJL vs MSE-1bit, side-by-side bullseyes.
+   Each trial fires two shots (against y1, y2) at the same target.
+   MSE: 1-bit Lloyd codebook on rotated x.
+   QJL: prefactor * <S y_i, sign(S x)> with fresh S per trial.
    ================================================================ */
 (function(){
   const cD = document.getElementById("qjl-d");
@@ -2807,10 +2847,13 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
   const btn = document.getElementById("qjl-run");
   const dV = document.getElementById("qjl-d-v");
   const nV = document.getElementById("qjl-n-v");
-  const canvas = document.getElementById("qjl-plot");
-  const mQ = document.getElementById("qjl-mean");
-  const mM = document.getElementById("qjl-mean2");
-  const mS = document.getElementById("qjl-std");
+  const cvM = document.getElementById("qjl-mse-cv");
+  const cvQ = document.getElementById("qjl-qjl-cv");
+  const outM = document.getElementById("qjl-mse-mean");
+  const outQ = document.getElementById("qjl-qjl-mean");
+
+  const COL_MSE = "#f472b6";
+  const COL_QJL = "#6ee7b7";
 
   function labels() { dV.textContent = cD.value; nV.textContent = cN.value; }
 
@@ -2818,91 +2861,87 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
 
   function compute() {
     const d = +cD.value, n = +cN.value;
-    const x = unitVec(d);
-    let y = unitVec(d);
-    for (let i=0;i<d;i++) y[i] = 0.5*x[i] + 0.5*y[i];
-    const yn = norm2(y); for (let i=0;i<d;i++) y[i] /= yn;
-    const true_ip = dot(x, y);
-    const qjl_ratios = [];
-    const prefactor = Math.sqrt(Math.PI/2)/d;
-    for (let t=0;t<n;t++) {
-      let acc = 0;
-      for (let i=0;i<d;i++) {
-        let Six = 0, Siy = 0;
-        for (let j=0;j<d;j++) {
-          const s = gauss();
-          Six += s*x[j]; Siy += s*y[j];
-        }
-        acc += Siy * (Six>=0 ? 1 : -1);
-      }
-      qjl_ratios.push((prefactor * acc) / true_ip);
+    const sig = 1 / Math.sqrt(d);
+    const centroids = lloydGauss(1, sig, 20);
+    const R = randomRotation(d);
+
+    const trials = [];
+    for (let t = 0; t < n; t++) {
+      const x = unitVec(d), y1 = unitVec(d), y2 = unitVec(d);
+      const yx1 = dot(x, y1), yx2 = dot(x, y2);
+      if (Math.abs(yx1) < 0.05 || Math.abs(yx2) < 0.05) continue;
+      trials.push({ x, y1, y2, yx1, yx2 });
     }
-    let mQJL=0; for (const r of qjl_ratios) mQJL += r; mQJL /= qjl_ratios.length;
-    let varQ=0; for (const r of qjl_ratios) varQ += (r-mQJL)**2; varQ /= qjl_ratios.length;
-    cache = { d, n, qjl_ratios, mQJL, std: Math.sqrt(varQ) };
+
+    const mseShots = [];
+    for (const { x, y1, y2, yx1, yx2 } of trials) {
+      const rx = matVec(R, x);
+      const qy = quantizeWithCodebook(rx, centroids);
+      const xh = matTVec(R, qy);
+      mseShots.push([dot(y1, xh) / yx1 - 1, dot(y2, xh) / yx2 - 1]);
+    }
+    let mMSEx = 0, mMSEy = 0;
+    for (const p of mseShots) { mMSEx += p[0]; mMSEy += p[1]; }
+    const dM = mseShots.length || 1;
+    mMSEx /= dM; mMSEy /= dM;
+
+    // QJL: O(d^2) per trial, cap so big-d stays interactive.
+    const prefactor = Math.sqrt(Math.PI / 2) / d;
+    const qjlCap = Math.max(150, Math.floor(1.2e5 / d));
+    const qjlN = Math.min(trials.length, qjlCap);
+    const qjlShots = [];
+    for (let t = 0; t < qjlN; t++) {
+      const { x, y1, y2, yx1, yx2 } = trials[t];
+      let acc1 = 0, acc2 = 0;
+      for (let i = 0; i < d; i++) {
+        let Six = 0, Siy1 = 0, Siy2 = 0;
+        for (let j = 0; j < d; j++) {
+          const s = gauss();
+          Six  += s * x[j];
+          Siy1 += s * y1[j];
+          Siy2 += s * y2[j];
+        }
+        const sgn = Six >= 0 ? 1 : -1;
+        acc1 += Siy1 * sgn;
+        acc2 += Siy2 * sgn;
+      }
+      qjlShots.push([(prefactor * acc1) / yx1 - 1, (prefactor * acc2) / yx2 - 1]);
+    }
+    let mQx = 0, mQy = 0;
+    for (const p of qjlShots) { mQx += p[0]; mQy += p[1]; }
+    const dQ = qjlShots.length || 1;
+    mQx /= dQ; mQy /= dQ;
+
+    cache = {
+      d, mseShots, mMSEx, mMSEy, qjlShots, mQx, mQy,
+      mMSEratio: (mMSEx + mMSEy) / 2 + 1,
+      mQJLratio: (mQx + mQy) / 2 + 1,
+    };
+  }
+
+  function placeholder(cv, msg) {
+    const { ctx, w, h } = setupCanvas(cv);
+    ctx.fillStyle = THEME.bg; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = THEME.mute;
+    ctx.font = "12px 'JetBrains Mono', ui-monospace, Menlo, monospace";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(msg, w / 2, h / 2);
+    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
   }
 
   function render() {
     if (!cache) {
-      const { ctx, w, h } = setupCanvas(canvas);
-      ctx.fillStyle = THEME.bg; ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = THEME.mute;
-      ctx.font = "12px 'JetBrains Mono', ui-monospace, Menlo, monospace";
-      ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText("Click \u201CRun\u201D to simulate", w/2, h/2);
-      ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+      placeholder(cvM, "Click \u201CRun both\u201D to simulate");
+      placeholder(cvQ, "Click \u201CRun both\u201D to simulate");
       return;
     }
-    const { qjl_ratios, mQJL, std } = cache;
-    mQ.textContent = mQJL.toFixed(4);
-    mM.textContent = (2/Math.PI).toFixed(4) + " (theory)";
-    mS.textContent = std.toFixed(4);
-
-    const { ctx, w, h } = setupCanvas(canvas);
-    ctx.clearRect(0,0,w,h);
-    const pad = { l: 40, r: 14, t: 14, b: 26 };
-    const plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
-    const rlo = Math.min(-0.2, ...qjl_ratios)*1.1;
-    const rhi = Math.max( 2.2, ...qjl_ratios)*1.05;
-    const nbins = 60;
-    const bw = (rhi-rlo)/nbins;
-    const cq = new Array(nbins).fill(0);
-    for (const r of qjl_ratios) { const k=Math.floor((r-rlo)/bw); if(k>=0&&k<nbins) cq[k]++; }
-    const cmax = Math.max(...cq, 1);
-
-    ctx.strokeStyle = THEME.grid;
-    ctx.beginPath(); ctx.moveTo(pad.l,pad.t); ctx.lineTo(pad.l,h-pad.b); ctx.lineTo(w-pad.r,h-pad.b); ctx.stroke();
-
-    ctx.strokeStyle = "#f472b6"; ctx.lineWidth = 2;
-    const mseX = pad.l + (2/Math.PI - rlo)/(rhi-rlo) * plotW;
-    ctx.beginPath(); ctx.moveTo(mseX, pad.t); ctx.lineTo(mseX, h-pad.b); ctx.stroke();
-    ctx.fillStyle = "#f472b6"; ctx.font = "10px ui-monospace, Menlo, monospace";
-    ctx.fillText("MSE-1bit mean = 2/π ≈ 0.637", mseX - 140, pad.t + 11);
-
-    ctx.fillStyle = "rgba(96,165,250,0.78)";
-    for (let i=0;i<nbins;i++) {
-      const xx = pad.l + i/nbins*plotW;
-      const ww = plotW/nbins;
-      const hh = cq[i]/cmax * plotH;
-      ctx.fillRect(xx+0.5, h-pad.b - hh, ww-1, hh);
-    }
-
-    ctx.strokeStyle = "#fbbf24"; ctx.lineWidth = 2;
-    const qx = pad.l + (mQJL-rlo)/(rhi-rlo) * plotW;
-    ctx.beginPath(); ctx.moveTo(qx, pad.t); ctx.lineTo(qx, h-pad.b); ctx.stroke();
-    ctx.fillStyle = "#fbbf24";
-    ctx.fillText("QJL mean = "+mQJL.toFixed(3), qx + 6, pad.t + 27);
-
-    ctx.strokeStyle = "#6ee7b7"; ctx.lineWidth = 2; ctx.setLineDash([4,4]);
-    const tx = pad.l + (1-rlo)/(rhi-rlo) * plotW;
-    ctx.beginPath(); ctx.moveTo(tx, pad.t); ctx.lineTo(tx, h-pad.b); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = "#6ee7b7";
-    ctx.fillText("truth = 1", tx + 6, pad.t + 43);
-
-    ctx.fillStyle = THEME.mute;
-    ctx.fillText(rlo.toFixed(2), pad.l-8, h-pad.b+14);
-    ctx.fillText(rhi.toFixed(2), w-pad.r-22, h-pad.b+14);
+    const { d, mseShots, mMSEx, mMSEy, qjlShots, mQx, mQy, mMSEratio, mQJLratio } = cache;
+    outM.textContent = mMSEratio.toFixed(4);
+    outQ.textContent = mQJLratio.toFixed(4);
+    drawBullseye(cvM, mseShots, mMSEx, mMSEy, COL_MSE,
+      "MSE-optimal 1 bit, d=" + d);
+    drawBullseye(cvQ, qjlShots, mQx, mQy, COL_QJL,
+      "QJL 1 bit, d=" + d + " (n=" + qjlShots.length + ")");
   }
 
   function run() { labels(); compute(); render(); }
