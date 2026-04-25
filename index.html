@@ -1294,16 +1294,21 @@
   <div class="eyebrow">§5 · The universal codebook</div>
   <h2>Lloyd–Max: the optimal partition of a known distribution.</h2>
   <p>
-    From <a href="#concentration">§4</a> we know the shape of every rotated coordinate, near-Gaussian
-    with variance $1/d$. Scalar quantization for a known density is a textbook problem: place $2^b$
-    levels to minimise expected squared error. The classical solution is <b>Lloyd&ndash;Max</b>
-    (<a href="https://doi.org/10.1109/TIT.1982.1056489" target="_blank" rel="noopener">Lloyd&nbsp;1957/82</a>,
-    <a href="https://doi.org/10.1109/TIT.1960.1057548" target="_blank" rel="noopener">Max&nbsp;1960</a>).
+    Every rotated coordinate looks like a draw from the same density (<a href="#concentration">§4</a>).
+    So there is one scalar problem to solve, once: pick $2^b$ <b>landing values</b> on the number line
+    such that snapping any sample to its nearest landing value introduces as little error as possible.
+    Those landing values are the <i>codebook</i>.
   </p>
   <p>
-    Solve once for the Beta density, bake the resulting centroids into a per-$b$ lookup table, and
-    encoding becomes a snap-to-nearest-entry. No per-vector optimisation, no learning, no scales.
-    Drag $b$ to watch the table find its layout.
+    A classical algorithm finds them: <b>Lloyd&ndash;Max</b>
+    (<a href="https://doi.org/10.1109/TIT.1982.1056489" target="_blank" rel="noopener">Lloyd&nbsp;1957/82</a>,
+    <a href="https://doi.org/10.1109/TIT.1960.1057548" target="_blank" rel="noopener">Max&nbsp;1960</a>).
+    Because the density is fixed and known in advance, we run Lloyd&ndash;Max once, save the resulting
+    landing values into a tiny per-$b$ table, and from then on encoding is a single nearest-neighbour
+    lookup. No learning, no calibration, no per-vector tuning.
+  </p>
+  <p>
+    Drag $b$ below to watch Lloyd&ndash;Max settle on the landing values for the Beta density.
   </p>
 
   <details class="deriv">
@@ -1424,9 +1429,11 @@
   <div class="card insight">
     <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY · NEXT <a href="#bias" style="color:inherit">§7</a></span><span class="stat">MSE is solved, but…</span></div>
     <p style="margin:0">
-      TurboQuant-MSE: $b\!\cdot\!d$ bits per vector, no metadata, pointwise reconstruction within a constant
-      factor of Shannon's floor for any input. <b>Next:</b> <a href="#bias">§7</a> shows that this same codebook
-      gets <i>inner products</i> systematically wrong, a different failure mode that needs a different fix.
+      TurboQuant-MSE: $b\!\cdot\!d$ bits per vector, no metadata, and the reconstructed $\tilde{\mathbf{x}}$
+      is nearly as close to the original $\mathbf{x}$ as any quantizer can possibly get
+      ($\le \approx 2.72\times$ Shannon's information-theoretic floor). <b>Next:</b>
+      <a href="#bias">§7</a> shows that this same codebook gets <i>inner products</i> systematically wrong,
+      a different failure mode that needs a different fix.
     </p>
   </div>
 </section>
@@ -1438,22 +1445,23 @@
 
   <!-- 1 · INTRO (single short paragraph, no spoilers) -->
   <p>
-    <a href="#pipeline">§6</a> gave us TurboQuant-MSE: pointwise reconstruction within a constant factor
-    of Shannon. But attention does not ask &ldquo;how close is $\tilde{\mathbf{x}}$ to $\mathbf{x}$?&rdquo;,
-    it asks &ldquo;what is $\langle \mathbf{q}, \tilde{\mathbf{k}}\rangle$?&rdquo; Run that question
-    many times and average the answers, an unbiased estimator's average lands on the truth. Does the
-    MSE codebook?
+    <a href="#pipeline">§6</a> gave us TurboQuant-MSE: the reconstructed $\tilde{\mathbf{x}}$ stays
+    close to $\mathbf{x}$, near the best any quantizer can do. But attention does not ask
+    &ldquo;how close is $\tilde{\mathbf{x}}$ to $\mathbf{x}$?&rdquo;, it asks &ldquo;what is
+    $\langle \mathbf{q}, \tilde{\mathbf{k}}\rangle$?&rdquo; Run that question many times and average
+    the answers, an unbiased estimator's average lands on the truth. Does the MSE codebook?
   </p>
 
   <!-- 2 · DEMO + WHAT TO NOTICE (one unit) -->
   <div class="card">
     <div class="panel-hd"><span class="tag">&#9632; HOW TO READ</span><span class="stat">drag b, watch the red circle</span></div>
     <p class="small" style="margin:0 0 14px;color:var(--text-dim)">
-      Each dot is one trial. Its <b>x-position</b> is the trial's answer divided by the true inner product,
-      so a dot at <b>1.0</b> (the crosshair) is a perfect trial. The big red circle is the <b>mean of every
-      dot</b>. A quantizer is <i>unbiased</i> when the red circle sits on the crosshair, no matter how wide
-      the surrounding cloud. Vertical jitter is purely cosmetic, only the horizontal position carries
-      information.
+      Each plot is the <b>distribution</b> of trial outcomes for one quantizer. The x-axis is each
+      trial's answer divided by the true inner product, so a bar above <b>1.0</b> means trials whose
+      estimate landed exactly on the truth. The <b style="color:var(--warn)">yellow dashed line</b> is
+      truth (1.0), the <b style="color:var(--err)">red line</b> is the empirical mean across all trials.
+      A quantizer is <i>unbiased</i> when the red line sits on the yellow one, no matter how wide the
+      histogram around them is. The gap between the two lines is the bias.
     </p>
     <div class="controls">
       <div class="ctrl"><label>Bits&nbsp;<code>b</code>&nbsp;(MSE side)</label><input id="bias-b" type="range" min="1" max="5" value="1"><span class="val" id="bias-b-v">1</span></div>
@@ -1478,10 +1486,11 @@
       <div class="metric"><div class="label">truth</div><div class="value">1.0000</div></div>
     </div>
     <p class="small" style="margin:14px 0 0;color:var(--text)">
-      <b>What to notice.</b> At $b{=}1$ the MSE mean parks at $\approx 0.637$, the $2/\pi$ shift. Drag $b$
-      up and the mean creeps toward 1 but never lands on it cleanly, the bias is just smaller. The QJL
-      mean sits on 1 from the start even though its cloud is much wider. <b>Noisier per shot, correct on
-      average</b>, which is exactly what attention scores and nearest-neighbour search need.
+      <b>What to notice.</b> At $b{=}1$ the MSE mean parks at $\approx 0.637$, the $2/\pi$ shift, and
+      the red line sits visibly to the left of the yellow one. Drag $b$ up: the red line creeps toward
+      yellow but never quite lands on it, the bias is just smaller. The QJL red line sits on yellow
+      from the start, even though its histogram is wider. <b>Noisier per shot, correct on average</b>,
+      which is exactly what attention scores and nearest-neighbour search need.
     </p>
   </div>
 
@@ -2648,70 +2657,93 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
     bV.textContent = cB.value; dV.textContent = cD.value; nV.textContent = cN.value;
   }
 
-  function drawBullseye(cv, ratios, mean, accent, title) {
+  function drawBiasHist(cv, ratios, mean, accent, title) {
     const { ctx, w, h } = setupCanvas(cv);
     ctx.fillStyle = THEME.bg; ctx.fillRect(0, 0, w, h);
-    const cx = w / 2, cy = h / 2;
-    const xmin = -0.2, xmax = 1.4;
-    const xspan = xmax - xmin;
-    const plotW = w - 40, plotH = h - 40;
-    // Map ratio r in [xmin,xmax] to canvas x. Truth (r=1) sits at cx.
-    const truthX = 40 + (1 - xmin) / xspan * plotW;
-    const offset = cx - truthX; // shift so truth lands at cx
-    const X = r => 40 + (r - xmin) / xspan * plotW + offset;
-    const Y = j => cy + j * (plotH * 0.38);
 
-    // target rings centered on truth
-    ctx.strokeStyle = THEME.axis; ctx.lineWidth = 1;
-    const maxR = Math.min(plotW, plotH) * 0.46;
-    for (let k = 1; k <= 4; k++) {
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, maxR * k / 4, maxR * k / 4 * 0.62, 0, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-    // crosshair at truth
-    ctx.strokeStyle = COL_TRUTH; ctx.setLineDash([3, 3]); ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(cx - 14, cy); ctx.lineTo(cx + 14, cy);
-    ctx.moveTo(cx, cy - 14); ctx.lineTo(cx, cy + 14);
-    ctx.stroke(); ctx.setLineDash([]);
-    ctx.fillStyle = COL_TRUTH; ctx.font = "10px 'JetBrains Mono', ui-monospace, Menlo, monospace";
-    ctx.fillText("truth = 1", cx + 16, cy - 4);
+    const padL = 32, padR = 24, padT = 34, padB = 36;
+    const plotW = w - padL - padR, plotH = h - padT - padB;
+    const xmin = -0.2, xmax = 1.4, xspan = xmax - xmin;
+    const X = r => padL + (r - xmin) / xspan * plotW;
+    const Y0 = padT + plotH;
 
-    // shots
-    ctx.fillStyle = accent + "aa";
+    // bin the ratios
+    const nBins = 48;
+    const counts = new Array(nBins).fill(0);
     for (const r of ratios) {
-      const jitter = (Math.random() - 0.5) * 0.9;
-      const px = X(r), py = Y(jitter);
-      if (px < 6 || px > w - 6) continue;
-      ctx.beginPath(); ctx.arc(px, py, 2.2, 0, Math.PI * 2); ctx.fill();
+      const t = (r - xmin) / xspan;
+      if (t < 0 || t >= 1) continue;
+      counts[Math.min(nBins - 1, Math.floor(t * nBins))]++;
+    }
+    const maxC = Math.max(1, ...counts);
+    const binW = plotW / nBins;
+
+    // baseline
+    ctx.strokeStyle = THEME.axis; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(padL, Y0); ctx.lineTo(padL + plotW, Y0); ctx.stroke();
+
+    // histogram bars
+    ctx.fillStyle = accent + "cc";
+    for (let i = 0; i < nBins; i++) {
+      const bh = (counts[i] / maxC) * plotH * 0.92;
+      ctx.fillRect(padL + i * binW + 0.5, Y0 - bh, Math.max(1, binW - 1), bh);
     }
 
-    // mean of shots (red dot + ring)
+    // truth line (yellow, dashed, vertical)
+    const tx = X(1.0);
+    ctx.strokeStyle = COL_TRUTH; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(tx, padT); ctx.lineTo(tx, Y0); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = COL_TRUTH; ctx.font = PR.font;
+    ctx.fillText("truth = 1", tx + 4, padT + 11);
+
+    // mean line (red, solid, vertical)
     if (isFinite(mean)) {
-      const mx = X(mean), my = cy;
-      ctx.fillStyle = THEME.err;
-      ctx.beginPath(); ctx.arc(mx, my, 5, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = THEME.err; ctx.lineWidth = 1.2;
-      ctx.beginPath(); ctx.arc(mx, my, 10, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillStyle = THEME.err; ctx.font = "10px 'JetBrains Mono', ui-monospace, Menlo, monospace";
-      ctx.fillText("mean = " + mean.toFixed(3), mx + 14, my + 3);
+      const mx = X(mean);
+      if (mx > padL - 2 && mx < padL + plotW + 2) {
+        ctx.strokeStyle = THEME.err; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(mx, padT); ctx.lineTo(mx, Y0); ctx.stroke();
+        ctx.fillStyle = THEME.err; ctx.font = PR.font;
+        const labelLeft = mean < 0.7;
+        const lx = labelLeft ? mx + 5 : mx - 6;
+        ctx.textAlign = labelLeft ? "left" : "right";
+        ctx.fillText("mean = " + mean.toFixed(3), lx, Y0 - 8);
+        ctx.textAlign = "left";
+
+        // bias arrow connecting mean to truth
+        if (Math.abs(mean - 1.0) > 0.015) {
+          const ay = padT + 26;
+          const x1 = Math.min(mx, tx), x2 = Math.max(mx, tx);
+          ctx.strokeStyle = THEME.err; ctx.lineWidth = 1.2; ctx.setLineDash([2, 2]);
+          ctx.beginPath(); ctx.moveTo(x1, ay); ctx.lineTo(x2, ay); ctx.stroke();
+          ctx.setLineDash([]);
+          // arrowheads
+          ctx.beginPath();
+          ctx.moveTo(x1, ay); ctx.lineTo(x1 + 4, ay - 3); ctx.lineTo(x1 + 4, ay + 3); ctx.closePath(); ctx.fill();
+          ctx.beginPath();
+          ctx.moveTo(x2, ay); ctx.lineTo(x2 - 4, ay - 3); ctx.lineTo(x2 - 4, ay + 3); ctx.closePath(); ctx.fill();
+          const gap = Math.abs(1 - mean).toFixed(3);
+          ctx.fillText("bias = " + gap, (x1 + x2) / 2 - 22, ay - 5);
+        }
+      }
     }
 
     // x-axis ticks
-    ctx.fillStyle = THEME.mute; ctx.font = "10px 'JetBrains Mono', ui-monospace, Menlo, monospace";
-    [0, 0.5, 1.0].forEach(t => {
-      const tx = X(t);
-      if (tx > 6 && tx < w - 6) {
-        ctx.fillText(t.toFixed(1), tx - 8, h - 6);
+    ctx.fillStyle = THEME.mute; ctx.font = PR.fontSm;
+    [0, 0.25, 0.5, 0.75, 1.0, 1.25].forEach(t => {
+      const xx = X(t);
+      if (xx > padL - 1 && xx < padL + plotW + 1) {
+        ctx.fillText(t.toFixed(2), xx - 12, Y0 + 14);
         ctx.strokeStyle = THEME.axis;
-        ctx.beginPath(); ctx.moveTo(tx, cy + maxR * 0.62 + 2); ctx.lineTo(tx, cy + maxR * 0.62 + 6); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(xx, Y0); ctx.lineTo(xx, Y0 + 4); ctx.stroke();
       }
     });
+    ctx.fillStyle = THEME.textDim; ctx.font = PR.fontSm;
+    ctx.fillText("estimate / truth", padL + plotW / 2 - 40, Y0 + 28);
 
-    // title
-    ctx.fillStyle = THEME.text; ctx.font = "11px 'JetBrains Mono', ui-monospace, Menlo, monospace";
-    ctx.fillText(title, 10, 16);
+    // title (top-left)
+    ctx.fillStyle = THEME.text; ctx.font = PR.font;
+    ctx.fillText(title, padL, 16);
   }
 
   // Cached last-run data so theme change only repaints, not resimulates.
@@ -2782,8 +2814,8 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
     outQ.textContent = mQJL.toFixed(4);
     const theoryMap = { 1: "2/π ≈ 0.637", 2: "≈ 0.88", 3: "≈ 0.97", 4: "≈ 0.99", 5: "≈ 1.00" };
     outT.textContent = theoryMap[b] || "–";
-    drawBullseye(cvM, mseRatios, mMSE, COL_MSE, "MSE-optimal b=" + b + " bit, d=" + d);
-    drawBullseye(cvQ, qjlRatios, mQJL, COL_QJL, "QJL 1-bit, d=" + d + " (n=" + qjlN + ")");
+    drawBiasHist(cvM, mseRatios, mMSE, COL_MSE, "MSE-optimal b=" + b + " bit, d=" + d);
+    drawBiasHist(cvQ, qjlRatios, mQJL, COL_QJL, "QJL 1-bit, d=" + d + " (n=" + qjlN + ")");
   }
 
   function run() { labels(); compute(); render(); }
