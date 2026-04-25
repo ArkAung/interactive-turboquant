@@ -934,6 +934,14 @@
     $[-1,1]$, but almost all the energy is in a single coordinate. The spike falls off the grid while
     the many zeros consume most of the levels.
   </p>
+
+  <div class="card insight">
+    <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY · NEXT <a href="#naive" style="color:inherit">§2</a></span><span class="stat">where the gap shows up</span></div>
+    <p style="margin:0">
+      A fixed grid is fine for flat vectors and terrible for spiky ones. <b>Next:</b>
+      <a href="#naive">§2</a> shows what production systems do about it, and what they pay for the fix.
+    </p>
+  </div>
 </section>
 
 <!-- ======================= SECTION: NAIVE FAILS ======================= -->
@@ -1020,11 +1028,14 @@
     </p>
   </div>
 
-  <p>
-    The <i>data-oblivious</i> constraint is the further twist: the procedure must work for any vector without
-    calibration on a training set. No fine-tuning, no dataset-specific statistics. One fixed recipe, for
-    any input, including the spike.
-  </p>
+  <div class="card insight">
+    <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY · NEXT <a href="#rotation" style="color:inherit">§3</a></span><span class="stat">one fixed recipe, any input</span></div>
+    <p style="margin:0">
+      Production quantizers fix outliers by paying a per-block metadata tax. TurboQuant has to be
+      <i>data-oblivious</i>, the same procedure for every vector, no calibration set, no per-block headers.
+      <b>Next:</b> <a href="#rotation">§3</a> introduces the move that makes a fixed grid work for every input.
+    </p>
+  </div>
 </section>
 
 <!-- ======================= SECTION: ROTATION ======================= -->
@@ -1151,11 +1162,14 @@
   </div>
 
   <div class="card insight">
-    <b style="color:var(--orig)">In one sentence.</b>
-    Rotation does not change the vector's length or its inner products with anything else, it only
-    redistributes which coordinates hold the energy. An adversarial vector with all its mass in one coordinate
-    becomes, after rotation, a typical vector with mass spread across all $d$. The quantizer only ever sees
-    the typical one.
+    <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY · NEXT <a href="#concentration" style="color:inherit">§4</a></span><span class="stat">no spike survives a random rotation</span></div>
+    <p style="margin:0">
+      Rotation preserves length and inner products; it only redistributes which coordinates carry the energy.
+      An adversarial vector with all its mass in one coordinate becomes, after rotation, a typical one with
+      mass spread across all $d$. The quantizer only ever sees the typical one. <b>Next:</b>
+      <a href="#concentration">§4</a> shows <i>why</i> rotation flattens spikes, the geometry of high-dimensional
+      spheres.
+    </p>
   </div>
 </section>
 
@@ -1251,10 +1265,13 @@
   </div>
 
   <div class="card insight">
-    <b style="color:var(--orig)">Consequence for quantization.</b>
-    Every coordinate of the rotated vector follows the same known distribution. Solve the scalar quantization
-    problem for $\mathcal{N}(0, 1/d)$ once, store the optimal codebook, and reuse it for every coordinate of
-    every vector. No per-block scale factors, no side information.
+    <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY · NEXT <a href="#codebook" style="color:inherit">§5</a></span><span class="stat">one distribution, one codebook</span></div>
+    <p style="margin:0">
+      Every coordinate of the rotated vector follows the same known density. Solve the scalar quantization
+      problem for that density once and reuse it for every coordinate of every vector, no per-block scale
+      factors, no side information. <b>Next:</b> <a href="#codebook">§5</a> builds that one codebook with
+      Lloyd&ndash;Max.
+    </p>
   </div>
 </section>
 
@@ -1303,11 +1320,15 @@
     $\tfrac{\sqrt{3}\pi}{2}\approx 2.72$ is the asymptotic ratio to Shannon's minimum $\tfrac{1}{d}\cdot 4^{-b}$;
     at $b{=}1$ the paper reports a tighter ratio of $\approx 1.45$.
   </p>
-  <p class="small" style="color:var(--text-dim)">
-    Where this codebook is used: <a href="#pipeline">§6</a> drops it onto the rotated coordinates to get TurboQuant-MSE.
-    <a href="#qjl">§8</a> extends the scheme with one extra bit of QJL on the residual, which turns it into TurboQuant-prod
-    (the inner-product variant).
-  </p>
+  <div class="card insight">
+    <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY · NEXT <a href="#pipeline" style="color:inherit">§6</a></span><span class="stat">a tiny lookup, baked once</span></div>
+    <p style="margin:0">
+      Lloyd&ndash;Max gives the optimal partition for a known density, so the centroids for the Beta marginal
+      can be precomputed and stored as a tiny per-$b$ table. Per-coordinate MSE lands within $\approx 2.72\times$
+      Shannon's floor (asymptotic, $\approx 1.45\times$ at $b{=}1$). <b>Next:</b> <a href="#pipeline">§6</a>
+      assembles rotation + codebook into TurboQuant-MSE.
+    </p>
+  </div>
 </section>
 
 <!-- ======================= SECTION: PIPELINE ======================= -->
@@ -1372,6 +1393,15 @@
     rotation, the error is roughly the same regardless of which input you pick, the rotated coordinates
     all look like draws from $\mathcal{N}(0,1/d)$, which is what the codebook was built for.
   </p>
+
+  <div class="card insight">
+    <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY · NEXT <a href="#bias" style="color:inherit">§7</a></span><span class="stat">MSE is solved, but…</span></div>
+    <p style="margin:0">
+      TurboQuant-MSE: $b\!\cdot\!d$ bits per vector, no metadata, pointwise reconstruction within a constant
+      factor of Shannon's floor for any input. <b>Next:</b> <a href="#bias">§7</a> shows that this same codebook
+      gets <i>inner products</i> systematically wrong, a different failure mode that needs a different fix.
+    </p>
+  </div>
 </section>
 
 <!-- ======================= SECTION: BIAS ======================= -->
@@ -1469,19 +1499,12 @@
   <div class="eyebrow">§8 · QJL: the un-biaser</div>
   <h2>QJL: squeezing unbiased inner products out of 1 bit per coordinate.</h2>
 
-  <div class="card insight">
-    <div class="panel-hd"><span class="tag">■ INTUITION</span><span class="stat">Un-bias by construction</span></div>
-    <p style="margin:0 0 6px">
-      Step back: the bias we just measured is a <i>known</i> number, $\sqrt{2/\pi}$ per application of sign-then-dot.
-      If it is known, we can <b>cancel it</b>. That is exactly what QJL does, it multiplies by $\sqrt{\pi/2}/d$ on the
-      decode side so the shrinkage cancels exactly. The quantization stays lossy (it is still 1 bit!), but the
-      <i>average</i> estimate lands on the bullseye.
-    </p>
-    <p style="margin:0" class="small">
-      This is the primer's &ldquo;noisy but unbiased&rdquo; picture literally playing out: each individual estimate can
-      be far off, but 3000 of them average to the right answer.
-    </p>
-  </div>
+  <p>
+    <a href="#bias">§7</a> showed the bias is a <i>known</i> number, $\sqrt{2/\pi}$ per application of
+    sign-then-dot. If it is known, we can cancel it. QJL does exactly that: multiply by $\sqrt{\pi/2}/d$ on
+    the decode side and the shrinkage cancels exactly. The quantization stays lossy, it is still 1 bit, but
+    the <i>average</i> estimate lands on the bullseye.
+  </p>
 
   <p>
     The Quantized Johnson-Lindenstrauss transform is the second ingredient. Let
@@ -1544,6 +1567,15 @@
     only piece of side information in the whole scheme, one scalar per vector, not one per small block the way
     GPTQ, AWQ, or KIVI need. Inner products are exactly unbiased, and the variance is bounded by Theorem 2.
   </p>
+
+  <div class="card insight">
+    <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY · NEXT <a href="#bounds" style="color:inherit">§9</a></span><span class="stat">two recipes, one budget</span></div>
+    <p style="margin:0">
+      <b>TurboQuant-MSE</b> minimises reconstruction error; <b>TurboQuant-prod</b> minimises bias on inner
+      products by spending one of its $b$ bits on a QJL residual. Both cost $b\!\cdot\!d$ bits plus one scalar
+      per vector. <b>Next:</b> <a href="#bounds">§9</a> compares both against Shannon's lower bound.
+    </p>
+  </div>
 </section>
 
 <!-- ======================= SECTION: BOUNDS ======================= -->
@@ -1581,8 +1613,18 @@
   <p>
     Prior data-oblivious quantizers like uniform rounding or scalar sketches give error that decays
     <i>polynomially</i> in the bit budget (e.g. $\mathcal{O}(1/b)$). TurboQuant's $4^{-b}$ is <b>exponentially</b>
-    better in bit-width, which is what lets KV caches go from 16-bit → 3-bit with zero downstream quality loss.
+    better in bit-width, which is what lets KV caches go from 16-bit &rarr; 3-bit with zero downstream quality loss.
   </p>
+
+  <div class="card insight">
+    <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY · NEXT <a href="#impact" style="color:inherit">§10</a></span><span class="stat">tight against the floor</span></div>
+    <p style="margin:0">
+      Upper bound, lower bound, and measured error march down in parallel as $b$ grows, the gap is a small
+      constant. TurboQuant matches Shannon's $4^{-b}$ rate up to $\approx 2.72\times$ asymptotically and
+      $\approx 1.45\times$ at $b{=}1$. <b>Next:</b> <a href="#impact">§10</a> shows what that buys in real
+      systems.
+    </p>
+  </div>
 </section>
 
 <!-- ======================= SECTION: IMPACT ======================= -->
@@ -1627,9 +1669,11 @@
   </ol>
 
   <div class="card insight">
-    <b style="color:var(--orig)">The whole trick, in one line.</b>
-    Random rotations make every vector "look Gaussian" in its coordinates, so one fixed, optimal codebook
-    works for all of them. That collapses the vector-quantization problem into the best-studied scalar one.
+    <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY</span><span class="stat">the whole trick, in one line</span></div>
+    <p style="margin:0">
+      Random rotations make every vector look Gaussian in its coordinates, so one fixed, optimal codebook
+      works for all of them. That collapses the vector-quantization problem into the best-studied scalar one.
+    </p>
   </div>
 </section>
 
