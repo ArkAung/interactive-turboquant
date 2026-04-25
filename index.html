@@ -78,7 +78,7 @@
     --accent-rgb: 14,141,114;
     --accent-glow: rgba(14,141,114,0.12);
     --ocean: #0d8b98;
-    --warn: #9a6200;
+    --warn: #b8860b;
     --err: #be123c;
     --blue: #2241b8;
     --canvas-bg: #fbfcfa;
@@ -1184,9 +1184,9 @@
     of a uniform point on the sphere look like?&rdquo;
   </p>
   <p>
-    In low dimensions the answer is far from a bell curve, a semicircle in 2-D, uniform on $[-1,1]$
-    in 3-D. As $d$ grows the marginal narrows and converges to a Gaussian with variance $1/d$. Watch
-    it happen.
+    In low dimensions the answer is far from a bell curve, the arcsine density (U-shaped, peaks at
+    $\pm 1$) in 2-D, uniform on $[-1,1]$ in 3-D. As $d$ grows the marginal narrows and converges to
+    a Gaussian with variance $1/d$. Watch it happen.
   </p>
 
   <details class="deriv">
@@ -1208,7 +1208,9 @@
   <h4 style="margin-top:14px">Step one: the circle ($d=2$)</h4>
   <p class="small">
     Sample 2000 points uniformly from the unit circle and look at a single coordinate, say $x_1$.
-    The marginal is a semicircle, far from Gaussian. Any $x_1$ between $-1$ and $+1$ is possible.
+    The marginal is the arcsine density $\tfrac{1}{\pi\sqrt{1-x^2}}$, U-shaped with peaks at $\pm 1$.
+    Far from Gaussian. Any $x_1$ between $-1$ and $+1$ is possible, and the endpoints are <i>more</i>
+    likely than the middle.
   </p>
   <div class="card">
     <div class="plot-grid cols-2">
@@ -1222,7 +1224,7 @@
       </div>
     </div>
     <div class="metrics">
-      <div class="metric"><div class="label">shape of $x_1$</div><div class="value orig">semicircle</div></div>
+      <div class="metric"><div class="label">shape of $x_1$</div><div class="value orig">arcsine</div></div>
       <div class="metric"><div class="label">std of $x_1$</div><div class="value" id="c2d-std">–</div></div>
       <div class="metric"><div class="label">$1/\sqrt{d}$</div><div class="value gold">0.707</div></div>
     </div>
@@ -4002,7 +4004,7 @@ function drawDragTip(ctx, x, y, color) {
       ctx.fillStyle = "rgba(94,234,212,0.65)";
       ctx.fillRect(pad.l + i*bw + 0.5, pad.t + H - bh, bw - 1, bh);
     }
-    // semicircle PDF overlay: f(x) = 1/(π√(1-x²))
+    // arcsine PDF overlay: f(x) = 1/(π√(1-x²))
     ctx.strokeStyle = PR.warn; ctx.lineWidth = 1.5;
     ctx.beginPath();
     let started = false;
@@ -4022,7 +4024,7 @@ function drawDragTip(ctx, x, y, color) {
       ctx.fillText(v.toFixed(1), px - 10, pad.t + H + 14);
     });
     ctx.fillStyle = PR.text; ctx.font = PR.font;
-    ctx.fillText("density of x₁ (semicircle in yellow)", pad.l, 14);
+    ctx.fillText("density of x₁ (arcsine in yellow)", pad.l, 14);
     // std of x1
     let mean = 0; for (const p of pts) mean += p[0]; mean /= pts.length;
     let v = 0; for (const p of pts) v += (p[0]-mean)**2; v /= pts.length;
