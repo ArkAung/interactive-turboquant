@@ -1454,14 +1454,14 @@
 
   <!-- 2 · DEMO + WHAT TO NOTICE (one unit) -->
   <div class="card">
-    <div class="panel-hd"><span class="tag">&#9632; HOW TO READ</span><span class="stat">drag b, watch the red circle</span></div>
+    <div class="panel-hd"><span class="tag">&#9632; HOW TO READ</span><span class="stat">drag b, watch the red dot</span></div>
     <p class="small" style="margin:0 0 14px;color:var(--text-dim)">
-      Each plot is the <b>distribution</b> of trial outcomes for one quantizer. The x-axis is each
-      trial's answer divided by the true inner product, so a bar above <b>1.0</b> means trials whose
-      estimate landed exactly on the truth. The <b style="color:var(--warn)">yellow dashed line</b> is
-      truth (1.0), the <b style="color:var(--err)">red line</b> is the empirical mean across all trials.
-      A quantizer is <i>unbiased</i> when the red line sits on the yellow one, no matter how wide the
-      histogram around them is. The gap between the two lines is the bias.
+      Same bullseye as the <a href="#pr-bias">primer</a>. Each trial fires <i>two</i> shots at the
+      target, one inner-product estimate against $\mathbf{y}_1$ and one against an independent
+      $\mathbf{y}_2$, both divided by their truth and re-centred so a perfect estimate lands on the
+      centre. The <b style="color:var(--warn)">yellow crosshair</b> marks truth, the
+      <b style="color:var(--err)">red dot</b> is the average of every shot fired so far. Unbiased means
+      the red dot sits on the crosshair, no matter how wide the cloud of shots around it.
     </p>
     <div class="controls">
       <div class="ctrl"><label>Bits&nbsp;<code>b</code>&nbsp;(MSE side)</label><input id="bias-b" type="range" min="1" max="5" value="1"><span class="val" id="bias-b-v">1</span></div>
@@ -1486,11 +1486,11 @@
       <div class="metric"><div class="label">truth</div><div class="value">1.0000</div></div>
     </div>
     <p class="small" style="margin:14px 0 0;color:var(--text)">
-      <b>What to notice.</b> At $b{=}1$ the MSE mean parks at $\approx 0.637$, the $2/\pi$ shift, and
-      the red line sits visibly to the left of the yellow one. Drag $b$ up: the red line creeps toward
-      yellow but never quite lands on it, the bias is just smaller. The QJL red line sits on yellow
-      from the start, even though its histogram is wider. <b>Noisier per shot, correct on average</b>,
-      which is exactly what attention scores and nearest-neighbour search need.
+      <b>What to notice.</b> At $b{=}1$ the MSE red dot parks roughly $0.36$ <i>southwest</i> of the
+      crosshair, the $2/\pi$ shift showing up on both axes at once. Drag $b$ up: the red dot creeps
+      back toward the centre but never quite lands. The QJL red dot sits on the centre from the start,
+      even though its cloud of shots is wider. <b>Noisier per shot, correct on average</b>, which is
+      exactly what attention scores and nearest-neighbour search need.
     </p>
   </div>
 
@@ -2657,93 +2657,73 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
     bV.textContent = cB.value; dV.textContent = cD.value; nV.textContent = cN.value;
   }
 
-  function drawBiasHist(cv, ratios, mean, accent, title) {
+  function drawBullseye(cv, shots, mx, my, accent, title) {
     const { ctx, w, h } = setupCanvas(cv);
     ctx.fillStyle = THEME.bg; ctx.fillRect(0, 0, w, h);
 
-    const padL = 32, padR = 24, padT = 34, padB = 36;
-    const plotW = w - padL - padR, plotH = h - padT - padB;
-    const xmin = -0.2, xmax = 1.4, xspan = xmax - xmin;
-    const X = r => padL + (r - xmin) / xspan * plotW;
-    const Y0 = padT + plotH;
+    const cx = w / 2, cy = h / 2 + 6;
+    const s = Math.min(w, h - 30) * 0.40; // half-extent
 
-    // bin the ratios
-    const nBins = 48;
-    const counts = new Array(nBins).fill(0);
-    for (const r of ratios) {
-      const t = (r - xmin) / xspan;
-      if (t < 0 || t >= 1) continue;
-      counts[Math.min(nBins - 1, Math.floor(t * nBins))]++;
-    }
-    const maxC = Math.max(1, ...counts);
-    const binW = plotW / nBins;
-
-    // baseline
-    ctx.strokeStyle = THEME.axis; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(padL, Y0); ctx.lineTo(padL + plotW, Y0); ctx.stroke();
-
-    // histogram bars
-    ctx.fillStyle = accent + "cc";
-    for (let i = 0; i < nBins; i++) {
-      const bh = (counts[i] / maxC) * plotH * 0.92;
-      ctx.fillRect(padL + i * binW + 0.5, Y0 - bh, Math.max(1, binW - 1), bh);
+    // target rings (4 concentric)
+    ctx.strokeStyle = THEME.lineBr || THEME.line; ctx.lineWidth = 1;
+    for (let r = 1; r <= 4; r++) {
+      ctx.beginPath(); ctx.arc(cx, cy, s * r / 4, 0, Math.PI * 2); ctx.stroke();
     }
 
-    // truth line (yellow, dashed, vertical)
-    const tx = X(1.0);
-    ctx.strokeStyle = COL_TRUTH; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
-    ctx.beginPath(); ctx.moveTo(tx, padT); ctx.lineTo(tx, Y0); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = COL_TRUTH; ctx.font = PR.font;
-    ctx.fillText("truth = 1", tx + 4, padT + 11);
+    // truth crosshair (yellow dashed, at origin = bullseye centre)
+    ctx.strokeStyle = COL_TRUTH; ctx.lineWidth = 1.5; ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(cx - 14, cy); ctx.lineTo(cx + 14, cy);
+    ctx.moveTo(cx, cy - 14); ctx.lineTo(cx, cy + 14);
+    ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = COL_TRUTH; ctx.font = PR.fontSm;
+    ctx.fillText("truth", cx + 16, cy - 4);
 
-    // mean line (red, solid, vertical)
-    if (isFinite(mean)) {
-      const mx = X(mean);
-      if (mx > padL - 2 && mx < padL + plotW + 2) {
-        ctx.strokeStyle = THEME.err; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(mx, padT); ctx.lineTo(mx, Y0); ctx.stroke();
-        ctx.fillStyle = THEME.err; ctx.font = PR.font;
-        const labelLeft = mean < 0.7;
-        const lx = labelLeft ? mx + 5 : mx - 6;
-        ctx.textAlign = labelLeft ? "left" : "right";
-        ctx.fillText("mean = " + mean.toFixed(3), lx, Y0 - 8);
-        ctx.textAlign = "left";
+    // shots
+    ctx.fillStyle = accent + "aa";
+    for (const p of shots) {
+      const px = Math.max(-1.05, Math.min(1.05, p[0]));
+      const py = Math.max(-1.05, Math.min(1.05, p[1]));
+      ctx.beginPath();
+      ctx.arc(cx + px * s, cy + py * s, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
-        // bias arrow connecting mean to truth
-        if (Math.abs(mean - 1.0) > 0.015) {
-          const ay = padT + 26;
-          const x1 = Math.min(mx, tx), x2 = Math.max(mx, tx);
-          ctx.strokeStyle = THEME.err; ctx.lineWidth = 1.2; ctx.setLineDash([2, 2]);
-          ctx.beginPath(); ctx.moveTo(x1, ay); ctx.lineTo(x2, ay); ctx.stroke();
-          ctx.setLineDash([]);
-          // arrowheads
-          ctx.beginPath();
-          ctx.moveTo(x1, ay); ctx.lineTo(x1 + 4, ay - 3); ctx.lineTo(x1 + 4, ay + 3); ctx.closePath(); ctx.fill();
-          ctx.beginPath();
-          ctx.moveTo(x2, ay); ctx.lineTo(x2 - 4, ay - 3); ctx.lineTo(x2 - 4, ay + 3); ctx.closePath(); ctx.fill();
-          const gap = Math.abs(1 - mean).toFixed(3);
-          ctx.fillText("bias = " + gap, (x1 + x2) / 2 - 22, ay - 5);
-        }
+    // mean (red dot + halo + bias arrow from origin)
+    if (isFinite(mx) && isFinite(my)) {
+      const cmx = cx + Math.max(-1.1, Math.min(1.1, mx)) * s;
+      const cmy = cy + Math.max(-1.1, Math.min(1.1, my)) * s;
+      const biasMag = Math.hypot(mx, my);
+
+      if (biasMag > 0.02) {
+        ctx.strokeStyle = THEME.err; ctx.lineWidth = 1.2; ctx.setLineDash([3, 3]);
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cmx, cmy); ctx.stroke();
+        ctx.setLineDash([]);
+        const ang = Math.atan2(cmy - cy, cmx - cx), ah = 6;
+        ctx.fillStyle = THEME.err;
+        ctx.beginPath();
+        ctx.moveTo(cmx, cmy);
+        ctx.lineTo(cmx - ah * Math.cos(ang - 0.4), cmy - ah * Math.sin(ang - 0.4));
+        ctx.lineTo(cmx - ah * Math.cos(ang + 0.4), cmy - ah * Math.sin(ang + 0.4));
+        ctx.closePath(); ctx.fill();
       }
-    }
 
-    // x-axis ticks
-    ctx.fillStyle = THEME.mute; ctx.font = PR.fontSm;
-    [0, 0.25, 0.5, 0.75, 1.0, 1.25].forEach(t => {
-      const xx = X(t);
-      if (xx > padL - 1 && xx < padL + plotW + 1) {
-        ctx.fillText(t.toFixed(2), xx - 12, Y0 + 14);
-        ctx.strokeStyle = THEME.axis;
-        ctx.beginPath(); ctx.moveTo(xx, Y0); ctx.lineTo(xx, Y0 + 4); ctx.stroke();
-      }
-    });
-    ctx.fillStyle = THEME.textDim; ctx.font = PR.fontSm;
-    ctx.fillText("estimate / truth", padL + plotW / 2 - 40, Y0 + 28);
+      ctx.fillStyle = THEME.err;
+      ctx.beginPath(); ctx.arc(cmx, cmy, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = THEME.err; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(cmx, cmy, 9, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = THEME.err; ctx.font = PR.fontSm;
+      // place label to keep it on-canvas
+      const labelLeft = cmx > w - 90;
+      ctx.textAlign = labelLeft ? "right" : "left";
+      const lx = labelLeft ? cmx - 11 : cmx + 11;
+      ctx.fillText("mean  bias=" + biasMag.toFixed(3), lx, cmy + 3);
+      ctx.textAlign = "left";
+    }
 
     // title (top-left)
     ctx.fillStyle = THEME.text; ctx.font = PR.font;
-    ctx.fillText(title, padL, 16);
+    ctx.fillText(title, 12, 16);
   }
 
   // Cached last-run data so theme change only repaints, not resimulates.
@@ -2755,42 +2735,58 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
     const sig = 1 / Math.sqrt(d);
     const centroids = lloydGauss(b, sig, 20);
     const R = randomRotation(d);
-    const pairs = [];
+
+    // each trial fires two shots: independent y1, y2 against the same x
+    const trials = [];
     for (let t = 0; t < n; t++) {
-      const x = unitVec(d), y = unitVec(d);
-      const yx = dot(x, y);
-      if (Math.abs(yx) < 0.02) continue;
-      pairs.push({ x, y, yx });
+      const x = unitVec(d), y1 = unitVec(d), y2 = unitVec(d);
+      const yx1 = dot(x, y1), yx2 = dot(x, y2);
+      if (Math.abs(yx1) < 0.02 || Math.abs(yx2) < 0.02) continue;
+      trials.push({ x, y1, y2, yx1, yx2 });
     }
-    const mseRatios = [];
-    for (const { x, y, yx } of pairs) {
+
+    const mseShots = [];
+    for (const { x, y1, y2, yx1, yx2 } of trials) {
       const rx = matVec(R, x);
       const qy = quantizeWithCodebook(rx, centroids);
       const xh = matTVec(R, qy);
-      mseRatios.push(dot(y, xh) / yx);
+      const r1 = dot(y1, xh) / yx1;
+      const r2 = dot(y2, xh) / yx2;
+      mseShots.push([r1 - 1, r2 - 1]);
     }
-    let mMSE = 0; for (const r of mseRatios) mMSE += r; mMSE /= mseRatios.length || 1;
+    let mMSEx = 0, mMSEy = 0;
+    for (const p of mseShots) { mMSEx += p[0]; mMSEy += p[1]; }
+    const denomM = mseShots.length || 1;
+    mMSEx /= denomM; mMSEy /= denomM;
+    const mMSEratio = (mMSEx + mMSEy) / 2 + 1;
 
     // QJL is O(d²) per trial; cap trial count.
-    const qjlN = Math.min(pairs.length, Math.max(150, Math.floor(2.5e5 / d)));
-    const qjlRatios = [];
+    const qjlN = Math.min(trials.length, Math.max(120, Math.floor(1.5e5 / d)));
+    const qjlShots = [];
     const prefactor = Math.sqrt(Math.PI / 2) / d;
     for (let t = 0; t < qjlN; t++) {
-      const { x, y, yx } = pairs[t];
-      let acc = 0;
+      const { x, y1, y2, yx1, yx2 } = trials[t];
+      let acc1 = 0, acc2 = 0;
       for (let i = 0; i < d; i++) {
-        let Six = 0, Siy = 0;
+        let Six = 0, Siy1 = 0, Siy2 = 0;
         for (let j = 0; j < d; j++) {
           const s = gauss();
-          Six += s * x[j]; Siy += s * y[j];
+          Six += s * x[j]; Siy1 += s * y1[j]; Siy2 += s * y2[j];
         }
-        acc += Siy * (Six >= 0 ? 1 : -1);
+        const sgn = Six >= 0 ? 1 : -1;
+        acc1 += Siy1 * sgn; acc2 += Siy2 * sgn;
       }
-      qjlRatios.push((prefactor * acc) / yx);
+      const r1 = (prefactor * acc1) / yx1;
+      const r2 = (prefactor * acc2) / yx2;
+      qjlShots.push([r1 - 1, r2 - 1]);
     }
-    let mQJL = 0; for (const r of qjlRatios) mQJL += r; mQJL /= qjlRatios.length || 1;
+    let mQJLx = 0, mQJLy = 0;
+    for (const p of qjlShots) { mQJLx += p[0]; mQJLy += p[1]; }
+    const denomQ = qjlShots.length || 1;
+    mQJLx /= denomQ; mQJLy /= denomQ;
+    const mQJLratio = (mQJLx + mQJLy) / 2 + 1;
 
-    cache = { b, d, mseRatios, mMSE, qjlRatios, mQJL, qjlN };
+    cache = { b, d, mseShots, mMSEx, mMSEy, mMSEratio, qjlShots, mQJLx, mQJLy, mQJLratio, qjlN };
   }
 
   function placeholder(cv, msg) {
@@ -2809,13 +2805,13 @@ function drawCentroidPlot(canvas, centroids, sigma, mse, opts) {
       placeholder(cvQ, "Click \u201CRun both\u201D to simulate");
       return;
     }
-    const { b, d, mseRatios, mMSE, qjlRatios, mQJL, qjlN } = cache;
-    outM.textContent = mMSE.toFixed(4);
-    outQ.textContent = mQJL.toFixed(4);
+    const { b, d, mseShots, mMSEx, mMSEy, mMSEratio, qjlShots, mQJLx, mQJLy, mQJLratio, qjlN } = cache;
+    outM.textContent = mMSEratio.toFixed(4);
+    outQ.textContent = mQJLratio.toFixed(4);
     const theoryMap = { 1: "2/π ≈ 0.637", 2: "≈ 0.88", 3: "≈ 0.97", 4: "≈ 0.99", 5: "≈ 1.00" };
     outT.textContent = theoryMap[b] || "–";
-    drawBiasHist(cvM, mseRatios, mMSE, COL_MSE, "MSE-optimal b=" + b + " bit, d=" + d);
-    drawBiasHist(cvQ, qjlRatios, mQJL, COL_QJL, "QJL 1-bit, d=" + d + " (n=" + qjlN + ")");
+    drawBullseye(cvM, mseShots, mMSEx, mMSEy, COL_MSE, "MSE-optimal b=" + b + " bit, d=" + d);
+    drawBullseye(cvQ, qjlShots, mQJLx, mQJLy, COL_QJL, "QJL 1-bit, d=" + d + " (n=" + qjlN + ")");
   }
 
   function run() { labels(); compute(); render(); }
