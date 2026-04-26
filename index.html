@@ -1868,30 +1868,32 @@
     <div class="card">
       <h3 style="margin-top:0">KV cache compression</h3>
       <p class="small">
-        Using Llama-3.1-8B on LongBench and Needle-in-a-Haystack, the paper reports:
+        Needle-in-a-Haystack recall on Llama-3.1-8B-Instruct, every compressed method evaluated at
+        a $4\times$ memory-compression target (paper Fig. 4):
       </p>
       <table>
-        <tr><th>Method</th><th>KV bits/ch</th><th>NiaH</th></tr>
-        <tr><td>Full cache (FP16)</td><td class="mono">16</td><td class="mono">0.997</td></tr>
-        <tr><td>SnapKV</td><td class="mono">–</td><td class="mono">0.858</td></tr>
-        <tr><td>KIVI</td><td class="mono">3</td><td class="mono">0.981</td></tr>
-        <tr><td>PolarQuant</td><td class="mono">3.9</td><td class="mono">0.995</td></tr>
-        <tr><td><b>TurboQuant</b></td><td class="mono">3.5</td><td class="mono">0.997</td></tr>
+        <tr><th>Method</th><th>NiaH</th></tr>
+        <tr><td>Full cache (FP16)</td><td class="mono">0.997</td></tr>
+        <tr><td>SnapKV</td><td class="mono">0.858</td></tr>
+        <tr><td>PyramidKV</td><td class="mono">0.895</td></tr>
+        <tr><td>KIVI</td><td class="mono">0.981</td></tr>
+        <tr><td>PolarQuant</td><td class="mono">0.995</td></tr>
+        <tr><td><b>TurboQuant</b></td><td class="mono">0.997</td></tr>
       </table>
       <p class="small">
-        At 3.5 bits per channel, TurboQuant matches the full-precision NiaH score (0.997) while
-        compressing the cache by a factor of $\approx 4.5$. The paper also reports a 2.5-bit
-        configuration whose LongBench average is within $\approx 1\%$ of the full-precision
-        baseline, a $6.4\times$ compression.
+        TurboQuant matches the full-precision NiaH score at $4\times$ compression. On LongBench-V1
+        (paper Table 1), TurboQuant at $3.5$ bits per channel matches the full-precision average
+        ($50.06$); at $2.5$ bits per channel it stays within $\approx 1\%$ of full precision
+        ($49.44$ vs $50.06$), a $6.4\times$ compression.
       </p>
     </div>
     <div class="card">
       <h3 style="margin-top:0">Near-neighbor search</h3>
-      <p class="small">Indexing time on 100K vectors, 4-bit quantization (from the paper):</p>
+      <p class="small">Quantization time on 100K vectors, 4-bit quantization (paper Table 2):</p>
       <table>
         <tr><th>Method</th><th>d=200</th><th>d=1536</th><th>d=3072</th></tr>
-        <tr><td>Product Quantization</td><td class="mono">37 s</td><td class="mono">240 s</td><td class="mono">494 s</td></tr>
-        <tr><td>RabitQ</td><td class="mono">597 s</td><td class="mono">2267 s</td><td class="mono">3957 s</td></tr>
+        <tr><td>Product Quantization</td><td class="mono">37.04 s</td><td class="mono">239.75 s</td><td class="mono">494.42 s</td></tr>
+        <tr><td>RabitQ</td><td class="mono">597.25 s</td><td class="mono">2267.59 s</td><td class="mono">3957.19 s</td></tr>
         <tr><td><b>TurboQuant</b></td><td class="mono">0.0007 s</td><td class="mono">0.0013 s</td><td class="mono">0.0021 s</td></tr>
       </table>
       <p class="small">
