@@ -670,9 +670,22 @@
       <div class="pt">§0.3 · Mean Squared Error</div>
       <div class="ph">Why we square the mistake.</div>
       <div class="pb">
-        Error is how far off you are. If we just averaged the signed errors, positive and negative would
-        cancel. <b>Squaring</b> makes every miss positive and penalises big misses more, 
-        so the minimising guess is the <b>average</b>.
+        <p style="margin:0 0 8px">
+          Error is how far off you are. If you average <i>signed</i> errors, positives and negatives
+          cancel and every guess looks tied for first &mdash; useless. <b>Squaring</b> kills the
+          cancellation and penalises big misses harder than small ones, which pulls the optimal guess
+          toward the bulk of the data. Out comes a fact we will lean on heavily:
+          <b>the MSE-minimising single guess is the data&rsquo;s average</b>. (The average is the
+          unique number whose signed errors net to zero &mdash; squared error has nowhere to hide.)
+        </p>
+        <p style="margin:0">
+          Hold onto one consequence. The average sits <i>between</i> the data points; it never reaches
+          as far out as the extremes. So when a quantizer is later forced to replace a whole bin of
+          values with one stand-in number, MSE picks the bin&rsquo;s average &mdash; a stand-in that is
+          more <b>central</b> than the bin&rsquo;s tails and that cannot track magnitude variation
+          inside the bin. <a href="#bias">§7</a> collects the bill: drop a contracted stand-in like
+          that into an inner product and the answer comes out systematically smaller than the truth.
+        </p>
       </div>
       <div class="plot" style="height: 220px;"><canvas id="pr-mse-cv"></canvas></div>
       <div class="controls" style="margin-top:10px;">
@@ -690,9 +703,23 @@
       <div class="pt">§0.4 · Unbiased vs Biased Estimator</div>
       <div class="ph">Noisy is fine. Systematically off is not.</div>
       <div class="pb">
-        An <b>estimator</b> produces a guess $\hat\theta$ for a truth $\theta$. It is
-        <b>unbiased</b> if the average of its guesses equals $\theta$: $\mathbb{E}[\hat\theta]=\theta$.
-        Individual shots can scatter widely and still be unbiased, as long as their centre is on target.
+        <p style="margin:0 0 8px">
+          An <b>estimator</b> is any procedure that takes data and returns a guess $\hat\theta$ for an
+          unknown truth $\theta$. Run it many times on fresh data and the guesses form a cloud. There
+          are two independent ways the cloud can be wrong: it can be <b>wide</b> (high variance &mdash;
+          individual shots noisy) or its <b>centre</b> can sit <b>off-target</b> (high bias &mdash;
+          systematically wrong even on average). An estimator is <b>unbiased</b> when
+          $\mathbb{E}[\hat\theta]=\theta$ &mdash; averaging enough independent shots eventually lands on
+          truth, no matter how wide the cloud.
+        </p>
+        <p style="margin:0">
+          The bullseye below toggles between the two failure modes. Bias is the gap between the
+          cloud&rsquo;s <i>centre</i> and the crosshair; variance is the cloud&rsquo;s <i>width</i>.
+          They are independent: an estimator can be wide-but-on-target (noisy yet unbiased) or
+          tight-but-off (precise yet biased). <a href="#bias">§7</a> fires this exact bullseye against
+          an MSE quantizer and finds the centre drifts off-truth; <a href="#qjl">§8</a> picks a
+          different estimator whose centre lands on-truth by construction.
+        </p>
       </div>
       <div class="plot" style="height: 280px;"><canvas id="pr-bias-cv"></canvas></div>
       <div class="controls" style="margin-top:10px;">
@@ -1443,13 +1470,31 @@
   <div class="eyebrow">§7 · The inner-product bias</div>
   <h2>MSE-optimal quantizers underestimate inner products.</h2>
 
-  <!-- 1 · INTRO (single short paragraph, no spoilers) -->
+  <!-- 1 · INTRO (mechanism laid out before the demo) -->
   <p>
-    <a href="#pipeline">§6</a> gave us TurboQuant-MSE: the reconstructed $\tilde{\mathbf{x}}$ stays
-    close to $\mathbf{x}$, near the best any quantizer can do. But attention does not ask
-    &ldquo;how close is $\tilde{\mathbf{x}}$ to $\mathbf{x}$?&rdquo;, it asks &ldquo;what is
-    $\langle \mathbf{q}, \tilde{\mathbf{k}}\rangle$?&rdquo; Run that question many times and average
-    the answers, an unbiased estimator's average lands on the truth. Does the MSE codebook?
+    <a href="#pipeline">§6</a>&rsquo;s TurboQuant-MSE makes $\tilde{\mathbf{x}}$ close to $\mathbf{x}$
+    in squared distance &mdash; near the best any quantizer can do on that score. But attention does
+    not measure $\|\mathbf{x}-\tilde{\mathbf{x}}\|^2$. It computes $\langle \mathbf{q},
+    \tilde{\mathbf{k}}\rangle$ and uses that number as if it were the un-quantized
+    $\langle \mathbf{q}, \mathbf{k}\rangle$. The two objectives are not the same, and the MSE codebook
+    gives a <b>systematically wrong</b> answer to the second one &mdash; not noise that averages out,
+    but a fixed offset that lands the same way on every input. This section pins down the size and
+    shape of that offset.
+  </p>
+  <p>
+    <b>Where the offset comes from, end-to-end.</b> The encoder partitions $\mathbb{R}^d$ into $2^b$
+    bins and remembers only which bin $\boldsymbol{\Pi}\mathbf{x}$ landed in. The decoder must
+    therefore hand back one fixed reconstruction vector for every input that fell into a given bin
+    &mdash; it has no way to tell those inputs apart. To minimise squared error, that fixed vector is
+    the bin&rsquo;s <b>average</b> (recall <a href="#pr-mse">§0.3</a>). Because rotation makes each
+    coordinate look like a draw from a zero-mean Gaussian
+    (<a href="#concentration">§4</a>), every bin&rsquo;s average sits more <b>central</b> than the
+    inputs in the bin&rsquo;s tails &mdash; the codeword cannot track the magnitude variation inside
+    the bin. So $\tilde{\mathbf{x}}$ comes out, on average, a <i>contracted</i> copy of $\mathbf{x}$,
+    and inner products against a contracted reconstruction shrink. Because the codebook is fixed once
+    trained, the contraction factor is the same on every trial against every query &mdash; a
+    deterministic <b>bias</b>, not noise. The bullseye below measures it: at $b{=}1$ the bias works
+    out to $1 - 2/\pi \approx 0.36$ on every axis, and it shrinks with $b$ but never reaches zero.
   </p>
 
   <!-- 2 · DEMO + WHAT TO NOTICE (one unit) -->
@@ -1479,10 +1524,12 @@
       <div class="metric"><div class="label">truth</div><div class="value">1.0000</div></div>
     </div>
     <p class="small" style="margin:14px 0 0;color:var(--text)">
-      <b>What to notice.</b> At $b{=}1$ the red dot parks roughly $0.36$ <i>southwest</i> of the
-      crosshair, the $2/\pi$ shift showing up on both axes at once. Drag $b$ up: the red dot creeps
-      toward the centre but never quite lands. <b>The bias shrinks with bits, but it never goes to
-      zero, no matter how many bits you spend.</b>
+      <b>What to notice.</b> The red dot parks <i>southwest</i> of the crosshair, not just slightly
+      off in some random direction &mdash; the offset hits the two independent queries
+      $\mathbf{y}_1$ and $\mathbf{y}_2$ <b>by the same amount</b>. That diagonal SW signature is the
+      visual fingerprint of a uniform contraction (one scalar applied to the whole reconstruction).
+      Drag $b$ up: the dot creeps toward the centre but never quite lands &mdash; the contraction
+      shrinks with bits, never reaches zero.
     </p>
   </div>
 
@@ -1514,12 +1561,12 @@
   <div class="card insight">
     <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY · NEXT <a href="#qjl" style="color:inherit">§8</a></span><span class="stat">we need a different kind of estimator</span></div>
     <p style="margin:0">
-      MSE-optimal quantizers minimise squared reconstruction error, and they pay for it with a
-      systematic shrinkage on inner products that no amount of bits can drive to zero. Attention scores
-      and nearest-neighbour search need an estimator whose <i>mean</i> is correct. <b>Next:</b>
-      <a href="#qjl">§8</a> builds one, an asymmetric trick that gives up trying to reconstruct
-      $\mathbf{x}$ at all and instead spends a single bit per coordinate to bake unbiasedness in by
-      construction.
+      An MSE-optimal codebook minimises squared reconstruction error and pays for it with a
+      <b>contraction</b> &mdash; a fixed scalar shrinkage on every inner product that no amount of
+      bits can drive to zero. Attention and nearest-neighbour search need an estimator whose
+      <i>mean</i> is correct on the inner product itself, not on $\mathbf{x}$.
+      <b>Next:</b> <a href="#qjl">§8</a> keeps the same magnitude-throwing-away encoder but multiplies
+      the contraction out on the decoder side &mdash; one bit per coordinate, unbiased by construction.
     </p>
   </div>
 </section>
@@ -1529,27 +1576,43 @@
   <div class="eyebrow">§8 · QJL: the un-biaser</div>
   <h2>If the bias is a known number, multiply it out.</h2>
 
-  <!-- 1 · INTRO (bridge + payoff in one short paragraph) -->
+  <!-- 1 · INTRO (recap §7's mechanism, then the QJL idea) -->
   <p>
-    <a href="#bias">§7</a>'s red dot parked $0.36$ short of truth, no matter how many bits we spent.
-    But that $0.36$ shortfall is not an accident: it's a fixed constant, the same on every trial, the
-    same against every query. <b>If you know exactly how much your estimator shrinks an inner product,
-    you can multiply by the inverse and cancel the bias by construction.</b> QJL is that idea, in 1 bit
-    per coordinate.
+    <a href="#bias">§7</a> left us with a contracted reconstruction. Every $\tilde{\mathbf{x}}$ that
+    the MSE codebook produces is a slightly pulled-in copy of $\mathbf{x}$, and so every inner product
+    $\langle \mathbf{y}, \tilde{\mathbf{x}}\rangle$ comes out systematically short of $\langle \mathbf{y},
+    \mathbf{x}\rangle$ &mdash; by the same factor (exactly $2/\pi$ at one bit) on every shot, against
+    every query, regardless of which $\mathbf{y}$ you ask. The shrinkage is not noise that averages
+    out across trials. It is a deterministic property of the codebook, so the same scalar lands on
+    every input.
+  </p>
+  <p>
+    When a bias is a known scalar that lands the same way on every input, you do not need a smarter
+    encoder to fix it. <b>You multiply the decoder&rsquo;s output by the inverse of the scalar and
+    the bias cancels in expectation.</b> That is the entire QJL idea, executed in 1 bit per
+    coordinate. The encoder still throws away magnitude information &mdash; exactly the move that
+    contracted §7&rsquo;s reconstruction &mdash; but the decoder bakes the missing magnitude back in
+    via a fixed prefactor that is sized, by construction, to be the inverse of the shrinkage that
+    sign-quantization introduces.
   </p>
 
-  <!-- 2 · CORE IDEA (encoder / decoder in plain English) -->
+  <!-- 2 · CORE IDEA (encoder / decoder, mechanically) -->
   <p>
-    <b>Encoder.</b> Pick one random Gaussian matrix $\mathbf{S}$ once, share it. To store $\mathbf{x}$,
-    write down the <i>signs</i> of $\mathbf{S}\mathbf{x}$, one bit per coordinate. Nothing else, no
-    scale, no offset.
+    <b>Encoder.</b> Pick one random Gaussian matrix $\mathbf{S}$ once and share it between everyone
+    who encodes and everyone who decodes. To store $\mathbf{x}$, write down the <b>signs</b> of
+    $\mathbf{S}\mathbf{x}$ &mdash; one bit per coordinate, nothing else. No magnitude, no scale, no
+    offset. The encoder has thrown away every magnitude in $\mathbf{S}\mathbf{x}$; that is where the
+    bit savings come from. Naively trying to reconstruct $\mathbf{x}$ from these signs would shrink
+    it by the same half-normal factor $\sqrt{2/\pi}$ that hit §7. The fix lives on the decoder side.
   </p>
   <p>
-    <b>Decoder.</b> When a query $\mathbf{y}$ arrives at full precision, compute
-    $\langle \mathbf{S}\mathbf{y},\,\text{stored signs}\rangle$ and multiply by the fixed constant
-    $\sqrt{\pi/2}/d$. That constant is sized to be the exact inverse of the shrinkage signs introduce,
-    so the answer is unbiased <b>in expectation</b>. Per-shot it is noisier than MSE; the average lands
-    on truth.
+    <b>Decoder.</b> A full-precision query $\mathbf{y}$ arrives. Compute
+    $\langle \mathbf{S}\mathbf{y},\,\text{stored signs}\rangle$ &mdash; that is a noisy guess for
+    $\langle \mathbf{x},\mathbf{y}\rangle$, but it carries the same $\sqrt{2/\pi}$ shrinkage as the
+    naive reconstruction. Now multiply by the fixed constant $\sqrt{\pi/2}/d$. That constant is sized
+    to be the <i>exact</i> inverse of the half-normal shrinkage, so the two cancel in expectation and
+    the answer is unbiased. Per-shot the estimate is noisier than MSE&rsquo;s &mdash; that is the
+    price of trading bias for variance &mdash; but the <i>average</i> lands on truth.
   </p>
 
   <!-- 3 · DEMO + WHAT TO NOTICE -->
