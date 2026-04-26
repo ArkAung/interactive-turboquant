@@ -742,7 +742,7 @@
           data&rsquo;s most extreme points, so its magnitude is smaller than at least one of them.
           When a quantizer compresses a whole bin of values down to the bin&rsquo;s average, the
           stored value is smaller in magnitude than the bin&rsquo;s largest values. The reconstruction
-          is a contracted version of the input. An inner product against a contracted reconstruction
+          is a shrunken version of the input. An inner product against a shrunken reconstruction
           comes out smaller than the same inner product against the input.
         </p>
       </div>
@@ -1565,15 +1565,15 @@
     remove it.
   </p>
   <p>
-    Two earlier facts produce the contraction. In <a href="#pr-mse">§0.3</a> the MSE-optimal
+    Two earlier facts produce the shrinkage. In <a href="#pr-mse">§0.3</a> the MSE-optimal
     reconstruction for a set of values was the set&rsquo;s average, and that average had smaller
     magnitude than the set&rsquo;s extreme values. In <a href="#concentration">§4</a> a random
     rotation made every coordinate of $\boldsymbol{\Pi}\mathbf{x}$ behave like a zero-mean draw
-    with most of its mass close to 0. Combine the two and the contraction is forced: the encoder
+    with most of its mass close to 0. Combine the two and the shrinkage is forced: the encoder
     partitions each axis into $2^b$ bins and stores only which bin $\boldsymbol{\Pi}\mathbf{x}$
     fell into, the decoder reconstructs with the bin&rsquo;s average, and the bin&rsquo;s average
     sits closer to 0 than the tail inputs that fall into the same bin. The reconstruction
-    $\tilde{\mathbf{x}}$ is therefore a shorter copy of $\mathbf{x}$, and an inner product
+    $\tilde{\mathbf{x}}$ is therefore a shrunken copy of $\mathbf{x}$, and an inner product
     $\langle \mathbf{q}, \tilde{\mathbf{k}}\rangle$ comes out smaller than $\langle \mathbf{q},
     \mathbf{k}\rangle$. Because the codebook is fixed, the shrinkage factor is identical on every
     trial.
@@ -1587,7 +1587,7 @@
       partitions the axis into $2^b$ bins (interior verticals); each bin&rsquo;s centroid is the
       MSE-optimal reconstruction (red dots). The encoder snaps $y$ (gold) to the centroid of the
       bin it fell into, giving $\tilde y$. Whenever $|y|$ is in the tail, $|\tilde y|$ is closer
-      to 0 &mdash; the per-axis shrinkage that the prose describes.
+      to 0. That is the per-axis shrinkage the prose above describes.
     </p>
     <div class="controls">
       <div class="ctrl"><label>Bits&nbsp;<code>b</code></label><input id="shrink-b" type="range" min="1" max="5" value="1"><span class="val" id="shrink-b-v">1</span></div>
@@ -1604,7 +1604,7 @@
       not at the bin&rsquo;s edge, so $|\tilde y| < |y|$ and the ratio drops well below 1. Slide
       $y$ near 0: the centroid is near 0 too, and the ratio can even exceed 1 because the centre
       bins are narrow. The <i>average</i> ratio over the whole density is what produces the
-      $0.64 / 0.88 / 0.97 / 0.998$ numbers in the next paragraph &mdash; the same numbers the
+      $0.64 / 0.88 / 0.97 / 0.998$ numbers in the next paragraph. Those are the same numbers the
       bullseye demo will reproduce as the cloud&rsquo;s centre.
     </p>
   </div>
@@ -1699,7 +1699,7 @@
 
   <!-- 1 · INTRO (recap §7's mechanism, then the QJL idea) -->
   <p>
-    <a href="#bias">§7</a> ended with a contracted reconstruction. The MSE codebook produces
+    <a href="#bias">§7</a> ended with a shrunken reconstruction. The MSE codebook produces
     $\tilde{\mathbf{x}}$ values whose magnitudes are smaller than the inputs they encode, so every
     inner product $\langle \mathbf{y}, \tilde{\mathbf{x}}\rangle$ comes out smaller than $\langle
     \mathbf{y}, \mathbf{x}\rangle$ by the same scalar factor. At one bit per coordinate that factor
@@ -1710,7 +1710,7 @@
     A deterministic scalar bias is removable without changing the encoder. Multiply the decoder's
     output by the reciprocal of the bias and the expectation of the product equals the unbiased
     target. QJL applies this idea at one bit per coordinate. The encoder discards magnitude
-    information, which is the same step that contracted §7's reconstruction. The decoder applies a
+    information, which is the same step that shrank §7's reconstruction. The decoder applies a
     fixed prefactor whose value is the reciprocal of the half-normal shrinkage that sign
     quantization introduces.
   </p>
