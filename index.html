@@ -564,9 +564,64 @@
   }
   .status-strip .s.warn::before { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
   .status-strip .s.err::before  { background: var(--err);  box-shadow: 0 0 6px var(--err);  }
+
+  /* Mobile-viewport advisory: shown below 900px until dismissed */
+  .mobile-advisory { display: none; }
+  @media (max-width: 900px) {
+    .mobile-advisory:not(.dismissed) {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      padding: 10px 14px;
+      background: var(--panel2);
+      border-bottom: 1px solid var(--warn);
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+  }
+  .mobile-advisory .icon {
+    color: var(--warn);
+    flex: 0 0 auto;
+    font-weight: 600;
+  }
+  .mobile-advisory .msg { flex: 1 1 auto; }
+  .mobile-advisory .close {
+    flex: 0 0 auto;
+    background: transparent;
+    border: 1px solid var(--line-bright);
+    color: var(--text-dim);
+    border-radius: 4px;
+    padding: 2px 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+  }
+  .mobile-advisory .close:hover { color: var(--text); border-color: var(--text-dim); }
 </style>
 </head>
 <body>
+<div id="mobile-advisory" class="mobile-advisory" role="status">
+  <span class="icon">▲</span>
+  <span class="msg">Best viewed on a desktop browser. The interactive demos rely on drag, hover, and a wide viewport.</span>
+  <button class="close" id="mobile-advisory-close" aria-label="Dismiss advisory">Dismiss</button>
+</div>
+<script>
+  (function() {
+    var bar = document.getElementById('mobile-advisory');
+    if (!bar) return;
+    if (sessionStorage.getItem('tq-mobile-advisory-dismissed') === '1') {
+      bar.classList.add('dismissed');
+    }
+    document.getElementById('mobile-advisory-close').addEventListener('click', function() {
+      bar.classList.add('dismissed');
+      try { sessionStorage.setItem('tq-mobile-advisory-dismissed', '1'); } catch (e) {}
+    });
+  })();
+</script>
 <div class="wrap">
 
 <nav class="toc">
