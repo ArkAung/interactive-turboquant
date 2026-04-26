@@ -1565,16 +1565,15 @@
     remove it.
   </p>
   <p>
-    The mechanism follows from <a href="#pr-mse">§0.3</a> and <a href="#concentration">§4</a>. The
-    encoder partitions $\mathbb{R}^d$ into $2^b$ bins and stores only which bin
-    $\boldsymbol{\Pi}\mathbf{x}$ fell into. The decoder has to use one fixed reconstruction vector
-    for every input that fell into a given bin. The MSE-optimal choice for that fixed vector is
-    the bin&rsquo;s average. Rotation makes each coordinate look like a draw from a zero-mean
-    Gaussian, so the bin&rsquo;s average has smaller magnitude than inputs in the bin&rsquo;s
-    tails. The reconstruction $\tilde{\mathbf{x}}$ is a contracted version of $\mathbf{x}$, and
-    an inner product $\langle \mathbf{q}, \tilde{\mathbf{k}}\rangle$ comes out smaller than
-    $\langle \mathbf{q}, \mathbf{k}\rangle$. Because the codebook is fixed, the shrinkage factor
-    is identical on every trial.
+    Why the MSE codebook always undershoots: the encoder partitions $\mathbb{R}^d$ into $2^b$ bins
+    and stores only which bin $\boldsymbol{\Pi}\mathbf{x}$ fell into. The decoder has to use one
+    fixed reconstruction vector for every input that fell into a given bin. The MSE-optimal choice
+    for that fixed vector is the bin&rsquo;s average. Rotation makes each coordinate look like a
+    draw from a zero-mean Gaussian, so the bin&rsquo;s average has smaller magnitude than inputs
+    in the bin&rsquo;s tails. The reconstruction $\tilde{\mathbf{x}}$ is therefore a contracted
+    version of $\mathbf{x}$, and an inner product $\langle \mathbf{q}, \tilde{\mathbf{k}}\rangle$
+    comes out smaller than $\langle \mathbf{q}, \mathbf{k}\rangle$. Because the codebook is fixed,
+    the shrinkage factor is identical on every trial.
   </p>
   <p>
     The bullseye below measures the shrinkage. At $b{=}1$ the offset is $1 - 2/\pi \approx 0.36$
