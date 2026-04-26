@@ -1757,12 +1757,12 @@
   <div class="eyebrow">§9 · Shannon's floor</div>
   <h2>How close is TurboQuant to the theoretical best?</h2>
   <p>
-    Using Shannon's lossy source-coding theorem (via Yao's minimax principle) the paper proves
+    The paper uses Shannon's lossy source-coding theorem (via Yao's minimax principle) to prove
     that no quantizer can do better than $D_{\text{mse}} \ge 4^{-b}$ on worst-case inputs on the
-    unit sphere. The lower bound applies to every quantizer the worst-case input can face,
-    including randomized ones, adaptive ones, and data-dependent ones. TurboQuant's matching upper
-    bound is $\tfrac{\sqrt{3}\pi}{2}\cdot 4^{-b}$, within a factor of $\approx 2.7$ of the lower
-    bound asymptotically and within a factor of $1.5$ at $b{=}1$.
+    unit sphere. The bound covers every conceivable quantizer, including randomized and
+    data-adaptive ones. TurboQuant's matching upper bound is $\tfrac{\sqrt{3}\pi}{2}\cdot 4^{-b}$,
+    within a factor of $\approx 2.7$ of the lower bound asymptotically and within a factor of
+    $\approx 1.45$ at $b{=}1$.
   </p>
 
   <div class="card">
@@ -1788,8 +1788,9 @@
   <p>
     Earlier data-oblivious quantizers (uniform rounding, scalar sketches) achieve a reconstruction
     error that decays only polynomially in the bit budget, e.g. $\mathcal{O}(1/b)$. TurboQuant's
-    $4^{-b}$ rate is exponential in $b$. The exponential rate is what makes a 16-bit-to-3-bit
-    reduction in KV-cache precision feasible without measurable downstream quality loss.
+    $4^{-b}$ rate is exponential in $b$. That exponential rate is what enables the
+    $4$&ndash;$6\times$ KV-cache compressions reported in <a href="#impact">§10</a> without
+    measurable downstream quality loss.
   </p>
 
   <div class="card insight">
@@ -1824,8 +1825,9 @@
       </table>
       <p class="small">
         At 3.5 bits per channel, TurboQuant matches the full-precision NiaH score (0.997) while
-        compressing the cache by a factor of 4.5. At 2.5 bits per channel, the NiaH score is still
-        within one percentage point of the full-precision baseline.
+        compressing the cache by a factor of $\approx 4.5$. The paper also reports a 2.5-bit
+        configuration whose LongBench average is within $\approx 1\%$ of the full-precision
+        baseline, a $6.4\times$ compression.
       </p>
     </div>
     <div class="card">
@@ -1838,10 +1840,10 @@
         <tr><td><b>TurboQuant</b></td><td class="mono">0.0007 s</td><td class="mono">0.0013 s</td><td class="mono">0.0021 s</td></tr>
       </table>
       <p class="small">
-        TurboQuant is four to five orders of magnitude faster than the alternatives at 4-bit
-        indexing, and the paper reports higher recall as well. The reason it is so fast is that
-        the encoder is a fixed rotation followed by a lookup against a precomputed table. There is
-        no codebook to learn from data and no per-block scales to fit at index time.
+        TurboQuant is between four and six orders of magnitude faster than the alternatives at
+        4-bit indexing, and the paper reports higher recall as well. The reason it is so fast is
+        that the encoder is a fixed rotation followed by a lookup against a precomputed table.
+        There is no codebook to learn from data and no per-block scales to fit at index time.
       </p>
     </div>
   </div>
@@ -1853,26 +1855,25 @@
     inner-product estimate unbiased in expectation. The construction adds no per-vector side
     information.</li>
     <li><b>PolarQuant (Feb 2025).</b> After a random pre-conditioning, convert each block of
-    coordinates to polar form. The resulting radii are concentrated, and the resulting angles are
-    concentrated around $\pi/4$. Quantize the radius distribution and the angle distribution
-    independently. The construction is an alternative geometry that also avoids per-vector side
+    coordinates to polar form. The radii concentrate around their mean and the angles concentrate
+    around $\pi/4$. Quantize the radius distribution and the angle distribution independently.
+    The construction is an alternative coordinate system that also avoids per-vector side
     information.</li>
-    <li><b>TurboQuant (Apr 2025).</b> Combines the previous two ideas. The encoder applies a
-    pre-rotation, quantizes the resulting Beta-distributed coordinates with an optimal
-    Lloyd&ndash;Max codebook to minimise MSE, and applies QJL to the residual to make inner
-    products unbiased. The MSE achieved by the resulting reconstruction is provably within a
-    constant factor of Shannon's lower bound at every bit rate ($\approx 1.45\times$ at $b{=}1$,
-    $\to \tfrac{\sqrt{3}\pi}{2}\approx 2.72\times$ asymptotically). The construction runs on a GPU
-    and supports streaming inputs.</li>
+    <li><b>TurboQuant (Apr 2025).</b> Combines the previous two ideas. The encoder rotates the
+    input, then quantizes the Beta-distributed coordinates with an optimal Lloyd&ndash;Max
+    codebook. A QJL pass on the residual then cancels the inner-product bias that the Lloyd&ndash;Max
+    step leaves behind. The MSE of the reconstruction is provably within a constant factor of
+    Shannon's lower bound at every bit rate ($\approx 1.45\times$ at $b{=}1$, $\to \tfrac{\sqrt{3}\pi}{2}\approx
+    2.72\times$ asymptotically). The construction runs on a GPU and supports streaming inputs.</li>
   </ol>
 
   <div class="card insight">
     <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY</span><span class="stat">the whole trick, in one line</span></div>
     <p style="margin:0">
-      Random rotations make the coordinates of every input look approximately Gaussian. A single
-      optimal codebook designed for the Gaussian then works for every input. The full
-      vector-quantization problem reduces to the well-studied scalar quantization problem on a
-      Gaussian.
+      After a random rotation, every coordinate of every input has the same fixed distribution: a
+      low-variance Beta that converges to a Gaussian as $d$ grows. A single optimal codebook
+      designed once for that distribution serves every input. The full vector-quantization problem
+      reduces to the well-studied scalar quantization problem.
     </p>
   </div>
 </section>
