@@ -1565,15 +1565,18 @@
     remove it.
   </p>
   <p>
-    Why the MSE codebook always undershoots: the encoder partitions $\mathbb{R}^d$ into $2^b$ bins
-    and stores only which bin $\boldsymbol{\Pi}\mathbf{x}$ fell into. The decoder has to use one
-    fixed reconstruction vector for every input that fell into a given bin. The MSE-optimal choice
-    for that fixed vector is the bin&rsquo;s average. Rotation makes each coordinate look like a
-    draw from a zero-mean Gaussian, so the bin&rsquo;s average has smaller magnitude than inputs
-    in the bin&rsquo;s tails. The reconstruction $\tilde{\mathbf{x}}$ is therefore a contracted
-    version of $\mathbf{x}$, and an inner product $\langle \mathbf{q}, \tilde{\mathbf{k}}\rangle$
-    comes out smaller than $\langle \mathbf{q}, \mathbf{k}\rangle$. Because the codebook is fixed,
-    the shrinkage factor is identical on every trial.
+    Two earlier facts produce the contraction. In <a href="#pr-mse">§0.3</a> the MSE-optimal
+    reconstruction for a set of values was the set&rsquo;s average, and that average had smaller
+    magnitude than the set&rsquo;s extreme values. In <a href="#concentration">§4</a> a random
+    rotation made every coordinate of $\boldsymbol{\Pi}\mathbf{x}$ behave like a zero-mean draw
+    with most of its mass close to 0. Combine the two and the contraction is forced: the encoder
+    partitions each axis into $2^b$ bins and stores only which bin $\boldsymbol{\Pi}\mathbf{x}$
+    fell into, the decoder reconstructs with the bin&rsquo;s average, and the bin&rsquo;s average
+    sits closer to 0 than the tail inputs that fall into the same bin. The reconstruction
+    $\tilde{\mathbf{x}}$ is therefore a shorter copy of $\mathbf{x}$, and an inner product
+    $\langle \mathbf{q}, \tilde{\mathbf{k}}\rangle$ comes out smaller than $\langle \mathbf{q},
+    \mathbf{k}\rangle$. Because the codebook is fixed, the shrinkage factor is identical on every
+    trial.
   </p>
   <p>
     The bullseye below measures the shrinkage. At $b{=}1$ the offset is $1 - 2/\pi \approx 0.36$
