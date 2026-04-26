@@ -615,9 +615,10 @@
     </a>
   </div>
   <p class="small" style="margin-top:18px">
-    The single idea you will take away:
-    <b>in high dimensions, a random rotation turns every vector into a &ldquo;nice&rdquo; one</b>, so you can pre-compute one
-    universal codebook and use it forever. Everything else is bookkeeping.
+    The single load-bearing idea: in high dimensions, a random rotation turns every input vector
+    into one whose coordinates follow a known fixed distribution. A codebook designed once for
+    that distribution can then be reused for every input. Everything else on this page is the
+    construction that puts this observation to work.
   </p>
 </header>
 
@@ -654,7 +655,10 @@
       <div class="pb">
         <b>Length</b> = $\sqrt{x_1^2+x_2^2+\dots}$.
         <b>Inner product</b> $\langle x,y\rangle = x_1 y_1 + x_2 y_2 + \dots = \|x\|\|y\|\cos\theta$.
-        When the arrows align it is large; perpendicular, zero; opposite, negative.
+        The inner product reaches its largest positive value when the two arrows point in the same
+        direction. It drops to zero when the two arrows are perpendicular. It becomes negative when
+        the arrows point in opposite directions, with its most negative value when they point
+        exactly opposite.
       </div>
       <div class="plot interactive" style="height: 280px;"><span class="hint">&#8597; drag either tip</span><canvas id="pr-dot-cv"></canvas></div>
       <div class="readout">
@@ -714,9 +718,10 @@
         <p style="margin:0">
           The bullseye below shows both failure modes. Bias is the distance from the cloud&rsquo;s
           centre to the crosshair. Variance is the width of the cloud. The two quantities are
-          independent. <a href="#bias">§7</a> fires this bullseye against an MSE quantizer and the
-          centre comes out off the crosshair. <a href="#qjl">§8</a> uses a different estimator whose
-          centre comes out on the crosshair.
+          independent of each other. <a href="#bias">§7</a> runs the same bullseye against the MSE
+          quantizer of <a href="#pipeline">§6</a>, and the cloud&rsquo;s centre lands away from the
+          crosshair. <a href="#qjl">§8</a> runs it against a different estimator whose cloud
+          centres on the crosshair.
         </p>
       </div>
       <div class="plot" style="height: 280px;"><canvas id="pr-bias-cv"></canvas></div>
@@ -762,12 +767,13 @@
       <div class="pt">§0.6 · Where bell-curves come from (CLT)</div>
       <div class="ph">Add up many small randoms → Gaussian.</div>
       <div class="pb">
-        The <b>Central Limit Theorem</b>: sum enough independent random numbers and the distribution
-        converges to a bell curve, regardless of whether each piece is a coin flip, a uniform roll, or
-        something skewed.
-        A rotated coordinate is exactly that kind of sum: it is a weighted mix of every coordinate of the
-        original vector, with random weights. So when you rotate, each new coordinate naturally lands in
-        a bell-shaped distribution, a fact TurboQuant uses on every input.
+        The <b>Central Limit Theorem</b> says that summing enough independent random numbers
+        produces a distribution close to a bell curve. The shape of each individual term in the sum
+        does not affect the limit. A sum of coin flips converges to the same Gaussian shape as a
+        sum of uniform draws or a sum of skewed draws. A rotated coordinate is one of these sums:
+        it is a weighted combination of every coordinate of the original vector, with random
+        weights. After a random rotation, each new coordinate is therefore approximately Gaussian,
+        which is the property TurboQuant relies on for every input.
       </div>
       <div class="plot" style="height: 240px;"><canvas id="pr-clt-cv"></canvas></div>
       <div class="controls" style="margin-top:10px;">
@@ -868,14 +874,17 @@
 
   <h3>The obvious quantizer</h3>
   <p>
-    For each coordinate, pick the closest of $2^b$ evenly-spaced levels in $[-1, 1]$. That is $b$ bits per number.
-    Before the high-dimensional version, watch it happen where you can see it.
+    For each coordinate, pick the closest of $2^b$ evenly-spaced levels in $[-1, 1]$. That is
+    $b$ bits per number. The same rule runs in 2D and 3D first, where the geometry is visible,
+    before the high-dimensional version below.
   </p>
 
   <h4 style="margin-top:18px">First, in 2D</h4>
   <p class="small">
-    Drag the tip. The vector snaps to the nearest point of a $2^b \times 2^b$ grid. Green is the original,
-    blue is the quantized reconstruction, red is the error.
+    Drag the tip of the vector. The vector snaps to the nearest point of a $2^b \times 2^b$ grid.
+    The green arrow shows the original input. The blue arrow shows where the input is quantized
+    to. The red segment between them is the reconstruction error
+    $\mathbf{x} - \tilde{\mathbf{x}}$.
   </p>
   <div class="card">
     <div class="controls">
@@ -899,8 +908,9 @@
 
   <h4 style="margin-top:22px">Same trick in 3D</h4>
   <p class="small">
-    A $2^b$-level grid on three axes gives $2^{3b}$ snap points. Drag the canvas to orbit the view.
-    The spike preset is where the tension shows up: the vector sits near an axis, between grid points.
+    A $2^b$-level grid on three axes gives $2^{3b}$ snap points. Drag the canvas to orbit the
+    view. The spike preset shows where the construction breaks: the input lies near one axis and
+    falls between two grid levels, which is where the reconstruction error is largest.
   </p>
   <div class="card">
     <div class="controls">
@@ -955,16 +965,19 @@
     </div>
   </div>
   <p class="small">
-    Try the <b>spike</b> input. The naive quantizer does badly: it spreads its budget evenly across
-    $[-1,1]$, but almost all the energy is in a single coordinate. The spike falls off the grid while
-    the many zeros consume most of the levels.
+    Select the <b>spike</b> input. The naive quantizer's grid is spaced evenly over $[-1, 1]$.
+    The input has almost all of its magnitude in a single coordinate, whose value falls between
+    the two grid levels nearest to it and so reconstructs poorly. The remaining coordinates are
+    near zero and consume most of the levels despite carrying little of the input's information.
   </p>
 
   <div class="card insight">
     <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY · NEXT <a href="#naive" style="color:inherit">§2</a></span><span class="stat">where the gap shows up</span></div>
     <p style="margin:0">
-      A fixed grid is fine for flat vectors and terrible for spiky ones. <b>Next:</b>
-      <a href="#naive">§2</a> shows what production systems do about it, and what they pay for the fix.
+      A fixed grid produces small reconstruction errors on inputs whose coordinates are roughly
+      uniform in magnitude, and large reconstruction errors on inputs whose magnitude is
+      concentrated in one or a few coordinates. Next: <a href="#naive">§2</a> shows how production
+      systems handle the second case and what they pay for the fix.
     </p>
   </div>
 </section>
@@ -997,9 +1010,12 @@
       <span class="stat">same <code>b</code> bits/value, three strategies</span>
     </div>
     <p class="small" style="margin:0 0 10px;color:var(--text-dim);max-width:860px">
-      A 64-dim vector whose coordinates are mostly small, with one giant outlier in red.
-      Three quantizers try to reconstruct it at the same <code>b</code>-bit budget. Strategy A uses a single fixed grid, strategy B adapts per block (at the cost of a <span class="mono">float16</span> header per block), strategy C rotates first.
-      Watch the RMSE and the &ldquo;effective bits/value&rdquo; change as you slide.
+      A 64-dimensional vector whose coordinates are mostly small, with one large outlier shown in
+      red. Three quantizers reconstruct the same vector at the same <code>b</code>-bit budget.
+      Strategy A uses a single fixed grid for the whole vector. Strategy B adapts the grid per
+      block, at the cost of a <span class="mono">float16</span> header per block. Strategy C
+      rotates the vector first and then applies a single fixed grid. The metrics report the RMSE of
+      each reconstruction and the effective bits-per-value once the metadata cost is included.
     </p>
     <div class="controls">
       <div class="ctrl"><label>Outlier magnitude</label><input id="ot-m" type="range" min="0" max="8" step="0.1" value="4"><span class="val" id="ot-m-v">4.0</span></div>
@@ -1045,20 +1061,23 @@
     </div>
 
     <p class="small" style="margin:14px 0 0;color:var(--text-dim);max-width:860px">
-      <b>Read the storage line:</b> the &ldquo;bits/value&rdquo; you pay is <code>b + 32/s</code> for per-block
-      and just <code>b</code> for the other two, because only per-block stores a float16 scale and zero-point
-      (32 bits together) every <code>s</code> elements. At <code>b=3, s=16</code> that is
-      <code>3 + 2 = 5</code> bits/value, a <b>66% surcharge</b>. C matches A&apos;s storage but with
-      B&apos;s reconstruction quality. That is the point of the whole paper.
+      <b>Read the storage line.</b> The effective bits-per-value works out to <code>b + 32/s</code>
+      for the per-block scheme and to <code>b</code> for the other two, because only the per-block
+      scheme stores a float16 scale and zero-point (32 bits together) for every block of
+      <code>s</code> elements. At <code>b=3, s=16</code> the per-block cost works out to
+      <code>3 + 2 = 5</code> bits/value, a 66% surcharge over the nominal <code>b</code>. Strategy
+      C achieves the same storage cost as strategy A while producing the reconstruction quality of
+      strategy B. The rest of this page explains the construction that makes that possible.
     </p>
   </div>
 
   <div class="card insight">
     <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY · NEXT <a href="#rotation" style="color:inherit">§3</a></span><span class="stat">one fixed recipe, any input</span></div>
     <p style="margin:0">
-      Production quantizers fix outliers by paying a per-block metadata tax. TurboQuant has to be
-      <i>data-oblivious</i>, the same procedure for every vector, no calibration set, no per-block headers.
-      <b>Next:</b> <a href="#rotation">§3</a> introduces the move that makes a fixed grid work for every input.
+      Production quantizers handle outliers by paying a per-block metadata tax. TurboQuant must
+      instead be <i>data-oblivious</i>: a single procedure that runs on every vector with no
+      calibration set and no per-block headers. Next: <a href="#rotation">§3</a> introduces the
+      move that makes a fixed grid work for every input.
     </p>
   </div>
 </section>
@@ -1078,10 +1097,11 @@
     $\boldsymbol{\Pi}^{\!\top}\boldsymbol{\Pi} = \mathbf{I}$
   </div>
   <p>
-    All the loss happens in the quantization step. Here is the conceptual payoff: after a uniformly
-    <i>random</i> rotation, every coordinate of $\boldsymbol{\Pi}\mathbf{x}$ has the same fixed Beta
-    density (Lemma 1 of the paper), no matter what $\mathbf{x}$ was. <b>One codebook, designed once
-    for that one distribution, is optimal for every input.</b> We build it in <a href="#codebook">§5</a>.
+    Because rotation is exact, all reconstruction error comes from the quantization step alone.
+    After a uniformly random rotation, every coordinate of $\boldsymbol{\Pi}\mathbf{x}$ follows
+    the same fixed Beta density (Lemma 1 of the paper), regardless of what $\mathbf{x}$ looked
+    like. <b>A single codebook designed once for that density is then optimal for every input.</b>
+    We build the codebook in <a href="#codebook">§5</a>.
   </p>
 
   <details class="deriv">
@@ -1097,9 +1117,11 @@
 
   <h4 style="margin-top:14px">A spike in 2D</h4>
   <p class="small">
-    Start with the extreme case: all the vector's energy in one coordinate, $(1, 0)$.
-    Rotate by angle $\theta$ and watch where the energy goes. At $\theta{=}45°$ it splits evenly,
-    $(\tfrac{1}{\sqrt 2}, \tfrac{1}{\sqrt 2})$. The length does not change.
+    Start with the extreme case: a vector with all of its magnitude in one coordinate, $(1, 0)$.
+    Rotate by angle $\theta$ and observe how the magnitude is redistributed across the two
+    coordinates. At $\theta{=}45°$ the magnitude is split evenly between the two coordinates,
+    giving $(\tfrac{1}{\sqrt 2}, \tfrac{1}{\sqrt 2})$. The total length of the vector stays the
+    same throughout.
   </p>
   <div class="card">
     <div class="controls">
@@ -1124,9 +1146,10 @@
 
   <h4 style="margin-top:18px">A spike in 3D</h4>
   <p class="small">
-    Same idea in three dimensions. The spike $(1, 0, 0)$ gets rotated by a random orthogonal matrix,
-    spreading across all three coordinates. The length still does not change. Each new
-    random rotation gives a new spread.
+    The same construction in three dimensions. The spike $(1, 0, 0)$ is rotated by a random
+    orthogonal matrix, which spreads the input's magnitude across all three coordinates of the
+    output. The total length of the vector is preserved. Each fresh draw of the random rotation
+    produces a different spread.
   </p>
   <div class="card">
     <div class="controls">
@@ -1151,9 +1174,10 @@
 
   <h4 style="margin-top:18px">At high dimension</h4>
   <p class="small">
-    In 2-D a single rotation halves the peak at best; in 3-D a random rotation typically leaves one
-    coordinate around 0.7. At $d{=}64$ the peak falls to roughly $1/\sqrt d \approx 0.125$ regardless of
-    how adversarial the input was.
+    A single rotation in 2-D reduces the largest coordinate to at most half the input's magnitude.
+    A random rotation in 3-D typically leaves one coordinate around $0.7$. At $d{=}64$ the largest
+    coordinate after rotation is around $1/\sqrt d \approx 0.125$, regardless of how concentrated
+    the input was.
   </p>
 
   <div class="card">
@@ -1189,11 +1213,12 @@
   <div class="card insight">
     <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY · NEXT <a href="#concentration" style="color:inherit">§4</a></span><span class="stat">no spike survives a random rotation</span></div>
     <p style="margin:0">
-      Rotation preserves length and inner products; it only redistributes which coordinates carry the energy.
-      An adversarial vector with all its mass in one coordinate becomes, after rotation, a typical one with
-      mass spread across all $d$. The quantizer only ever sees the typical one. <b>Next:</b>
-      <a href="#concentration">§4</a> shows <i>why</i> rotation flattens spikes, the geometry of high-dimensional
-      spheres.
+      Rotation preserves length and inner products. The only thing it changes is which coordinates
+      contain the magnitude of the vector. A vector with all of its mass concentrated in one
+      coordinate becomes, after rotation, a vector whose mass is spread across all $d$
+      coordinates. Because every input is rotated before quantization, every input that gets
+      quantized is of this spread-out kind. Next: <a href="#concentration">§4</a> explains why
+      rotation flattens spikes using the geometry of high-dimensional spheres.
     </p>
   </div>
 </section>
@@ -1209,9 +1234,10 @@
     of a uniform point on the sphere look like?&rdquo;
   </p>
   <p>
-    In low dimensions the answer is far from a bell curve, the arcsine density (U-shaped, peaks at
-    $\pm 1$) in 2-D, uniform on $[-1,1]$ in 3-D. As $d$ grows the marginal narrows and converges to
-    a Gaussian with variance $1/d$. Watch it happen.
+    In low dimensions the answer is far from a bell curve. In 2-D the marginal is the arcsine
+    density, which is U-shaped with peaks at $\pm 1$. In 3-D it is uniform on $[-1, 1]$. As $d$
+    grows the marginal narrows and converges to a Gaussian with variance $1/d$. The convergence
+    is visible in the demos that follow.
   </p>
 
   <details class="deriv">
@@ -1233,9 +1259,9 @@
   <h4 style="margin-top:14px">Step one: the circle ($d=2$)</h4>
   <p class="small">
     Sample 2000 points uniformly from the unit circle and look at a single coordinate, say $x_1$.
-    The marginal is the arcsine density $\tfrac{1}{\pi\sqrt{1-x^2}}$, U-shaped with peaks at $\pm 1$.
-    Far from Gaussian. Any $x_1$ between $-1$ and $+1$ is possible, and the endpoints are <i>more</i>
-    likely than the middle.
+    The marginal is the arcsine density $\tfrac{1}{\pi\sqrt{1-x^2}}$, which is U-shaped with peaks
+    at $\pm 1$. The shape is far from Gaussian: any value of $x_1$ between $-1$ and $+1$ is
+    possible, and the endpoints are <i>more</i> likely than the middle.
   </p>
   <div class="card">
     <div class="plot-grid cols-2">
@@ -1257,8 +1283,9 @@
 
   <h4 style="margin-top:18px">Step two: the sphere ($d=3$)</h4>
   <p class="small">
-    Now the unit sphere in 3-D. The marginal of one coordinate becomes <i>uniform</i> on $[-1, 1]$
-    (Archimedes' hat-box theorem). Still not a bell curve. Drag to orbit.
+    Now sample uniformly from the unit sphere in 3-D. The marginal of one coordinate is uniform
+    on $[-1, 1]$ (Archimedes' hat-box theorem). The marginal is still not a bell curve. Drag to
+    orbit the view.
   </p>
   <div class="card">
     <div class="plot-grid cols-2">
@@ -1280,9 +1307,9 @@
 
   <h4 style="margin-top:18px">Step three: high dimensions</h4>
   <p class="small">
-    Drag $d$ upward. The marginal narrows and converges to a Gaussian with standard deviation $1/\sqrt d$.
-    By $d{=}30$ it is visually Gaussian; by $d{=}256$ almost all the mass lives within a thin shell
-    of width $\sim 1/\sqrt d$ around zero.
+    Drag $d$ upward. The marginal narrows and converges to a Gaussian with standard deviation
+    $1/\sqrt d$. By $d{=}30$ the marginal is visually Gaussian. By $d{=}256$ almost all of the
+    mass concentrates within a thin shell of width $\sim 1/\sqrt d$ around zero.
   </p>
   <div class="card">
     <div class="controls">
@@ -1306,10 +1333,10 @@
   <div class="card insight">
     <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY · NEXT <a href="#codebook" style="color:inherit">§5</a></span><span class="stat">one distribution, one codebook</span></div>
     <p style="margin:0">
-      Every coordinate of the rotated vector follows the same known density. Solve the scalar quantization
-      problem for that density once and reuse it for every coordinate of every vector, no per-block scale
-      factors, no side information. <b>Next:</b> <a href="#codebook">§5</a> builds that one codebook with
-      Lloyd&ndash;Max.
+      Every coordinate of a rotated vector follows the same known density. The scalar quantization
+      problem for that density can be solved once, and the solution can be reused for every
+      coordinate of every vector. There are no per-block scale factors and no side information to
+      store. Next: <a href="#codebook">§5</a> builds the codebook with Lloyd&ndash;Max.
     </p>
   </div>
 </section>
@@ -1328,9 +1355,10 @@
     A classical algorithm finds them: <b>Lloyd&ndash;Max</b>
     (<a href="https://doi.org/10.1109/TIT.1982.1056489" target="_blank" rel="noopener">Lloyd&nbsp;1957/82</a>,
     <a href="https://doi.org/10.1109/TIT.1960.1057548" target="_blank" rel="noopener">Max&nbsp;1960</a>).
-    Because the density is fixed and known in advance, we run Lloyd&ndash;Max once, save the resulting
-    landing values into a tiny per-$b$ table, and from then on encoding is a single nearest-neighbour
-    lookup. No learning, no calibration, no per-vector tuning.
+    Because the density is fixed and known in advance, Lloyd&ndash;Max runs once at table-build
+    time. The resulting landing values are saved into a tiny per-$b$ table. Encoding a coordinate
+    after that is a single nearest-neighbour lookup against the table. The same table is used for
+    every input, with no calibration step and no per-vector tuning.
   </p>
   <p>
     Drag $b$ below to watch Lloyd&ndash;Max settle on the landing values for the Beta density.
@@ -1380,10 +1408,11 @@
   <div class="card insight">
     <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY · NEXT <a href="#pipeline" style="color:inherit">§6</a></span><span class="stat">a tiny lookup, baked once</span></div>
     <p style="margin:0">
-      Lloyd&ndash;Max gives the optimal partition for a known density, so the centroids for the Beta marginal
-      can be precomputed and stored as a tiny per-$b$ table. Per-coordinate MSE lands within $\approx 2.72\times$
-      Shannon's floor (asymptotic, $\approx 1.45\times$ at $b{=}1$). <b>Next:</b> <a href="#pipeline">§6</a>
-      assembles rotation + codebook into TurboQuant-MSE.
+      Lloyd&ndash;Max gives the optimal partition for a known density, so the centroids for the
+      Beta marginal can be precomputed and stored as a tiny per-$b$ table. The per-coordinate MSE
+      that the resulting codebook achieves is within a factor of $\approx 2.72$ of Shannon's lower
+      bound asymptotically and within $\approx 1.45$ at $b{=}1$. Next: <a href="#pipeline">§6</a>
+      assembles rotation and codebook into TurboQuant-MSE.
     </p>
   </div>
 </section>
@@ -1446,19 +1475,22 @@
     </div>
   </div>
   <p class="small">
-    Toggle between inputs. Naïve quantization fails on the spike and on the outlier channel; with the
-    rotation, the error is roughly the same regardless of which input you pick, the rotated coordinates
-    all look like draws from $\mathcal{N}(0,1/d)$, which is what the codebook was built for.
+    Toggle between input types. Naive quantization without rotation fails on the spike input and
+    on the outlier-channel input. With the rotation step in front, the reconstruction error is
+    roughly the same regardless of which input is selected. Every rotated coordinate follows the
+    same $\mathcal{N}(0,\,1/d)$ distribution, which is the distribution the codebook was designed
+    for.
   </p>
 
   <div class="card insight">
     <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY · NEXT <a href="#bias" style="color:inherit">§7</a></span><span class="stat">MSE is solved, but…</span></div>
     <p style="margin:0">
-      TurboQuant-MSE: $b\!\cdot\!d$ bits per vector, no metadata, and the reconstructed $\tilde{\mathbf{x}}$
-      is nearly as close to the original $\mathbf{x}$ as any quantizer can possibly get
-      ($\le \approx 2.72\times$ Shannon's information-theoretic floor). <b>Next:</b>
-      <a href="#bias">§7</a> shows that this same codebook gets <i>inner products</i> systematically wrong,
-      a different failure mode that needs a different fix.
+      TurboQuant-MSE stores $b\cdot d$ bits per vector and zero metadata. The reconstructed
+      $\tilde{\mathbf{x}}$ is nearly as close to the original $\mathbf{x}$ as any quantizer can
+      achieve, within a factor of $\approx 2.72$ of Shannon's information-theoretic lower bound.
+      Next: <a href="#bias">§7</a> shows that the same codebook produces a systematically biased
+      estimate of inner products. This is an error that minimising reconstruction MSE does not
+      address.
     </p>
   </div>
 </section>
@@ -1509,7 +1541,7 @@
       <button id="bias-run">Run</button>
     </div>
     <div style="margin-top:8px">
-      <div class="small" style="color:#f472b6;margin:0 0 4px">MSE-optimal codebook&nbsp;·&nbsp;biased (mean parks short)</div>
+      <div class="small" style="color:#f472b6;margin:0 0 4px">MSE-optimal codebook&nbsp;·&nbsp;biased (cloud&rsquo;s centre is off the crosshair)</div>
       <div class="plot" style="height:360px"><canvas id="bias-mse-cv"></canvas></div>
     </div>
     <div class="metrics">
@@ -1713,11 +1745,12 @@
   <div class="eyebrow">§9 · Shannon's floor</div>
   <h2>How close is TurboQuant to the theoretical best?</h2>
   <p>
-    Using Shannon's lossy source-coding theorem (via Yao's minimax principle) the paper proves that
-    <b>no</b> quantizer, randomized, adaptive, data-dependent, anything, can do better than
-    $D_{\text{mse}} \ge 4^{-b}$ for worst-case inputs on the unit sphere.
-    TurboQuant's upper bound is $\tfrac{\sqrt{3}\pi}{2}\cdot 4^{-b}$, which is <b>within a factor of ≈ 2.7</b>
-    of this information-theoretic floor, and the factor shrinks below 1.5 at $b{=}1$.
+    Using Shannon's lossy source-coding theorem (via Yao's minimax principle) the paper proves
+    that no quantizer can do better than $D_{\text{mse}} \ge 4^{-b}$ on worst-case inputs on the
+    unit sphere. The lower bound applies to every quantizer the worst-case input can face,
+    including randomized ones, adaptive ones, and data-dependent ones. TurboQuant's matching upper
+    bound is $\tfrac{\sqrt{3}\pi}{2}\cdot 4^{-b}$, within a factor of $\approx 2.7$ of the lower
+    bound asymptotically and within a factor of $1.5$ at $b{=}1$.
   </p>
 
   <div class="card">
@@ -1735,24 +1768,26 @@
     </div>
   </div>
   <p class="small">
-    The plot is on a log scale, the three curves have the <i>same slope</i> ($\propto 4^{-b}$).
-    They differ only by a small constant. Measured, upper-bound, and lower-bound march down in parallel.
+    The plot uses a log scale on the vertical axis. All three curves have the same slope (the
+    $4^{-b}$ exponential rate) and differ only by a small constant offset.
   </p>
 
   <h3>The exponential improvement over older methods</h3>
   <p>
-    Prior data-oblivious quantizers like uniform rounding or scalar sketches give error that decays
-    <i>polynomially</i> in the bit budget (e.g. $\mathcal{O}(1/b)$). TurboQuant's $4^{-b}$ is <b>exponentially</b>
-    better in bit-width, which is what lets KV caches go from 16-bit &rarr; 3-bit with zero downstream quality loss.
+    Earlier data-oblivious quantizers (uniform rounding, scalar sketches) achieve a reconstruction
+    error that decays only polynomially in the bit budget, e.g. $\mathcal{O}(1/b)$. TurboQuant's
+    $4^{-b}$ rate is exponential in $b$. The exponential rate is what makes a 16-bit-to-3-bit
+    reduction in KV-cache precision feasible without measurable downstream quality loss.
   </p>
 
   <div class="card insight">
     <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY · NEXT <a href="#impact" style="color:inherit">§10</a></span><span class="stat">tight against the floor</span></div>
     <p style="margin:0">
-      Upper bound, lower bound, and measured error march down in parallel as $b$ grows, the gap is a small
-      constant. TurboQuant matches Shannon's $4^{-b}$ rate up to $\approx 2.72\times$ asymptotically and
-      $\approx 1.45\times$ at $b{=}1$. <b>Next:</b> <a href="#impact">§10</a> shows what that buys in real
-      systems.
+      The upper bound, the lower bound, and the measured error all decay at the same exponential
+      rate $4^{-b}$ as $b$ grows, and they differ from each other only by a small constant.
+      TurboQuant therefore matches Shannon's $4^{-b}$ rate to within a factor of $\approx 2.72$
+      asymptotically and $\approx 1.45$ at $b{=}1$. Next: <a href="#impact">§10</a> looks at the
+      systems consequences of this rate.
     </p>
   </div>
 </section>
@@ -1775,7 +1810,11 @@
         <tr><td>PolarQuant</td><td class="mono">3.9</td><td class="mono">0.995</td></tr>
         <tr><td><b>TurboQuant</b></td><td class="mono">3.5</td><td class="mono">0.997</td></tr>
       </table>
-      <p class="small">Same quality at <b>4.5×</b> compression, and at 2.5 bits it is still within a point.</p>
+      <p class="small">
+        At 3.5 bits per channel, TurboQuant matches the full-precision NiaH score (0.997) while
+        compressing the cache by a factor of 4.5. At 2.5 bits per channel, the NiaH score is still
+        within one percentage point of the full-precision baseline.
+      </p>
     </div>
     <div class="card">
       <h3 style="margin-top:0">Near-neighbor search</h3>
@@ -1786,23 +1825,42 @@
         <tr><td>RabitQ</td><td class="mono">597 s</td><td class="mono">2267 s</td><td class="mono">3957 s</td></tr>
         <tr><td><b>TurboQuant</b></td><td class="mono">0.0007 s</td><td class="mono">0.0013 s</td><td class="mono">0.0021 s</td></tr>
       </table>
-      <p class="small">Four to five orders of magnitude faster indexing at 4-bit, with higher recall to boot.
-      There is no codebook to learn and no scales to fit: just rotate and round.</p>
+      <p class="small">
+        TurboQuant is four to five orders of magnitude faster than the alternatives at 4-bit
+        indexing, and the paper reports higher recall as well. The reason it is so fast is that
+        the encoder is a fixed rotation followed by a lookup against a precomputed table. There is
+        no codebook to learn from data and no per-block scales to fit at index time.
+      </p>
     </div>
   </div>
 
   <h3>Zoomed-out summary: all three papers together</h3>
   <ol>
-    <li><b>QJL (2024).</b> Take the sign of a random Gaussian projection. One bit per coordinate, unbiased inner product, zero overhead. The un-biaser primitive.</li>
-    <li><b>PolarQuant (Feb 2025).</b> After random pre-conditioning, convert to polar coordinates. Radii are concentrated; angles are concentrated around $\pi/4$. Quantize those well-concentrated distributions independently. An alternative geometry that also avoids side-info.</li>
-    <li><b>TurboQuant (Apr 2025).</b> Unifies and strengthens the above: pre-rotation + Beta coordinates + optimal Lloyd-Max codebook (for MSE) + QJL on residual (for unbiasedness). Provably within a constant factor of Shannon's minimum at every bit rate ($\approx 1.45\times$ at $b{=}1$, $\to \tfrac{\sqrt{3}\pi}{2}\approx 2.72\times$ asymptotically), fully GPU-parallel, online.</li>
+    <li><b>QJL (2024).</b> Take the sign of a random Gaussian projection of the input and store one
+    bit per coordinate. The decoder applies a fixed calibration constant that makes the
+    inner-product estimate unbiased in expectation. The construction adds no per-vector side
+    information.</li>
+    <li><b>PolarQuant (Feb 2025).</b> After a random pre-conditioning, convert each block of
+    coordinates to polar form. The resulting radii are concentrated, and the resulting angles are
+    concentrated around $\pi/4$. Quantize the radius distribution and the angle distribution
+    independently. The construction is an alternative geometry that also avoids per-vector side
+    information.</li>
+    <li><b>TurboQuant (Apr 2025).</b> Combines the previous two ideas. The encoder applies a
+    pre-rotation, quantizes the resulting Beta-distributed coordinates with an optimal
+    Lloyd&ndash;Max codebook to minimise MSE, and applies QJL to the residual to make inner
+    products unbiased. The MSE achieved by the resulting reconstruction is provably within a
+    constant factor of Shannon's lower bound at every bit rate ($\approx 1.45\times$ at $b{=}1$,
+    $\to \tfrac{\sqrt{3}\pi}{2}\approx 2.72\times$ asymptotically). The construction runs on a GPU
+    and supports streaming inputs.</li>
   </ol>
 
   <div class="card insight">
     <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY</span><span class="stat">the whole trick, in one line</span></div>
     <p style="margin:0">
-      Random rotations make every vector look Gaussian in its coordinates, so one fixed, optimal codebook
-      works for all of them. That collapses the vector-quantization problem into the best-studied scalar one.
+      Random rotations make the coordinates of every input look approximately Gaussian. A single
+      optimal codebook designed for the Gaussian then works for every input. The full
+      vector-quantization problem reduces to the well-studied scalar quantization problem on a
+      Gaussian.
     </p>
   </div>
 </section>
