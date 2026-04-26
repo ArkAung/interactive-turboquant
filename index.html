@@ -1512,15 +1512,23 @@
   <p>
     The mechanism follows from <a href="#pr-mse">§0.3</a> and <a href="#concentration">§4</a>. The
     encoder partitions $\mathbb{R}^d$ into $2^b$ bins and stores only which bin
-    $\boldsymbol{\Pi}\mathbf{x}$ fell into. The decoder has to use one fixed reconstruction vector for
-    every input that fell into a given bin. The MSE-optimal choice for that fixed vector is the
-    bin&rsquo;s average. Rotation makes each coordinate look like a draw from a zero-mean Gaussian, so
-    the bin&rsquo;s average has smaller magnitude than inputs in the bin&rsquo;s tails. The
-    reconstruction $\tilde{\mathbf{x}}$ is a contracted version of $\mathbf{x}$, and an inner product
-    $\langle \mathbf{q}, \tilde{\mathbf{k}}\rangle$ comes out smaller than $\langle \mathbf{q},
-    \mathbf{k}\rangle$. Because the codebook is fixed, the shrinkage factor is identical on every
-    trial. The bullseye below measures it: at $b{=}1$ the offset is $1 - 2/\pi \approx 0.36$ on every
-    axis, and adding bits shrinks the offset but does not eliminate it.
+    $\boldsymbol{\Pi}\mathbf{x}$ fell into. The decoder has to use one fixed reconstruction vector
+    for every input that fell into a given bin. The MSE-optimal choice for that fixed vector is
+    the bin&rsquo;s average. Rotation makes each coordinate look like a draw from a zero-mean
+    Gaussian, so the bin&rsquo;s average has smaller magnitude than inputs in the bin&rsquo;s
+    tails. The reconstruction $\tilde{\mathbf{x}}$ is a contracted version of $\mathbf{x}$, and
+    an inner product $\langle \mathbf{q}, \tilde{\mathbf{k}}\rangle$ comes out smaller than
+    $\langle \mathbf{q}, \mathbf{k}\rangle$. Because the codebook is fixed, the shrinkage factor
+    is identical on every trial.
+  </p>
+  <p>
+    The bullseye below measures the shrinkage. At $b{=}1$ the offset is $1 - 2/\pi \approx 0.36$
+    on every axis. The shrinkage factor approaches 1 quickly with more bits (about 0.88 at
+    $b{=}2$, 0.97 at $b{=}3$, 0.998 at $b{=}5$), so by $b{=}3$ the residual bias is smaller than
+    the trial-to-trial noise of a few thousand shots and the red dot visually overlaps the
+    crosshair. The bias is theoretically strictly nonzero at every finite $b$, but the regime
+    where it matters in practice is the low-bit one (1&ndash;2 bits per coordinate), where it
+    dominates the per-trial variance.
   </p>
 
   <!-- 2 · DEMO + WHAT TO NOTICE (one unit) -->
@@ -1550,10 +1558,11 @@
       <div class="metric"><div class="label">truth</div><div class="value">1.0000</div></div>
     </div>
     <p class="small" style="margin:14px 0 0;color:var(--text)">
-      <b>What to notice.</b> The red dot is southwest of the crosshair, on the diagonal. The offset
-      on $\mathbf{y}_1$ and the offset on $\mathbf{y}_2$ are equal, which is what one scalar
-      shrinkage applied to the whole reconstruction would produce. Increase $b$: the dot moves
-      toward the centre but does not reach it.
+      <b>What to notice.</b> At $b{=}1$ the red dot is southwest of the crosshair, on the diagonal.
+      The offset on $\mathbf{y}_1$ and the offset on $\mathbf{y}_2$ are equal, which is what one
+      scalar shrinkage applied to the whole reconstruction would produce. Increase $b$: the offset
+      shrinks fast and is below the trial-to-trial noise by $b{=}3$, even though the underlying
+      shrinkage factor is still strictly less than 1.
     </p>
   </div>
 
@@ -1668,12 +1677,15 @@
       <div class="metric"><div class="label">truth</div><div class="value">1.0000</div></div>
     </div>
     <p class="small" style="margin:14px 0 0;color:var(--text)">
-      <b>What to notice.</b> The MSE panel's red dot is southwest of the centre, the same offset as
-      <a href="#bias">§7</a>. The QJL panel's red dot is on the centre. The QJL cloud is visibly
-      wider than the MSE cloud. Both panels use one bit per coordinate. The MSE estimator minimises
-      reconstruction error and produces a biased inner-product estimate. The QJL estimator places a
-      calibration factor in the decoder and produces an unbiased inner-product estimate with higher
-      per-trial variance.
+      <b>What to notice.</b> The MSE panel's red dot is southwest of the centre at the same
+      offset as <a href="#bias">§7</a>'s 1-bit measurement, and that offset stays the same
+      regardless of how many trials run. The QJL panel's red dot lands close to the centre but
+      with a residual offset from finite-sample noise. QJL's per-trial variance is larger than
+      MSE's (Lemma 4: $\propto \pi/(2d)$), so at the default trial count the residual offset is
+      small but visible. The key difference between the two estimators is the source of this
+      offset: MSE's offset is a fixed scalar bias on the inner product and does not shrink with
+      more trials; QJL's residual offset is sampling noise around a correct mean and shrinks at
+      the standard-error rate $1/\sqrt{n}$ as the trial count grows.
     </p>
   </div>
 
