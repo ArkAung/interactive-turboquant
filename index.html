@@ -1578,6 +1578,37 @@
     \mathbf{k}\rangle$. Because the codebook is fixed, the shrinkage factor is identical on every
     trial.
   </p>
+
+  <!-- 1.5 · 1D shrinkage demo: see the bin's average sit closer to 0 than the input -->
+  <div class="card">
+    <div class="panel-hd"><span class="tag">&#9632; SEE THE CONTRACTION</span><span class="stat">drag the input, watch the rebound</span></div>
+    <p class="small" style="margin:0 0 14px;color:var(--text-dim)">
+      One rotated coordinate $y$ has the near-Gaussian density drawn below. Lloyd&ndash;Max
+      partitions the axis into $2^b$ bins (interior verticals); each bin&rsquo;s centroid is the
+      MSE-optimal reconstruction (red dots). The encoder snaps $y$ (gold) to the centroid of the
+      bin it fell into, giving $\tilde y$. Whenever $|y|$ is in the tail, $|\tilde y|$ is closer
+      to 0 &mdash; the per-axis shrinkage that the prose describes.
+    </p>
+    <div class="controls">
+      <div class="ctrl"><label>Bits&nbsp;<code>b</code></label><input id="shrink-b" type="range" min="1" max="5" value="1"><span class="val" id="shrink-b-v">1</span></div>
+      <div class="ctrl"><label>Input&nbsp;<code>y</code></label><input id="shrink-y" type="range" min="-3.5" max="3.5" step="0.01" value="1.50"><span class="val" id="shrink-y-v">1.50</span></div>
+    </div>
+    <div class="plot" style="height:240px"><canvas id="shrink-cv"></canvas></div>
+    <div class="metrics">
+      <div class="metric"><div class="label">|y|</div><div class="value" id="shrink-yabs">1.500</div></div>
+      <div class="metric"><div class="label">|&#x1ef9;|</div><div class="value quant" id="shrink-ytabs">&ndash;</div></div>
+      <div class="metric"><div class="label">|&#x1ef9;|/|y|</div><div class="value gold" id="shrink-ratio">&ndash;</div></div>
+    </div>
+    <p class="small" style="margin:14px 0 0;color:var(--text)">
+      <b>What to notice.</b> Drag $y$ deep into a tail bin: the centroid sits well inside the bin,
+      not at the bin&rsquo;s edge, so $|\tilde y| < |y|$ and the ratio drops well below 1. Slide
+      $y$ near 0: the centroid is near 0 too, and the ratio can even exceed 1 because the centre
+      bins are narrow. The <i>average</i> ratio over the whole density is what produces the
+      $0.64 / 0.88 / 0.97 / 0.998$ numbers in the next paragraph &mdash; the same numbers the
+      bullseye demo will reproduce as the cloud&rsquo;s centre.
+    </p>
+  </div>
+
   <p>
     The bullseye below measures the shrinkage. At $b{=}1$ the offset is $1 - 2/\pi \approx 0.36$
     on every axis. The shrinkage factor approaches 1 quickly with more bits (about 0.88 at
@@ -4707,6 +4738,167 @@ function drawDragTip(ctx, x, y, color) {
   iSel.addEventListener("change", draw);
   window.addEventListener("resize", draw);
   draw();
+})();
+
+/* ================================================================
+   §7 SHRINK demo: 1D Lloyd-Max snap, shows |ỹ|<|y| in the tails.
+   ================================================================ */
+(function(){
+  const cB  = document.getElementById("shrink-b");
+  const cY  = document.getElementById("shrink-y");
+  const bV  = document.getElementById("shrink-b-v");
+  const yV  = document.getElementById("shrink-y-v");
+  const cv  = document.getElementById("shrink-cv");
+  const oYa = document.getElementById("shrink-yabs");
+  const oYt = document.getElementById("shrink-ytabs");
+  const oR  = document.getElementById("shrink-ratio");
+  if (!cv) return;
+
+  const cache = {};
+  function getCentroids(b) {
+    if (!cache[b]) cache[b] = lloydGauss(b, 1, 30);
+    return cache[b];
+  }
+  function nearestCentroid(y, centroids) {
+    let best = 0, bd = Math.abs(y - centroids[0]);
+    for (let k = 1; k < centroids.length; k++) {
+      const e = Math.abs(y - centroids[k]);
+      if (e < bd) { bd = e; best = k; }
+    }
+    return { idx: best, val: centroids[best] };
+  }
+
+  function render() {
+    const b = +cB.value, y = +cY.value;
+    bV.textContent = b;
+    yV.textContent = y.toFixed(2);
+    const centroids = getCentroids(b);
+    const { idx, val: yt } = nearestCentroid(y, centroids);
+    oYa.textContent = Math.abs(y).toFixed(3);
+    oYt.textContent = Math.abs(yt).toFixed(3);
+    const ratio = Math.abs(y) > 1e-3 ? Math.abs(yt) / Math.abs(y) : 1;
+    oR.textContent = ratio.toFixed(3);
+
+    const { ctx, w, h } = setupCanvas(cv);
+    ctx.fillStyle = THEME.bg; ctx.fillRect(0, 0, w, h);
+    const pad = { l: 28, r: 18, t: 14, b: 30 };
+    const xMin = -3.5, xMax = 3.5;
+    const xToPx = (x) => pad.l + (x - xMin) / (xMax - xMin) * (w - pad.l - pad.r);
+    const axisY = h - pad.b;
+    const topY = pad.t;
+    const plotH = axisY - topY;
+
+    const N = centroids.length;
+    const bnds = [-5];
+    for (let k = 0; k < N - 1; k++) bnds.push(0.5 * (centroids[k] + centroids[k+1]));
+    bnds.push(5);
+
+    // Highlight the bin containing y
+    const binLeftPx  = xToPx(Math.max(bnds[idx],   xMin));
+    const binRightPx = xToPx(Math.min(bnds[idx+1], xMax));
+    ctx.fillStyle = accentRGBA(0.10);
+    ctx.fillRect(binLeftPx, topY, binRightPx - binLeftPx, plotH);
+
+    // Gaussian density curve, filled
+    const gMax = gaussPDF(0, 1);
+    const NPTS = 220;
+    ctx.beginPath();
+    ctx.moveTo(xToPx(xMin), axisY);
+    for (let i = 0; i <= NPTS; i++) {
+      const x = xMin + (xMax - xMin) * i / NPTS;
+      const px = xToPx(x);
+      const py = topY + (1 - gaussPDF(x, 1) / gMax * 0.85) * plotH;
+      ctx.lineTo(px, py);
+    }
+    ctx.lineTo(xToPx(xMax), axisY);
+    ctx.closePath();
+    ctx.fillStyle = accentRGBA(0.08);
+    ctx.fill();
+    ctx.strokeStyle = THEME.accent; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i <= NPTS; i++) {
+      const x = xMin + (xMax - xMin) * i / NPTS;
+      const px = xToPx(x);
+      const py = topY + (1 - gaussPDF(x, 1) / gMax * 0.85) * plotH;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+
+    // Bin-boundary verticals
+    ctx.strokeStyle = THEME.gridSoft; ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    for (let k = 1; k < N; k++) {
+      const px = xToPx(bnds[k]);
+      ctx.beginPath();
+      ctx.moveTo(px, topY); ctx.lineTo(px, axisY); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // X-axis baseline
+    ctx.strokeStyle = THEME.grid; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad.l, axisY); ctx.lineTo(w - pad.r, axisY); ctx.stroke();
+    // Tick labels
+    ctx.fillStyle = THEME.textDim; ctx.font = "11px ui-monospace, Menlo, monospace";
+    ctx.textAlign = "center"; ctx.textBaseline = "top";
+    for (let t = -3; t <= 3; t++) {
+      const tpx = xToPx(t);
+      ctx.beginPath();
+      ctx.strokeStyle = THEME.grid;
+      ctx.moveTo(tpx, axisY); ctx.lineTo(tpx, axisY + 3); ctx.stroke();
+      ctx.fillText(t.toString(), tpx, axisY + 6);
+    }
+    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+
+    // All centroids: small red dots on the axis
+    for (let k = 0; k < N; k++) {
+      ctx.fillStyle = THEME.err;
+      ctx.beginPath();
+      ctx.arc(xToPx(centroids[k]), axisY, 3, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+
+    // Reconstructed value: highlighted big red dot at the bin's centroid
+    const ytPx = xToPx(yt);
+    ctx.fillStyle = THEME.err;
+    ctx.beginPath();
+    ctx.arc(ytPx, axisY, 6.5, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.fillStyle = THEME.err;
+    ctx.font = "12px ui-monospace, Menlo, monospace";
+    ctx.fillText("\u1ef9", ytPx + 9, axisY - 6);
+
+    // Input dot: gold, positioned slightly above axis
+    const yPx = xToPx(y);
+    const yDotY = axisY - 18;
+    ctx.fillStyle = THEME.warn;
+    ctx.beginPath();
+    ctx.arc(yPx, yDotY, 6, 0, 2 * Math.PI);
+    ctx.fill();
+    ctx.fillStyle = THEME.warn;
+    ctx.fillText("y", yPx + 9, yDotY + 4);
+
+    // Arrow from y down/across to ỹ on axis
+    ctx.strokeStyle = THEME.warn; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(yPx, yDotY + 6);
+    ctx.lineTo(ytPx, axisY - 7);
+    ctx.stroke();
+    const ang = Math.atan2(axisY - 7 - (yDotY + 6), ytPx - yPx);
+    ctx.beginPath();
+    ctx.moveTo(ytPx, axisY - 7);
+    ctx.lineTo(ytPx - 7 * Math.cos(ang - Math.PI/6), axisY - 7 - 7 * Math.sin(ang - Math.PI/6));
+    ctx.moveTo(ytPx, axisY - 7);
+    ctx.lineTo(ytPx - 7 * Math.cos(ang + Math.PI/6), axisY - 7 - 7 * Math.sin(ang + Math.PI/6));
+    ctx.stroke();
+  }
+
+  cB.oninput = render;
+  cY.oninput = render;
+  window.addEventListener("resize", render);
+  onThemeChange(render);
+  if (document.readyState === "complete") render();
+  else window.addEventListener("load", render);
 })();
 
 /* ================================================================
