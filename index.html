@@ -1595,21 +1595,39 @@
       <div class="ctrl"><label>Bits&nbsp;<code>b</code></label><input id="shrink-b" type="range" min="1" max="5" value="1"><span class="val" id="shrink-b-v">1</span></div>
     </div>
     <div class="plot interactive" style="height:240px"><span class="hint">&#8596; drag y</span><canvas id="shrink-cv"></canvas></div>
-    <div class="plot" style="height:180px;margin-top:10px"><canvas id="shrink-step"></canvas></div>
-    <div class="metrics">
+    <div class="plot" style="height:200px;margin-top:10px"><canvas id="shrink-step"></canvas></div>
+    <div style="margin:14px 0 0">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;font-size:12px;color:var(--text-dim)">
+        <span><b style="color:var(--text)">Variance budget.</b> &sigma;&sup2; = 1 splits into the part &#x1ef9; keeps and the part erased inside each bin.</span>
+      </div>
+      <div style="display:flex;height:16px;background:var(--line);border-radius:3px;overflow:hidden">
+        <div id="shrink-bar-kept" style="background:var(--accent);width:63.7%;transition:width .15s"></div>
+        <div id="shrink-bar-lost" style="background:var(--err);opacity:.6;width:36.3%;transition:width .15s"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:12px;color:var(--text-dim)">
+        <span><span style="color:var(--accent)">&#9632;</span> kept by &#x1ef9;: &lambda;<sub><i>b</i></sub> = <b id="shrink-bar-kv" style="color:var(--text)">0.637</b></span>
+        <span><span style="color:var(--err)">&#9632;</span> erased in-bin variance: <i>D</i><sub><i>b</i></sub> = <b id="shrink-bar-lv" style="color:var(--text)">0.363</b></span>
+      </div>
+    </div>
+    <div class="metrics" style="margin-top:14px">
       <div class="metric"><div class="label">|y|</div><div class="value" id="shrink-yabs">1.500</div></div>
       <div class="metric"><div class="label">|&#x1ef9;|</div><div class="value quant" id="shrink-ytabs">&ndash;</div></div>
-      <div class="metric"><div class="label">|&#x1ef9;|/|y|</div><div class="value gold" id="shrink-ratio">&ndash;</div></div>
-      <div class="metric"><div class="label">E[&#x1ef9;&sup2;]/&sigma;&sup2; at this <i>b</i></div><div class="value" id="shrink-pop">&ndash;</div></div>
+      <div class="metric"><div class="label">|&#x1ef9;|/|y|<br><span style="font-weight:400;opacity:.7">per-input, flips</span></div><div class="value gold" id="shrink-ratio">&ndash;</div></div>
+      <div class="metric"><div class="label">&lambda;<sub><i>b</i></sub> = E[&#x1ef9;&sup2;]/&sigma;&sup2;<br><span style="font-weight:400;opacity:.7">population, what counts</span></div><div class="value" id="shrink-pop">&ndash;</div></div>
     </div>
     <p class="small" style="margin:14px 0 0;color:var(--text)">
-      <b>What to notice.</b> Drag $y$ deep into a tail bin: the centroid sits well inside the
-      bin, not at the bin&rsquo;s edge, so $|\tilde y| < |y|$ and the per-input ratio drops well
-      below 1. Drag $y$ near 0: the centre bins are narrow and the ratio can even exceed 1.
-      The right-most metric is the population shrinkage factor
-      $\mathbb{E}[\tilde y^2]/\sigma^2 = 1 - D_b$, the second-moment ratio quoted in the next
-      paragraph as $0.64 / 0.88 / 0.97 / 0.99$ for $b=1,2,3,4$. That is the same factor the
-      bullseye demo will reproduce as the cloud&rsquo;s centre offset.
+      <b>What to notice.</b> Shrinkage is a claim about second moments. The per-input ratio
+      $|\tilde y|/|y|$ in the third metric drops below 1 in the tails and can exceed 1 near 0;
+      those flips cancel in the first moment ($\mathbb{E}[\tilde y]=\mathbb{E}[y]=0$). They do
+      not cancel in the second moment, because erasing the variation inside each bin is a
+      strict positive loss. The shaded triangles in the staircase plot are the gap between
+      identity and step at every $y$; weighted by the Gaussian density, that gap squared and
+      summed equals $D_b = \sigma^2 - \mathbb{E}[\tilde y^{\,2}]$ exactly. As $b$ grows the
+      triangles shrink and the red segment of the budget bar shrinks with them. The fourth
+      metric, $\lambda_b = \mathbb{E}[\tilde y^{\,2}]/\sigma^2$, is the factor that multiplies
+      every inner product $\langle\mathbf q,\tilde{\mathbf k}\rangle$ in expectation; that is
+      the shrinkage the next paragraph quotes as $0.64 / 0.88 / 0.97 / 0.99$ for
+      $b=1,2,3,4$.
     </p>
   </div>
 
@@ -4756,6 +4774,10 @@ function drawDragTip(ctx, x, y, color) {
   const oYt   = document.getElementById("shrink-ytabs");
   const oR    = document.getElementById("shrink-ratio");
   const oPop  = document.getElementById("shrink-pop");
+  const oBarK = document.getElementById("shrink-bar-kept");
+  const oBarL = document.getElementById("shrink-bar-lost");
+  const oBarKv= document.getElementById("shrink-bar-kv");
+  const oBarLv= document.getElementById("shrink-bar-lv");
   if (!cv) return;
 
   // Population shrinkage factor E[ỹ²]/σ² = 1 - D_b for unit-variance Gaussian
@@ -4942,7 +4964,7 @@ function drawDragTip(ctx, x, y, color) {
     const { ctx, w, h } = setupCanvas(cv2);
     ctx.fillStyle = THEME.bg; ctx.fillRect(0, 0, w, h);
     const xToPx = (x) => padStep.l + (x - Y_MIN) / (Y_MAX - Y_MIN) * (w - padStep.l - padStep.r);
-    const Y_VIS = 2.5; // tilde-y is bounded; cap visible range
+    const Y_VIS = 3.5; // matches input axis so all centroids fit
     const yToPx = (yy) => padStep.t + (Y_VIS - yy) / (2 * Y_VIS) * (h - padStep.t - padStep.b);
     const axisY0 = yToPx(0);
     const axisX0 = xToPx(0);
@@ -4957,6 +4979,32 @@ function drawDragTip(ctx, x, y, color) {
     ctx.moveTo(padStep.l, axisY0); ctx.lineTo(w - padStep.r, axisY0);
     ctx.moveTo(axisX0, padStep.t); ctx.lineTo(axisX0, h - padStep.b);
     ctx.stroke();
+
+    // Shade the gap between identity and step per bin: two right triangles
+    // meeting at (c_k, c_k). Visualizes |ỹ(y) - y| at every y; weighted by
+    // the Gaussian density and squared, this area integrates to D_b.
+    ctx.fillStyle = THEME.err; ctx.globalAlpha = 0.16;
+    for (let k = 0; k < centroids.length; k++) {
+      const a  = Math.max(bnds[k],   -Y_VIS);
+      const cR = Math.min(bnds[k+1], Y_VIS);
+      const ck = centroids[k];
+      if (ck < a || ck > cR) continue; // safety
+      if (ck > a) {
+        ctx.beginPath();
+        ctx.moveTo(xToPx(a),  yToPx(a));
+        ctx.lineTo(xToPx(a),  yToPx(ck));
+        ctx.lineTo(xToPx(ck), yToPx(ck));
+        ctx.closePath(); ctx.fill();
+      }
+      if (cR > ck) {
+        ctx.beginPath();
+        ctx.moveTo(xToPx(ck), yToPx(ck));
+        ctx.lineTo(xToPx(cR), yToPx(ck));
+        ctx.lineTo(xToPx(cR), yToPx(cR));
+        ctx.closePath(); ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
 
     // Identity y = ỹ as a thin dashed reference
     ctx.strokeStyle = THEME.textDim; ctx.lineWidth = 1;
@@ -5003,7 +5051,7 @@ function drawDragTip(ctx, x, y, color) {
       ctx.fillText(t.toString(), tpx, h - padStep.b + 4);
     }
     ctx.textAlign = "right"; ctx.textBaseline = "middle";
-    for (let t = -2; t <= 2; t++) {
+    for (let t = -3; t <= 3; t++) {
       ctx.fillText(t.toString(), padStep.l - 4, yToPx(t));
     }
     ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
@@ -5040,6 +5088,14 @@ function drawDragTip(ctx, x, y, color) {
     const ratio = Math.abs(y) > 1e-3 ? Math.abs(yt) / Math.abs(y) : 1;
     oR.textContent = ratio.toFixed(3);
     oPop.textContent = lam.toFixed(4);
+    if (oBarK && oBarL) {
+      const keptPct = (lam * 100).toFixed(2);
+      const lostPct = ((1 - lam) * 100).toFixed(2);
+      oBarK.style.width = keptPct + "%";
+      oBarL.style.width = lostPct + "%";
+      if (oBarKv) oBarKv.textContent = lam.toFixed(4);
+      if (oBarLv) oBarLv.textContent = (1 - lam).toFixed(4);
+    }
     drawMain();
     drawStaircase();
   }
