@@ -1610,8 +1610,8 @@
       </div>
     </div>
     <div class="metrics" style="margin-top:14px">
-      <div class="metric"><div class="label">|y|</div><div class="value" id="shrink-yabs">1.500</div></div>
-      <div class="metric"><div class="label">|&#x1ef9;|</div><div class="value quant" id="shrink-ytabs">&ndash;</div></div>
+      <div class="metric"><div class="label">y</div><div class="value" id="shrink-yabs">1.500</div></div>
+      <div class="metric"><div class="label">&#x1ef9;</div><div class="value quant" id="shrink-ytabs">&ndash;</div></div>
       <div class="metric"><div class="label">(&#x1ef9; &minus; y)&sup2;<br><span style="font-weight:400;opacity:.7">instantaneous, averages to D<sub>b</sub></span></div><div class="value gold" id="shrink-ratio">&ndash;</div></div>
       <div class="metric"><div class="label">&lambda;<sub><i>b</i></sub> = E[&#x1ef9;&sup2;]/&sigma;&sup2;<br><span style="font-weight:400;opacity:.7">population, what counts</span></div><div class="value" id="shrink-pop">&ndash;</div></div>
     </div>
@@ -5110,8 +5110,8 @@ function drawDragTip(ctx, x, y, color) {
     bV.textContent = b;
     const { centroids, lam } = getModel(b);
     const { val: yt } = nearestCentroid(y, centroids);
-    oYa.textContent = Math.abs(y).toFixed(3);
-    oYt.textContent = Math.abs(yt).toFixed(3);
+    oYa.textContent = y.toFixed(3);
+    oYt.textContent = yt.toFixed(3);
     const sqErr = (yt - y) * (yt - y);
     oR.textContent = sqErr.toFixed(3);
     oPop.textContent = lam.toFixed(4);
