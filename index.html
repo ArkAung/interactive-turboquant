@@ -656,17 +656,29 @@
     TurboQuant compresses each coordinate of these vectors to <b>2–4 bits</b> with provably near-optimal distortion, no memory overhead for scale factors, and no training or calibration. This page explains how it works.
   </p>
   <div class="refs">
-    <a class="ref" href="https://arxiv.org/abs/2504.19874" target="_blank">
-      <div class="t">TurboQuant: Online Vector Quantization with Near-optimal Distortion Rate</div>
-      <div class="s">Zandieh, Daliri, Hadian, Mirrokni · 2025 · arXiv:2504.19874</div>
+    <a class="ref" href="https://arxiv.org/abs/2105.08339" target="_blank">
+      <div class="t">DRIVE: One-bit Distributed Mean Estimation</div>
+      <div class="s">Vargaftik, Ben-Basat, Portnoy, Mendelson, Ben-Itzhak, Mitzenmacher · NeurIPS 2021 · arXiv:2105.08339</div>
+    </a>
+    <a class="ref" href="https://arxiv.org/abs/2108.08842" target="_blank">
+      <div class="t">EDEN: Communication-Efficient and Robust Distributed Mean Estimation for Federated Learning</div>
+      <div class="s">Vargaftik, Ben-Basat, Portnoy, Mendelson, Ben-Itzhak, Mitzenmacher · ICML 2022 · arXiv:2108.08842</div>
+    </a>
+    <a class="ref" href="https://arxiv.org/abs/2406.03482" target="_blank">
+      <div class="t">QJL: 1-Bit Quantized JL Transform for KV Cache Quantization with Zero Overhead</div>
+      <div class="s">Zandieh, Daliri, Han · 2024 · arXiv:2406.03482</div>
     </a>
     <a class="ref" href="https://arxiv.org/abs/2502.02617" target="_blank">
       <div class="t">PolarQuant: Quantizing KV Caches with Polar Transformation</div>
       <div class="s">Han, Kacham, Karbasi, Mirrokni, Zandieh · 2025 · arXiv:2502.02617</div>
     </a>
-    <a class="ref" href="https://arxiv.org/abs/2406.03482" target="_blank">
-      <div class="t">QJL: 1-Bit Quantized JL Transform for KV Cache Quantization with Zero Overhead</div>
-      <div class="s">Zandieh, Daliri, Han · 2024 · arXiv:2406.03482</div>
+    <a class="ref" href="https://arxiv.org/abs/2504.19874" target="_blank">
+      <div class="t">TurboQuant: Online Vector Quantization with Near-optimal Distortion Rate</div>
+      <div class="s">Zandieh, Daliri, Hadian, Mirrokni · 2025 · arXiv:2504.19874</div>
+    </a>
+    <a class="ref" href="https://arxiv.org/abs/2604.18555" target="_blank">
+      <div class="t">A Note on TurboQuant and the Earlier DRIVE/EDEN Line of Work</div>
+      <div class="s">Portnoy et al. · 2026 · arXiv:2604.18555</div>
     </a>
   </div>
   <p class="small" style="margin-top:18px">
@@ -674,6 +686,14 @@
     into one whose coordinates follow a known fixed distribution. A codebook designed once for
     that distribution can then be reused for every input. Everything else on this page is the
     construction that puts this observation to work.
+  </p>
+  <p class="small" style="margin-top:14px">
+    This construction was introduced by DRIVE (Vargaftik et al., NeurIPS 2021) for one-bit federated
+    mean estimation, and generalized to <code>b</code> bits per coordinate by EDEN (Vargaftik et al.,
+    ICML 2022). TurboQuant (Zandieh et al., 2025) is the same construction with the per-vector
+    scale parameter fixed to a constant, repackaged for KV-cache compression and inner-product
+    retrieval. The mapping from each idea on this page to its source paper is in
+    <a href="#lineage">§0.9</a>.
   </p>
 </header>
 
