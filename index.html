@@ -1612,22 +1612,22 @@
     <div class="metrics" style="margin-top:14px">
       <div class="metric"><div class="label">|y|</div><div class="value" id="shrink-yabs">1.500</div></div>
       <div class="metric"><div class="label">|&#x1ef9;|</div><div class="value quant" id="shrink-ytabs">&ndash;</div></div>
-      <div class="metric"><div class="label">|&#x1ef9;|/|y|<br><span style="font-weight:400;opacity:.7">per-input, flips</span></div><div class="value gold" id="shrink-ratio">&ndash;</div></div>
+      <div class="metric"><div class="label">(&#x1ef9; &minus; y)&sup2;<br><span style="font-weight:400;opacity:.7">instantaneous, averages to D<sub>b</sub></span></div><div class="value gold" id="shrink-ratio">&ndash;</div></div>
       <div class="metric"><div class="label">&lambda;<sub><i>b</i></sub> = E[&#x1ef9;&sup2;]/&sigma;&sup2;<br><span style="font-weight:400;opacity:.7">population, what counts</span></div><div class="value" id="shrink-pop">&ndash;</div></div>
     </div>
     <p class="small" style="margin:14px 0 0;color:var(--text)">
-      <b>What to notice.</b> Shrinkage is a claim about second moments. The per-input ratio
-      $|\tilde y|/|y|$ in the third metric drops below 1 in the tails and can exceed 1 near 0;
-      those flips cancel in the first moment ($\mathbb{E}[\tilde y]=\mathbb{E}[y]=0$). They do
-      not cancel in the second moment, because erasing the variation inside each bin is a
-      strict positive loss. The shaded triangles in the staircase plot are the gap between
-      identity and step at every $y$; weighted by the Gaussian density, that gap squared and
-      summed equals $D_b = \sigma^2 - \mathbb{E}[\tilde y^{\,2}]$ exactly. As $b$ grows the
-      triangles shrink and the red segment of the budget bar shrinks with them. The fourth
-      metric, $\lambda_b = \mathbb{E}[\tilde y^{\,2}]/\sigma^2$, is the factor that multiplies
-      every inner product $\langle\mathbf q,\tilde{\mathbf k}\rangle$ in expectation; that is
-      the shrinkage the next paragraph quotes as $0.64 / 0.88 / 0.97 / 0.99$ for
-      $b=1,2,3,4$.
+      <b>What to notice.</b> Shrinkage is a second-moment statement. The signed gap
+      $\tilde y - y$ is positive for some inputs and negative for others; averaging it gives
+      zero, so any first-moment argument cancels out. The squared gap $(\tilde y - y)^2$ in
+      the third metric is always nonnegative, so summing it cannot cancel. Weighted by the
+      Gaussian density and integrated, it equals $D_b = \sigma^2 - \mathbb{E}[\tilde y^{\,2}]$,
+      the red segment of the budget bar; the staircase shading visualizes that gap pointwise,
+      with opacity tracking the Gaussian density so the visual area concentrates where the
+      distortion actually accumulates. As $b$ grows the shading thins and the red segment
+      shrinks with it. The fourth metric, $\lambda_b = \mathbb{E}[\tilde y^{\,2}]/\sigma^2$,
+      is the factor that multiplies every inner product
+      $\langle\mathbf q,\tilde{\mathbf k}\rangle$ in expectation; that is the shrinkage the
+      next paragraph quotes as $0.64 / 0.88 / 0.97 / 0.99$ for $b=1,2,3,4$.
     </p>
   </div>
 
@@ -4980,29 +4980,33 @@ function drawDragTip(ctx, x, y, color) {
     ctx.moveTo(axisX0, padStep.t); ctx.lineTo(axisX0, h - padStep.b);
     ctx.stroke();
 
-    // Shade the gap between identity and step per bin: two right triangles
-    // meeting at (c_k, c_k). Visualizes |ỹ(y) - y| at every y; weighted by
-    // the Gaussian density and squared, this area integrates to D_b.
-    ctx.fillStyle = THEME.err; ctx.globalAlpha = 0.16;
-    for (let k = 0; k < centroids.length; k++) {
-      const a  = Math.max(bnds[k],   -Y_VIS);
-      const cR = Math.min(bnds[k+1], Y_VIS);
-      const ck = centroids[k];
-      if (ck < a || ck > cR) continue; // safety
-      if (ck > a) {
-        ctx.beginPath();
-        ctx.moveTo(xToPx(a),  yToPx(a));
-        ctx.lineTo(xToPx(a),  yToPx(ck));
-        ctx.lineTo(xToPx(ck), yToPx(ck));
-        ctx.closePath(); ctx.fill();
-      }
-      if (cR > ck) {
-        ctx.beginPath();
-        ctx.moveTo(xToPx(ck), yToPx(ck));
-        ctx.lineTo(xToPx(cR), yToPx(ck));
-        ctx.lineTo(xToPx(cR), yToPx(cR));
-        ctx.closePath(); ctx.fill();
-      }
+    // Density-weighted shading of the gap between identity y and step ỹ(y).
+    // Each vertical pixel column at world-x has the gap [min(x, c_k), max(x, c_k)]
+    // shaded with alpha proportional to the Gaussian density φ(x). The sum of
+    // the squared gap weighted by density equals D_b, so the visual area
+    // concentrates where the distortion actually accumulates instead of in
+    // the unweighted tails.
+    const stepW = w - padStep.l - padStep.r;
+    const NCOLS = Math.max(60, Math.floor(stepW / 2));
+    const dxCol = (2 * Y_VIS) / NCOLS;
+    const colWpx = stepW / NCOLS + 0.6; // small overlap to avoid hairline gaps
+    const maxDens = gaussPDF(0, 1);
+    let kIdx = 0;
+    ctx.fillStyle = THEME.err;
+    for (let i = 0; i < NCOLS; i++) {
+      const xWorld = -Y_VIS + (i + 0.5) * dxCol;
+      while (kIdx + 1 < centroids.length && xWorld >= bnds[kIdx + 1]) kIdx++;
+      while (kIdx > 0 && xWorld < bnds[kIdx]) kIdx--;
+      const ck = centroids[kIdx];
+      const yLo = Math.min(xWorld, ck);
+      const yHi = Math.max(xWorld, ck);
+      if (yHi - yLo < 0.005) continue;
+      const dens = gaussPDF(xWorld, 1) / maxDens;
+      ctx.globalAlpha = 0.45 * dens;
+      const xPx = xToPx(xWorld) - colWpx / 2;
+      const yTopPx = yToPx(yHi);
+      const yBotPx = yToPx(yLo);
+      ctx.fillRect(xPx, yTopPx, colWpx, yBotPx - yTopPx);
     }
     ctx.globalAlpha = 1;
 
@@ -5085,8 +5089,8 @@ function drawDragTip(ctx, x, y, color) {
     const { val: yt } = nearestCentroid(y, centroids);
     oYa.textContent = Math.abs(y).toFixed(3);
     oYt.textContent = Math.abs(yt).toFixed(3);
-    const ratio = Math.abs(y) > 1e-3 ? Math.abs(yt) / Math.abs(y) : 1;
-    oR.textContent = ratio.toFixed(3);
+    const sqErr = (yt - y) * (yt - y);
+    oR.textContent = sqErr.toFixed(3);
     oPop.textContent = lam.toFixed(4);
     if (oBarK && oBarL) {
       const keptPct = (lam * 100).toFixed(2);
