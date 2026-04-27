@@ -629,6 +629,7 @@
   <ol>
     <li><a href="#hero"><span class="n">▸</span><span>The promise</span></a></li>
     <li><a href="#primer"><span class="n">§0</span><span>Primer: jargon decoder</span></a></li>
+    <li><a href="#lineage"><span class="n">§0.9</span><span>Lineage and prior work</span></a></li>
     <li><a href="#problem"><span class="n">§1</span><span>Vector quantization</span></a></li>
     <li><a href="#naive"><span class="n">§2</span><span>Why naive fails</span></a></li>
     <li><a href="#rotation"><span class="n">§3</span><span>The rotation trick</span></a></li>
@@ -929,6 +930,81 @@
     <b>High-D concentration</b>: coordinates of a random unit vector in $d$-space cluster near $\pm 1/\sqrt d$.
     <b>Quantization</b>: snap each number to one of $2^b$ levels; one extra bit quarters the squared error.</p>
   </div>
+</section>
+
+<!-- ======================= SECTION: LINEAGE ======================= -->
+<section id="lineage">
+  <div class="eyebrow">§0.9 · Lineage and prior work</div>
+  <h2>Where each idea on this page comes from.</h2>
+  <p class="lede">
+    The construction this page walks through was introduced in 2021 and generalized in 2022.
+    TurboQuant is the most recent variant of it. This section names the original sources before
+    the rest of the page builds intuition for the construction itself.
+  </p>
+
+  <p>
+    DRIVE (Vargaftik et al., NeurIPS 2021) introduced the construction for one bit per coordinate.
+    A sender rotates the input vector by a random orthogonal matrix, sends the sign of every
+    rotated coordinate together with a single scalar scale $S$, and the receiver inverts the
+    rotation after multiplying the sign vector by $S$. DRIVE derives two scale formulas. The
+    MSE-optimal biased scale is $S = \|R(x)\|_1 / d$. The unbiased scale is
+    $S = \|x\|_2^2 / \|R(x)\|_1$, which gives $\mathbb{E}[\hat x] = x$. DRIVE also shows that a
+    Randomized Hadamard Transform can replace the uniform random rotation at $O(d \log d)$
+    cost (DRIVE, §6).
+  </p>
+
+  <p>
+    EDEN (Vargaftik et al., ICML 2022) generalizes DRIVE to any $b$ bits per coordinate. After
+    the rotation, EDEN normalizes the rotated vector by $\eta_x = \sqrt{d}/\|x\|_2$ so each
+    coordinate is approximately $\mathcal{N}(0,1)$, then quantizes against a Lloyd-Max codebook
+    designed once for the standard normal. The 1-bit codebook is $\{\pm\sqrt{2/\pi}\}\approx\{\pm 0.798\}$
+    and the 2-bit codebook is $\{\pm 0.453, \pm 1.510\}$. These are the exact codebooks the page
+    derives in §5. EDEN keeps a per-vector scale
+    $S = \|x\|_2^2 / \langle R(x),\, Q(\eta_x R(x))\rangle$ that yields an unbiased estimate
+    (EDEN, Theorem 2.1).
+  </p>
+
+  <p>
+    TurboQuant (Zandieh et al., 2025) is the same $b$-bit construction with the per-vector scale
+    parameter fixed to a constant. The lineage note (Portnoy et al., 2026,
+    <a href="https://arxiv.org/abs/2604.18555" target="_blank">arXiv:2604.18555</a>) states this
+    formally: TurboQuant's $b$-bit core coincides with EDEN at $S = 1$. The fixed choice is
+    asymptotically optimal for biased EDEN as $d$ grows. For finite $d$, EDEN's optimized $S$
+    is strictly better in MSE. TurboQuant's additions on top of the EDEN core are the residual
+    chain (a biased $(b{-}1)$-bit step plus a 1-bit unbiased residual via QJL) and the
+    application packaging for KV-cache compression and inner-product retrieval.
+  </p>
+
+  <div class="card">
+    <div class="panel-hd"><span class="tag">&#9632; IDEA-TO-SOURCE MAP</span><span class="stat">eight rows, eight citations</span></div>
+    <table>
+      <tr><th>Idea on this page</th><th>First introduced in</th></tr>
+      <tr><td>Random rotation, post-rotation distribution analysis (§3, §4)</td><td>DRIVE (2021), §3</td></tr>
+      <tr><td>Randomized Hadamard transform as the practical rotation (§3)</td><td>DRIVE (2021), §6; EDEN (2022), §5</td></tr>
+      <tr><td>Lloyd-Max codebook on $\mathcal{N}(0,1)$, including the $\{\pm\sqrt{2/\pi}\}$ 1-bit and $\{\pm 0.453,\,\pm 1.510\}$ 2-bit codebooks (§5)</td><td>EDEN (2022), §3</td></tr>
+      <tr><td>Unbiased rotation-then-quantize via a per-vector scale (§7, §8 backbone)</td><td>DRIVE (2021), §4.2, Theorem 3</td></tr>
+      <tr><td>The $b$-bit pipeline (§6)</td><td>EDEN (2022) with the per-vector scale fixed to a constant</td></tr>
+      <tr><td>QJL residual unbiasing (§8)</td><td>One-bit unbiased DRIVE applied to the residual instead of the input</td></tr>
+      <tr><td>Residual chain: biased $(b{-}1)$-bit + unbiased 1-bit (§7 then §8)</td><td>TurboQuant (2025)</td></tr>
+      <tr><td>KV-cache and inner-product application framing</td><td>TurboQuant (2025); QJL (2024) for the 1-bit case</td></tr>
+    </table>
+  </div>
+
+  <p>
+    The lineage note also reproduces TurboQuant's experiments and reports that EDEN with its
+    optimized $S$ outperforms TurboQuant in every setup tested. The headline empirical finding
+    is that 2-bit unbiased EDEN beats 3-bit TurboQuant in MSE (Portnoy et al., 2026, §5), so the
+    per-vector scale is worth roughly a bit of compression in practice. A separate note
+    (<a href="https://arxiv.org/abs/2604.19528" target="_blank">arXiv:2604.19528</a>) raises
+    reproducibility concerns about TurboQuant's RaBitQ comparison: several recall and runtime
+    numbers reported in the TurboQuant paper do not reproduce under matched experimental setups.
+  </p>
+
+  <p class="small">
+    The rest of this page is exposition. The formal NMSE bounds, packet-loss analysis, and
+    heterogeneous bit-budget extensions are in the original DRIVE and EDEN papers; this page
+    builds intuition for the construction without re-deriving them.
+  </p>
 </section>
 
 <!-- ======================= SECTION: PROBLEM ======================= -->
