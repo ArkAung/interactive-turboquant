@@ -1750,17 +1750,6 @@
           (EDEN, Theorem 2.1).
         </p>
 
-        <p>
-          TurboQuant (Zandieh et al., 2025) is the same $b$-bit construction with the per-vector scale
-          parameter fixed to a constant. The lineage note (Portnoy et al., 2026,
-          <a href="https://arxiv.org/abs/2604.18555" target="_blank">arXiv:2604.18555</a>) states this
-          formally: TurboQuant's $b$-bit core coincides with EDEN at $S = 1$. The fixed choice is
-          asymptotically optimal for biased EDEN as $d$ grows. For finite $d$, EDEN's optimized $S$
-          is strictly better in MSE. TurboQuant's additions on top of the EDEN core are the residual
-          chain (a biased $(b{-}1)$-bit step plus a 1-bit unbiased residual via QJL) and the
-          application packaging for KV-cache compression and inner-product retrieval.
-        </p>
-
         <div class="card">
           <div class="panel-hd"><span class="tag">&#9632; IDEA-TO-SOURCE MAP</span></div>
           <table>
@@ -3179,26 +3168,6 @@
             </p>
           </div>
         </div>
-
-        <h3>Zoomed-out summary: all three papers together</h3>
-        <ol>
-          <li><b>QJL (2024).</b> Take the sign of a random Gaussian projection of the input and store one
-            bit per coordinate. The decoder applies a fixed calibration constant that makes the
-            inner-product estimate unbiased in expectation. The construction adds no per-vector side
-            information.</li>
-          <li><b>PolarQuant (Feb 2025).</b> After a random pre-conditioning, convert each block of
-            coordinates to polar form. The radii concentrate around their mean and the angles concentrate
-            around $\pi/4$. Quantize the radius distribution and the angle distribution independently.
-            The construction is an alternative coordinate system that also avoids per-vector side
-            information.</li>
-          <li><b>TurboQuant (Apr 2025).</b> Combines the previous two ideas. The encoder rotates the
-            input, then quantizes the Beta-distributed coordinates with an optimal Lloyd&ndash;Max
-            codebook. A QJL pass on the residual then cancels the inner-product bias that the Lloyd&ndash;Max
-            step leaves behind. The MSE of the reconstruction is provably within a constant factor of
-            Shannon's lower bound at every bit rate ($\approx 1.45\times$ at $b{=}1$, $\to \tfrac{\sqrt{3}\pi}{2}\approx
-            2.72\times$ asymptotically). The construction runs on a GPU and supports streaming inputs.</li>
-        </ol>
-
         <div class="card insight">
           <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY</span><span class="stat">the whole trick, in one
               line</span></div>
