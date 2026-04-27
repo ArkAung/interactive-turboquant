@@ -4920,29 +4920,49 @@ function drawDragTip(ctx, x, y, color) {
     ctx.font = "12px ui-monospace, Menlo, monospace";
     ctx.fillText("\u1ef9", ytPx + 10, axisY - 8);
 
-    // Curved arrow from y handle (above axis) to ỹ on axis
+    // Handle rides on the Gaussian curve at the chosen y, so dragging
+    // horizontally also slides up and down with the density.
     const yPx = xToPx(y);
-    const yDotY = topY + 18;
-    if (Math.abs(yPx - ytPx) > 0.5) {
+    const yDotY = topY + (1 - gaussPDF(y, 1) / gMax * 0.85) * plotH;
+
+    // Connect handle to chosen ỹ on the axis: dashed mint curve when the
+    // handle is well above the axis, flat horizontal arrow on the axis when
+    // the handle is in the tail and already close to the axis.
+    if (Math.abs(yPx - ytPx) > 1.5 || (axisY - yDotY) > 30) {
+      const handleBottom = yDotY + 12;
+      const arrowEnd    = axisY - 10;
       ctx.strokeStyle = THEME.accent; ctx.lineWidth = 1.5;
       ctx.globalAlpha = 0.85;
       ctx.setLineDash([4, 3]);
-      ctx.beginPath();
-      const midX = (yPx + ytPx) / 2;
-      const midY = yDotY + (axisY - yDotY) * 0.45;
-      ctx.moveTo(yPx, yDotY + 12);
-      ctx.quadraticCurveTo(midX, midY, ytPx, axisY - 10);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.globalAlpha = 1;
-      // arrowhead pointing at ỹ
-      const tipAng = Math.atan2(axisY - 10 - midY, ytPx - midX);
-      ctx.fillStyle = THEME.accent;
-      ctx.beginPath();
-      ctx.moveTo(ytPx, axisY - 10);
-      ctx.lineTo(ytPx - 7 * Math.cos(tipAng - 0.45), axisY - 10 - 7 * Math.sin(tipAng - 0.45));
-      ctx.lineTo(ytPx - 7 * Math.cos(tipAng + 0.45), axisY - 10 - 7 * Math.sin(tipAng + 0.45));
-      ctx.closePath(); ctx.fill();
+      if (handleBottom < arrowEnd - 4) {
+        ctx.beginPath();
+        const midX = (yPx + ytPx) / 2;
+        const midY = handleBottom + (arrowEnd - handleBottom) * 0.5;
+        ctx.moveTo(yPx, handleBottom);
+        ctx.quadraticCurveTo(midX, midY, ytPx, arrowEnd);
+        ctx.stroke();
+        ctx.setLineDash([]); ctx.globalAlpha = 1;
+        const tipAng = Math.atan2(arrowEnd - midY, ytPx - midX);
+        ctx.fillStyle = THEME.accent;
+        ctx.beginPath();
+        ctx.moveTo(ytPx, arrowEnd);
+        ctx.lineTo(ytPx - 7 * Math.cos(tipAng - 0.45), arrowEnd - 7 * Math.sin(tipAng - 0.45));
+        ctx.lineTo(ytPx - 7 * Math.cos(tipAng + 0.45), arrowEnd - 7 * Math.sin(tipAng + 0.45));
+        ctx.closePath(); ctx.fill();
+      } else if (Math.abs(yPx - ytPx) > 4) {
+        const armY = axisY - 4;
+        ctx.beginPath();
+        ctx.moveTo(yPx, armY); ctx.lineTo(ytPx, armY); ctx.stroke();
+        ctx.setLineDash([]); ctx.globalAlpha = 1;
+        const dir = ytPx > yPx ? 1 : -1;
+        ctx.fillStyle = THEME.accent;
+        ctx.beginPath();
+        ctx.moveTo(ytPx, armY);
+        ctx.lineTo(ytPx - dir * 6, armY - 4);
+        ctx.lineTo(ytPx - dir * 6, armY + 4);
+        ctx.closePath(); ctx.fill();
+      }
+      ctx.setLineDash([]); ctx.globalAlpha = 1;
     }
 
     // Draggable y handle, mint, standard look across the page
@@ -4950,8 +4970,9 @@ function drawDragTip(ctx, x, y, color) {
     ctx.fillStyle = THEME.text;
     ctx.font = "12px ui-monospace, Menlo, monospace";
     const labelX = yPx + 14;
-    const labelClamped = Math.min(labelX, w - padMain.r - 32);
-    ctx.fillText("y = " + y.toFixed(2), labelClamped, yDotY - 10);
+    const labelClamped = Math.min(labelX, w - padMain.r - 60);
+    const labelY = Math.max(yDotY - 10, topY + 12);
+    ctx.fillText("y = " + y.toFixed(2), labelClamped, labelY);
   }
 
   function drawStaircase() {
