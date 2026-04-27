@@ -1581,31 +1581,35 @@
 
   <!-- 1.5 · 1D shrinkage demo: see the bin's average sit closer to 0 than the input -->
   <div class="card">
-    <div class="panel-hd"><span class="tag">&#9632; SEE THE CONTRACTION</span><span class="stat">drag the input, watch the rebound</span></div>
+    <div class="panel-hd"><span class="tag">&#9632; SEE THE SHRINKAGE</span><span class="stat">drag <code>y</code>, watch &#x1ef9; snap</span></div>
     <p class="small" style="margin:0 0 14px;color:var(--text-dim)">
-      One rotated coordinate $y$ has the near-Gaussian density drawn below. Lloyd&ndash;Max
+      One rotated coordinate $y$ has the near-Gaussian density drawn on top. Lloyd&ndash;Max
       partitions the axis into $2^b$ bins (interior verticals); each bin&rsquo;s centroid is the
-      MSE-optimal reconstruction (red dots). The encoder snaps $y$ (gold) to the centroid of the
-      bin it fell into, giving $\tilde y$. Whenever $|y|$ is in the tail, $|\tilde y|$ is closer
-      to 0. That is the per-axis shrinkage the prose above describes.
+      MSE-optimal reconstruction (red dots). Drag the mint handle to set $y$. The encoder snaps
+      it to the centroid of the bin it fell into, giving $\tilde y$ (red). The staircase
+      underneath plots that map $\tilde y(y)$ across the whole axis at once: every horizontal
+      step sits inside the dashed identity line, and the gap between step and identity is the
+      shrinkage at that input.
     </p>
     <div class="controls">
       <div class="ctrl"><label>Bits&nbsp;<code>b</code></label><input id="shrink-b" type="range" min="1" max="5" value="1"><span class="val" id="shrink-b-v">1</span></div>
-      <div class="ctrl"><label>Input&nbsp;<code>y</code></label><input id="shrink-y" type="range" min="-3.5" max="3.5" step="0.01" value="1.50"><span class="val" id="shrink-y-v">1.50</span></div>
     </div>
-    <div class="plot" style="height:240px"><canvas id="shrink-cv"></canvas></div>
+    <div class="plot interactive" style="height:240px"><span class="hint">&#8596; drag y</span><canvas id="shrink-cv"></canvas></div>
+    <div class="plot" style="height:180px;margin-top:10px"><canvas id="shrink-step"></canvas></div>
     <div class="metrics">
       <div class="metric"><div class="label">|y|</div><div class="value" id="shrink-yabs">1.500</div></div>
       <div class="metric"><div class="label">|&#x1ef9;|</div><div class="value quant" id="shrink-ytabs">&ndash;</div></div>
       <div class="metric"><div class="label">|&#x1ef9;|/|y|</div><div class="value gold" id="shrink-ratio">&ndash;</div></div>
+      <div class="metric"><div class="label">E[&#x1ef9;&sup2;]/&sigma;&sup2; at this <i>b</i></div><div class="value" id="shrink-pop">&ndash;</div></div>
     </div>
     <p class="small" style="margin:14px 0 0;color:var(--text)">
-      <b>What to notice.</b> Drag $y$ deep into a tail bin: the centroid sits well inside the bin,
-      not at the bin&rsquo;s edge, so $|\tilde y| < |y|$ and the ratio drops well below 1. Slide
-      $y$ near 0: the centroid is near 0 too, and the ratio can even exceed 1 because the centre
-      bins are narrow. The <i>average</i> ratio over the whole density is what produces the
-      $0.64 / 0.88 / 0.97 / 0.998$ numbers in the next paragraph. Those are the same numbers the
-      bullseye demo will reproduce as the cloud&rsquo;s centre.
+      <b>What to notice.</b> Drag $y$ deep into a tail bin: the centroid sits well inside the
+      bin, not at the bin&rsquo;s edge, so $|\tilde y| < |y|$ and the per-input ratio drops well
+      below 1. Drag $y$ near 0: the centre bins are narrow and the ratio can even exceed 1.
+      The right-most metric is the population shrinkage factor
+      $\mathbb{E}[\tilde y^2]/\sigma^2 = 1 - D_b$, the second-moment ratio quoted in the next
+      paragraph as $0.64 / 0.88 / 0.97 / 0.99$ for $b=1,2,3,4$. That is the same factor the
+      bullseye demo will reproduce as the cloud&rsquo;s centre offset.
     </p>
   </div>
 
@@ -4741,22 +4745,44 @@ function drawDragTip(ctx, x, y, color) {
 })();
 
 /* ================================================================
-   §7 SHRINK demo: 1D Lloyd-Max snap, shows |ỹ|<|y| in the tails.
+   §7 SHRINK demo: 1D Lloyd-Max snap + decoder staircase.
    ================================================================ */
 (function(){
-  const cB  = document.getElementById("shrink-b");
-  const cY  = document.getElementById("shrink-y");
-  const bV  = document.getElementById("shrink-b-v");
-  const yV  = document.getElementById("shrink-y-v");
-  const cv  = document.getElementById("shrink-cv");
-  const oYa = document.getElementById("shrink-yabs");
-  const oYt = document.getElementById("shrink-ytabs");
-  const oR  = document.getElementById("shrink-ratio");
+  const cB    = document.getElementById("shrink-b");
+  const bV    = document.getElementById("shrink-b-v");
+  const cv    = document.getElementById("shrink-cv");
+  const cv2   = document.getElementById("shrink-step");
+  const oYa   = document.getElementById("shrink-yabs");
+  const oYt   = document.getElementById("shrink-ytabs");
+  const oR    = document.getElementById("shrink-ratio");
+  const oPop  = document.getElementById("shrink-pop");
   if (!cv) return;
 
+  // Population shrinkage factor E[ỹ²]/σ² = 1 - D_b for unit-variance Gaussian
+  // under Lloyd-Max with 2^b levels. Computed once from lloydGauss + numerical
+  // integration of φ over each bin, then cached.
   const cache = {};
-  function getCentroids(b) {
-    if (!cache[b]) cache[b] = lloydGauss(b, 1, 30);
+  function getModel(b) {
+    if (cache[b]) return cache[b];
+    const centroids = lloydGauss(b, 1, 40);
+    const N = centroids.length;
+    const bnds = [-6];
+    for (let k = 0; k < N - 1; k++) bnds.push(0.5 * (centroids[k] + centroids[k+1]));
+    bnds.push(6);
+    // λ_b = sum_k P(bin k) * c_k², via simple Simpson over each bin.
+    let lam = 0;
+    for (let k = 0; k < N; k++) {
+      const a = bnds[k], c = bnds[k+1], M = 64;
+      const dx = (c - a) / M;
+      let s = gaussPDF(a, 1) + gaussPDF(c, 1);
+      for (let i = 1; i < M; i++) {
+        const x = a + i * dx;
+        s += (i % 2 === 0 ? 2 : 4) * gaussPDF(x, 1);
+      }
+      const p = s * dx / 3;
+      lam += p * centroids[k] * centroids[k];
+    }
+    cache[b] = { centroids, bnds, lam };
     return cache[b];
   }
   function nearestCentroid(y, centroids) {
@@ -4768,34 +4794,38 @@ function drawDragTip(ctx, x, y, color) {
     return { idx: best, val: centroids[best] };
   }
 
-  function render() {
-    const b = +cB.value, y = +cY.value;
-    bV.textContent = b;
-    yV.textContent = y.toFixed(2);
-    const centroids = getCentroids(b);
+  // Internal y state, replaces the slider
+  const yState = { val: 1.50 };
+  const Y_MIN = -3.5, Y_MAX = 3.5;
+
+  // Layout shared between density panel and staircase panel
+  const padMain = { l: 28, r: 18, t: 14, b: 30 };
+  const padStep = { l: 36, r: 18, t: 16, b: 28 };
+
+  function xToPxMain(x, w) {
+    return padMain.l + (x - Y_MIN) / (Y_MAX - Y_MIN) * (w - padMain.l - padMain.r);
+  }
+  function pxToYMain(px, w) {
+    return Y_MIN + (px - padMain.l) / (w - padMain.l - padMain.r) * (Y_MAX - Y_MIN);
+  }
+
+  function drawMain() {
+    const b = +cB.value;
+    const y = yState.val;
+    const { centroids, bnds } = getModel(b);
     const { idx, val: yt } = nearestCentroid(y, centroids);
-    oYa.textContent = Math.abs(y).toFixed(3);
-    oYt.textContent = Math.abs(yt).toFixed(3);
-    const ratio = Math.abs(y) > 1e-3 ? Math.abs(yt) / Math.abs(y) : 1;
-    oR.textContent = ratio.toFixed(3);
 
     const { ctx, w, h } = setupCanvas(cv);
     ctx.fillStyle = THEME.bg; ctx.fillRect(0, 0, w, h);
-    const pad = { l: 28, r: 18, t: 14, b: 30 };
-    const xMin = -3.5, xMax = 3.5;
-    const xToPx = (x) => pad.l + (x - xMin) / (xMax - xMin) * (w - pad.l - pad.r);
-    const axisY = h - pad.b;
-    const topY = pad.t;
+    const xToPx = (x) => xToPxMain(x, w);
+    const axisY = h - padMain.b;
+    const topY = padMain.t;
     const plotH = axisY - topY;
-
     const N = centroids.length;
-    const bnds = [-5];
-    for (let k = 0; k < N - 1; k++) bnds.push(0.5 * (centroids[k] + centroids[k+1]));
-    bnds.push(5);
 
     // Highlight the bin containing y
-    const binLeftPx  = xToPx(Math.max(bnds[idx],   xMin));
-    const binRightPx = xToPx(Math.min(bnds[idx+1], xMax));
+    const binLeftPx  = xToPx(Math.max(bnds[idx],   Y_MIN));
+    const binRightPx = xToPx(Math.min(bnds[idx+1], Y_MAX));
     ctx.fillStyle = accentRGBA(0.10);
     ctx.fillRect(binLeftPx, topY, binRightPx - binLeftPx, plotH);
 
@@ -4803,21 +4833,21 @@ function drawDragTip(ctx, x, y, color) {
     const gMax = gaussPDF(0, 1);
     const NPTS = 220;
     ctx.beginPath();
-    ctx.moveTo(xToPx(xMin), axisY);
+    ctx.moveTo(xToPx(Y_MIN), axisY);
     for (let i = 0; i <= NPTS; i++) {
-      const x = xMin + (xMax - xMin) * i / NPTS;
+      const x = Y_MIN + (Y_MAX - Y_MIN) * i / NPTS;
       const px = xToPx(x);
       const py = topY + (1 - gaussPDF(x, 1) / gMax * 0.85) * plotH;
       ctx.lineTo(px, py);
     }
-    ctx.lineTo(xToPx(xMax), axisY);
+    ctx.lineTo(xToPx(Y_MAX), axisY);
     ctx.closePath();
     ctx.fillStyle = accentRGBA(0.08);
     ctx.fill();
     ctx.strokeStyle = THEME.accent; ctx.lineWidth = 1.5;
     ctx.beginPath();
     for (let i = 0; i <= NPTS; i++) {
-      const x = xMin + (xMax - xMin) * i / NPTS;
+      const x = Y_MIN + (Y_MAX - Y_MIN) * i / NPTS;
       const px = xToPx(x);
       const py = topY + (1 - gaussPDF(x, 1) / gMax * 0.85) * plotH;
       if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
@@ -4834,11 +4864,10 @@ function drawDragTip(ctx, x, y, color) {
     }
     ctx.setLineDash([]);
 
-    // X-axis baseline
+    // X-axis baseline + ticks
     ctx.strokeStyle = THEME.grid; ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(pad.l, axisY); ctx.lineTo(w - pad.r, axisY); ctx.stroke();
-    // Tick labels
+    ctx.moveTo(padMain.l, axisY); ctx.lineTo(w - padMain.r, axisY); ctx.stroke();
     ctx.fillStyle = THEME.textDim; ctx.font = "11px ui-monospace, Menlo, monospace";
     ctx.textAlign = "center"; ctx.textBaseline = "top";
     for (let t = -3; t <= 3; t++) {
@@ -4850,51 +4879,191 @@ function drawDragTip(ctx, x, y, color) {
     }
     ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
 
-    // All centroids: small red dots on the axis
+    // All centroids: red dots with bg outline so they read against shading
     for (let k = 0; k < N; k++) {
+      const cx = xToPx(centroids[k]);
+      ctx.fillStyle = THEME.bg;
+      ctx.beginPath(); ctx.arc(cx, axisY, 5.5, 0, 2 * Math.PI); ctx.fill();
       ctx.fillStyle = THEME.err;
-      ctx.beginPath();
-      ctx.arc(xToPx(centroids[k]), axisY, 3, 0, 2 * Math.PI);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(cx, axisY, 4, 0, 2 * Math.PI); ctx.fill();
     }
 
-    // Reconstructed value: highlighted big red dot at the bin's centroid
+    // Reconstructed value: highlighted larger red dot at the chosen centroid
     const ytPx = xToPx(yt);
+    ctx.fillStyle = THEME.bg;
+    ctx.beginPath(); ctx.arc(ytPx, axisY, 8, 0, 2 * Math.PI); ctx.fill();
     ctx.fillStyle = THEME.err;
-    ctx.beginPath();
-    ctx.arc(ytPx, axisY, 6.5, 0, 2 * Math.PI);
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(ytPx, axisY, 6.5, 0, 2 * Math.PI); ctx.fill();
     ctx.fillStyle = THEME.err;
     ctx.font = "12px ui-monospace, Menlo, monospace";
-    ctx.fillText("\u1ef9", ytPx + 9, axisY - 6);
+    ctx.fillText("\u1ef9", ytPx + 10, axisY - 8);
 
-    // Input dot: gold, positioned slightly above axis
+    // Curved arrow from y handle (above axis) to ỹ on axis
     const yPx = xToPx(y);
-    const yDotY = axisY - 18;
-    ctx.fillStyle = THEME.warn;
-    ctx.beginPath();
-    ctx.arc(yPx, yDotY, 6, 0, 2 * Math.PI);
-    ctx.fill();
-    ctx.fillStyle = THEME.warn;
-    ctx.fillText("y", yPx + 9, yDotY + 4);
+    const yDotY = topY + 18;
+    if (Math.abs(yPx - ytPx) > 0.5) {
+      ctx.strokeStyle = THEME.accent; ctx.lineWidth = 1.5;
+      ctx.globalAlpha = 0.85;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      const midX = (yPx + ytPx) / 2;
+      const midY = yDotY + (axisY - yDotY) * 0.45;
+      ctx.moveTo(yPx, yDotY + 12);
+      ctx.quadraticCurveTo(midX, midY, ytPx, axisY - 10);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+      // arrowhead pointing at ỹ
+      const tipAng = Math.atan2(axisY - 10 - midY, ytPx - midX);
+      ctx.fillStyle = THEME.accent;
+      ctx.beginPath();
+      ctx.moveTo(ytPx, axisY - 10);
+      ctx.lineTo(ytPx - 7 * Math.cos(tipAng - 0.45), axisY - 10 - 7 * Math.sin(tipAng - 0.45));
+      ctx.lineTo(ytPx - 7 * Math.cos(tipAng + 0.45), axisY - 10 - 7 * Math.sin(tipAng + 0.45));
+      ctx.closePath(); ctx.fill();
+    }
 
-    // Arrow from y down/across to ỹ on axis
-    ctx.strokeStyle = THEME.warn; ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(yPx, yDotY + 6);
-    ctx.lineTo(ytPx, axisY - 7);
-    ctx.stroke();
-    const ang = Math.atan2(axisY - 7 - (yDotY + 6), ytPx - yPx);
-    ctx.beginPath();
-    ctx.moveTo(ytPx, axisY - 7);
-    ctx.lineTo(ytPx - 7 * Math.cos(ang - Math.PI/6), axisY - 7 - 7 * Math.sin(ang - Math.PI/6));
-    ctx.moveTo(ytPx, axisY - 7);
-    ctx.lineTo(ytPx - 7 * Math.cos(ang + Math.PI/6), axisY - 7 - 7 * Math.sin(ang + Math.PI/6));
-    ctx.stroke();
+    // Draggable y handle, mint, standard look across the page
+    drawDragTip(ctx, yPx, yDotY, THEME.accent);
+    ctx.fillStyle = THEME.text;
+    ctx.font = "12px ui-monospace, Menlo, monospace";
+    const labelX = yPx + 14;
+    const labelClamped = Math.min(labelX, w - padMain.r - 32);
+    ctx.fillText("y = " + y.toFixed(2), labelClamped, yDotY - 10);
   }
 
+  function drawStaircase() {
+    if (!cv2) return;
+    const b = +cB.value;
+    const y = yState.val;
+    const { centroids, bnds } = getModel(b);
+    const { val: yt } = nearestCentroid(y, centroids);
+
+    const { ctx, w, h } = setupCanvas(cv2);
+    ctx.fillStyle = THEME.bg; ctx.fillRect(0, 0, w, h);
+    const xToPx = (x) => padStep.l + (x - Y_MIN) / (Y_MAX - Y_MIN) * (w - padStep.l - padStep.r);
+    const Y_VIS = 2.5; // tilde-y is bounded; cap visible range
+    const yToPx = (yy) => padStep.t + (Y_VIS - yy) / (2 * Y_VIS) * (h - padStep.t - padStep.b);
+    const axisY0 = yToPx(0);
+    const axisX0 = xToPx(0);
+
+    // Frame
+    ctx.strokeStyle = THEME.grid; ctx.lineWidth = 1;
+    ctx.strokeRect(padStep.l, padStep.t, w - padStep.l - padStep.r, h - padStep.t - padStep.b);
+
+    // Zero axes
+    ctx.strokeStyle = THEME.gridSoft;
+    ctx.beginPath();
+    ctx.moveTo(padStep.l, axisY0); ctx.lineTo(w - padStep.r, axisY0);
+    ctx.moveTo(axisX0, padStep.t); ctx.lineTo(axisX0, h - padStep.b);
+    ctx.stroke();
+
+    // Identity y = ỹ as a thin dashed reference
+    ctx.strokeStyle = THEME.textDim; ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    const xLo = xToPx(-Y_VIS), xHi = xToPx(Y_VIS);
+    ctx.moveTo(xLo, yToPx(-Y_VIS));
+    ctx.lineTo(xHi, yToPx(Y_VIS));
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = THEME.textDim;
+    ctx.font = "10px ui-monospace, Menlo, monospace";
+    ctx.fillText("y = \u1ef9", xHi - 38, yToPx(Y_VIS) + 12);
+
+    // Step function ỹ(y): horizontal segments at each centroid across each bin
+    ctx.strokeStyle = THEME.err; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let k = 0; k < centroids.length; k++) {
+      const a = Math.max(bnds[k],   Y_MIN);
+      const c = Math.min(bnds[k+1], Y_MAX);
+      const yPxLevel = yToPx(centroids[k]);
+      ctx.moveTo(xToPx(a), yPxLevel);
+      ctx.lineTo(xToPx(c), yPxLevel);
+    }
+    ctx.stroke();
+    // Vertical risers at bin boundaries
+    ctx.strokeStyle = THEME.err; ctx.globalAlpha = 0.45;
+    ctx.beginPath();
+    for (let k = 1; k < centroids.length; k++) {
+      const px = xToPx(bnds[k]);
+      ctx.moveTo(px, yToPx(centroids[k-1]));
+      ctx.lineTo(px, yToPx(centroids[k]));
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Axis labels
+    ctx.fillStyle = THEME.textDim;
+    ctx.font = "11px ui-monospace, Menlo, monospace";
+    ctx.textAlign = "center"; ctx.textBaseline = "top";
+    for (let t = -3; t <= 3; t++) {
+      const tpx = xToPx(t);
+      if (tpx < padStep.l || tpx > w - padStep.r) continue;
+      ctx.fillText(t.toString(), tpx, h - padStep.b + 4);
+    }
+    ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    for (let t = -2; t <= 2; t++) {
+      ctx.fillText(t.toString(), padStep.l - 4, yToPx(t));
+    }
+    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = THEME.text; ctx.font = "11px ui-monospace, Menlo, monospace";
+    ctx.fillText("input y", w - padStep.r - 50, h - 6);
+    ctx.save();
+    ctx.translate(10, padStep.t + 6); ctx.rotate(-Math.PI / 2);
+    ctx.fillText("output \u1ef9", -56, 0);
+    ctx.restore();
+
+    // Active-y vertical guide + the (y, ỹ) dot
+    const yPxV = xToPx(y);
+    ctx.strokeStyle = THEME.accent; ctx.lineWidth = 1;
+    ctx.setLineDash([2, 3]);
+    ctx.beginPath();
+    ctx.moveTo(yPxV, padStep.t); ctx.lineTo(yPxV, h - padStep.b);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    const dotPx = yToPx(yt);
+    ctx.fillStyle = THEME.bg;
+    ctx.beginPath(); ctx.arc(yPxV, dotPx, 6, 0, 2 * Math.PI); ctx.fill();
+    ctx.fillStyle = THEME.err;
+    ctx.beginPath(); ctx.arc(yPxV, dotPx, 4.5, 0, 2 * Math.PI); ctx.fill();
+  }
+
+  function render() {
+    const b = +cB.value;
+    const y = yState.val;
+    bV.textContent = b;
+    const { centroids, lam } = getModel(b);
+    const { val: yt } = nearestCentroid(y, centroids);
+    oYa.textContent = Math.abs(y).toFixed(3);
+    oYt.textContent = Math.abs(yt).toFixed(3);
+    const ratio = Math.abs(y) > 1e-3 ? Math.abs(yt) / Math.abs(y) : 1;
+    oR.textContent = ratio.toFixed(3);
+    oPop.textContent = lam.toFixed(4);
+    drawMain();
+    drawStaircase();
+  }
+
+  // Drag-on-canvas: pointer x maps directly to y
+  let dragging = false;
+  function pickFromEvent(e) {
+    const r = cv.getBoundingClientRect();
+    const px = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+    const w = r.width;
+    let y = pxToYMain(px, w);
+    if (y < Y_MIN) y = Y_MIN;
+    if (y > Y_MAX) y = Y_MAX;
+    yState.val = y;
+    render();
+  }
+  cv.addEventListener("mousedown", e => { dragging = true; pickFromEvent(e); });
+  window.addEventListener("mousemove", e => { if (dragging) pickFromEvent(e); });
+  window.addEventListener("mouseup", () => dragging = false);
+  cv.addEventListener("touchstart", e => { dragging = true; pickFromEvent(e); e.preventDefault(); }, { passive: false });
+  cv.addEventListener("touchmove", e => { if (dragging) pickFromEvent(e); e.preventDefault(); }, { passive: false });
+  cv.addEventListener("touchend", () => dragging = false);
+
   cB.oninput = render;
-  cY.oninput = render;
   window.addEventListener("resize", render);
   onThemeChange(render);
   if (document.readyState === "complete") render();
