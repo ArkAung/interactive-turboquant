@@ -4786,7 +4786,9 @@ function drawDragTip(ctx, x, y, color) {
   const cache = {};
   function getModel(b) {
     if (cache[b]) return cache[b];
-    const centroids = lloydGauss(b, 1, 40);
+    // 40 iterations is enough for b<=3 but b=4 and b=5 drift ~10% outward
+    // when under-converged. 250 is plenty across the whole b=1..5 range.
+    const centroids = lloydGauss(b, 1, 250);
     const N = centroids.length;
     const bnds = [-6];
     for (let k = 0; k < N - 1; k++) bnds.push(0.5 * (centroids[k] + centroids[k+1]));
