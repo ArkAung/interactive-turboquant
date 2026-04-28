@@ -1488,9 +1488,12 @@
           construction that puts this observation to work.
         </p>
         <p class="small" style="margin-top:14px">
-          This construction was introduced by DRIVE (Vargaftik et al., NeurIPS 2021) for one-bit federated
-          mean estimation, and generalized to <code>b</code> bits per coordinate by EDEN (Vargaftik et al.,
-          ICML 2022). TurboQuant (Zandieh et al., 2025) is the same construction with the per-vector
+          This construction was introduced by <a href="https://arxiv.org/abs/2105.08339" target="_blank"
+            rel="noopener">DRIVE (Vargaftik et al., NeurIPS 2021)</a> for one-bit federated mean
+          estimation, and generalized to <code>b</code> bits per coordinate by
+          <a href="https://arxiv.org/abs/2108.08842" target="_blank" rel="noopener">EDEN (Vargaftik et al.,
+            ICML 2022)</a>. <a href="https://arxiv.org/abs/2504.19874" target="_blank"
+            rel="noopener">TurboQuant (Zandieh et al., 2025)</a> is the same construction with the per-vector
           scale parameter fixed to a constant, repackaged for KV-cache compression and inner-product
           retrieval. The mapping from each idea on this page to its source paper is in
           <a href="#lineage">§0.9</a>.
@@ -1746,7 +1749,8 @@
         <div class="eyebrow">§0.9 · Lineage and prior work</div>
         <h2>Where each idea on this page comes from.</h2>
         <p>
-          DRIVE (Vargaftik et al., NeurIPS 2021) introduced the construction for one bit per coordinate.
+          <a href="https://arxiv.org/abs/2105.08339" target="_blank" rel="noopener">DRIVE (Vargaftik et al.,
+            NeurIPS 2021)</a> introduced the construction for one bit per coordinate.
           A sender rotates the input vector by a random orthogonal matrix, sends the sign of every
           rotated coordinate together with a single scalar scale $S$, and the receiver inverts the
           rotation after multiplying the sign vector by $S$. DRIVE derives two scale formulas. The
@@ -1757,7 +1761,8 @@
         </p>
 
         <p>
-          EDEN (Vargaftik et al., ICML 2022) generalizes DRIVE to any $b$ bits per coordinate. After
+          <a href="https://arxiv.org/abs/2108.08842" target="_blank" rel="noopener">EDEN (Vargaftik et al.,
+            ICML 2022)</a> generalizes DRIVE to any $b$ bits per coordinate. After
           the rotation, EDEN normalizes the rotated vector by $\eta_x = \sqrt{d}/\|x\|_2$ so each
           coordinate is approximately $\mathcal{N}(0,1)$, then quantizes against a Lloyd-Max codebook
           designed once for the standard normal. The 1-bit codebook is $\{\pm\sqrt{2/\pi}\}\approx\{\pm 0.798\}$
@@ -1768,16 +1773,21 @@
         </p>
 
         <p>
-          RaBitQ (Gao and Long, SIGMOD 2024) is a parallel line of work in approximate nearest-neighbor
+          <a href="https://arxiv.org/abs/2405.12497" target="_blank" rel="noopener">RaBitQ (Gao and Long,
+            SIGMOD 2024)</a> is a parallel line of work in approximate nearest-neighbor
           search. The encoder rotates the input vector with a randomized rotation, stores the sign of
           every rotated coordinate plus a per-vector normalization scalar, and the decoder estimates
-          inner products from the signs and the scalar. The extended paper (Gao et al., 2024,
-          arXiv:2409.09913) proves that this estimator achieves the asymptotic optimality bound of
-          Alon and Klartag (FOCS 2017) for inner-product quantization. RaBitQ predates TurboQuant
+          inner products from the signs and the scalar. The
+          <a href="https://arxiv.org/abs/2409.09913" target="_blank" rel="noopener">extended paper (Gao et
+            al., 2024, arXiv:2409.09913)</a> proves that this estimator achieves the asymptotic
+          optimality bound of <a href="https://arxiv.org/abs/1610.00239" target="_blank" rel="noopener">Alon
+            and Klartag (FOCS 2017)</a> for inner-product quantization. RaBitQ predates TurboQuant
           and shares the random-rotation backbone with the DRIVE/EDEN line. The two lines reach
           comparable theoretical results from different framings (federated mean estimation versus
           ANN search), and the relationship between them is the subject of an ongoing public
-          discussion (arXiv:2604.18555 and arXiv:2604.19528, both 2026).
+          discussion (<a href="https://arxiv.org/abs/2604.18555" target="_blank"
+            rel="noopener">arXiv:2604.18555</a> and <a href="https://arxiv.org/abs/2604.19528"
+            target="_blank" rel="noopener">arXiv:2604.19528</a>, both 2026).
         </p>
 
         <details class="deriv">
@@ -1790,45 +1800,59 @@
               </tr>
               <tr>
                 <td>Random rotation, post-rotation distribution analysis (§3, §4)</td>
-                <td>DRIVE (2021), §3</td>
+                <td><a href="https://arxiv.org/abs/2105.08339" target="_blank" rel="noopener">DRIVE
+                    (2021)</a>, §3</td>
               </tr>
               <tr>
                 <td>Randomized Hadamard transform as the practical rotation (§3)</td>
-                <td>DRIVE (2021), §6; EDEN (2022), §5</td>
+                <td><a href="https://arxiv.org/abs/2105.08339" target="_blank" rel="noopener">DRIVE
+                    (2021)</a>, §6; <a href="https://arxiv.org/abs/2108.08842" target="_blank"
+                    rel="noopener">EDEN (2022)</a>, §5</td>
               </tr>
               <tr>
                 <td>Lloyd-Max codebook on $\mathcal{N}(0,1)$, including the $\{\pm\sqrt{2/\pi}\}$ 1-bit and $\{\pm
                   0.453,\,\pm 1.510\}$ 2-bit codebooks (§5)</td>
-                <td>EDEN (2022), §3</td>
+                <td><a href="https://arxiv.org/abs/2108.08842" target="_blank" rel="noopener">EDEN
+                    (2022)</a>, §3</td>
               </tr>
               <tr>
                 <td>Unbiased rotation-then-quantize via a per-vector scale (§7, §8 backbone)</td>
-                <td>DRIVE (2021), §4.2, Theorem 3</td>
+                <td><a href="https://arxiv.org/abs/2105.08339" target="_blank" rel="noopener">DRIVE
+                    (2021)</a>, §4.2, Theorem 3</td>
               </tr>
               <tr>
                 <td>The $b$-bit pipeline (§6)</td>
-                <td>EDEN (2022) with the per-vector scale fixed to a constant</td>
+                <td><a href="https://arxiv.org/abs/2108.08842" target="_blank" rel="noopener">EDEN
+                    (2022)</a> with the per-vector scale fixed to a constant</td>
               </tr>
               <tr>
                 <td>QJL residual unbiasing (§8)</td>
-                <td>One-bit unbiased DRIVE applied to the residual instead of the input</td>
+                <td>One-bit unbiased <a href="https://arxiv.org/abs/2105.08339" target="_blank"
+                    rel="noopener">DRIVE</a> applied to the residual instead of the input</td>
               </tr>
               <tr>
                 <td>Random rotation + 1-bit sign quantization for unbiased inner-product estimation in ANN
                   search</td>
-                <td>RaBitQ (Gao &amp; Long, SIGMOD 2024)</td>
+                <td><a href="https://arxiv.org/abs/2405.12497" target="_blank" rel="noopener">RaBitQ (Gao
+                    &amp; Long, SIGMOD 2024)</a></td>
               </tr>
               <tr>
-                <td>Asymptotic optimality matching the Alon&ndash;Klartag (FOCS 2017) inner-product bound</td>
-                <td>RaBitQ extended (Gao et al., 2024, arXiv:2409.09913)</td>
+                <td>Asymptotic optimality matching the <a href="https://arxiv.org/abs/1610.00239"
+                    target="_blank" rel="noopener">Alon&ndash;Klartag (FOCS 2017)</a> inner-product bound
+                </td>
+                <td><a href="https://arxiv.org/abs/2409.09913" target="_blank" rel="noopener">RaBitQ extended
+                    (Gao et al., 2024, arXiv:2409.09913)</a></td>
               </tr>
               <tr>
                 <td>Residual chain: biased $(b{-}1)$-bit + unbiased 1-bit (§7 then §8)</td>
-                <td>TurboQuant (2025)</td>
+                <td><a href="https://arxiv.org/abs/2504.19874" target="_blank" rel="noopener">TurboQuant
+                    (2025)</a></td>
               </tr>
               <tr>
                 <td>KV-cache and inner-product application framing</td>
-                <td>TurboQuant (2025); QJL (2024) for the 1-bit case</td>
+                <td><a href="https://arxiv.org/abs/2504.19874" target="_blank" rel="noopener">TurboQuant
+                    (2025)</a>; <a href="https://arxiv.org/abs/2406.03482" target="_blank"
+                    rel="noopener">QJL (2024)</a> for the 1-bit case</td>
               </tr>
             </table>
           </div>
@@ -2176,7 +2200,8 @@
         <div class="lineage-mark">
           <span class="lbl">Lineage</span>
           The random-rotation step and the analysis of the post-rotation Beta density were introduced
-          by DRIVE (Vargaftik et al., NeurIPS 2021, §3). DRIVE also shows the density approaches
+          by <a href="https://arxiv.org/abs/2105.08339" target="_blank" rel="noopener">DRIVE (Vargaftik et
+            al., NeurIPS 2021, §3)</a>. DRIVE also shows the density approaches
           $\mathcal{N}(0,1)$ as $d$ grows, which is what makes a single fixed codebook work. See
           <a href="#lineage">§0.9</a> for the full mapping.
         </div>
@@ -2339,9 +2364,14 @@
         <h2>The rotation step is shared. The decoder is what changes.</h2>
         <p>
           The random rotation of <a href="#rotation">§3</a> is the encoder front end shared by every
-          method on the prior-work map of <a href="#lineage">§0.9</a> (DRIVE 2021, EDEN 2022, RaBitQ
-          2024, QJL 2024, TurboQuant 2025). The methods differ on the decoder side: each one reads
-          the rotated coordinates and recovers a different quantity from them.
+          method on the prior-work map of <a href="#lineage">§0.9</a>
+          (<a href="https://arxiv.org/abs/2105.08339" target="_blank" rel="noopener">DRIVE 2021</a>,
+          <a href="https://arxiv.org/abs/2108.08842" target="_blank" rel="noopener">EDEN 2022</a>,
+          <a href="https://arxiv.org/abs/2405.12497" target="_blank" rel="noopener">RaBitQ 2024</a>,
+          <a href="https://arxiv.org/abs/2406.03482" target="_blank" rel="noopener">QJL 2024</a>,
+          <a href="https://arxiv.org/abs/2504.19874" target="_blank" rel="noopener">TurboQuant 2025</a>).
+          The methods differ on the decoder side: each one reads the rotated coordinates and recovers
+          a different quantity from them.
         </p>
         <p>
           The demo below runs one rotated vector through three decoders in parallel. The mean
@@ -2376,10 +2406,12 @@
           <div class="plot-grid cols-3" style="margin-top:18px">
             <!-- Card 1: Mean decoder · DRIVE -->
             <div>
-              <div class="small" style="margin:0 0 4px"><b style="color:var(--accent)">Mean decoder · DRIVE
-                  (2021)</b></div>
+              <div class="small" style="margin:0 0 4px"><b style="color:var(--accent)">Mean decoder ·
+                  <a href="https://arxiv.org/abs/2105.08339" target="_blank" rel="noopener"
+                    style="color:inherit">DRIVE (2021)</a></b></div>
               <div class="small" style="color:var(--text-dim);margin:0 0 6px">
-                Vargaftik et al., NeurIPS 2021. Store $\mathrm{sign}(\boldsymbol{\Pi}\mathbf{x})$ and the
+                <a href="https://arxiv.org/abs/2105.08339" target="_blank" rel="noopener">Vargaftik et al.,
+                  NeurIPS 2021</a>. Store $\mathrm{sign}(\boldsymbol{\Pi}\mathbf{x})$ and the
                 scalar $S=\|\mathbf{x}\|^2/\|\boldsymbol{\Pi}\mathbf{x}\|_1$. Decoder returns
                 $\hat{\mathbf{x}} = S\,\boldsymbol{\Pi}^{\!\top}\mathrm{sign}(\boldsymbol{\Pi}\mathbf{x})$,
                 an unbiased estimate of $\mathbf{x}$.
@@ -2403,13 +2435,18 @@
 
             <!-- Card 2: Inner-product decoder · RaBitQ + QJL -->
             <div>
-              <div class="small" style="margin:0 0 4px"><b style="color:var(--accent)">Inner-product decoder · RaBitQ
-                  (2024) / QJL (2024)</b></div>
+              <div class="small" style="margin:0 0 4px"><b style="color:var(--accent)">Inner-product decoder ·
+                  <a href="https://arxiv.org/abs/2405.12497" target="_blank" rel="noopener"
+                    style="color:inherit">RaBitQ (2024)</a> /
+                  <a href="https://arxiv.org/abs/2406.03482" target="_blank" rel="noopener"
+                    style="color:inherit">QJL (2024)</a></b></div>
               <div class="small" style="color:var(--text-dim);margin:0 0 6px">
-                Gao &amp; Long, SIGMOD 2024 (database vectors). Zandieh et al., 2024 (attention keys).
-                Store $\mathrm{sign}(\boldsymbol{\Pi}\mathbf{x})$ and $\|\mathbf{x}\|$. At query time
-                $\widehat{\langle\mathbf{q},\mathbf{x}\rangle}$ is read from
-                $\langle \boldsymbol{\Pi}\mathbf{q},\,\mathrm{sign}(\boldsymbol{\Pi}\mathbf{x})\rangle$
+                <a href="https://arxiv.org/abs/2405.12497" target="_blank" rel="noopener">Gao &amp; Long,
+                  SIGMOD 2024</a> (database vectors).
+                <a href="https://arxiv.org/abs/2406.03482" target="_blank" rel="noopener">Zandieh et al.,
+                  2024</a> (attention keys). Store $\mathrm{sign}(\boldsymbol{\Pi}\mathbf{x})$ and
+                $\|\mathbf{x}\|$. At query time $\widehat{\langle\mathbf{q},\mathbf{x}\rangle}$ is read
+                from $\langle \boldsymbol{\Pi}\mathbf{q},\,\mathrm{sign}(\boldsymbol{\Pi}\mathbf{x})\rangle$
                 with a normalizing scalar.
               </div>
               <div class="plot" style="height:160px"><canvas id="t3-ip"></canvas></div>
@@ -2431,10 +2468,15 @@
 
             <!-- Card 3: MSE decoder · EDEN + TurboQuant -->
             <div>
-              <div class="small" style="margin:0 0 4px"><b style="color:var(--accent)">MSE decoder · EDEN (2022) /
-                  TurboQuant (2025)</b></div>
+              <div class="small" style="margin:0 0 4px"><b style="color:var(--accent)">MSE decoder ·
+                  <a href="https://arxiv.org/abs/2108.08842" target="_blank" rel="noopener"
+                    style="color:inherit">EDEN (2022)</a> /
+                  <a href="https://arxiv.org/abs/2504.19874" target="_blank" rel="noopener"
+                    style="color:inherit">TurboQuant (2025)</a></b></div>
               <div class="small" style="color:var(--text-dim);margin:0 0 6px">
-                Vargaftik et al., ICML 2022. Zandieh et al., 2025. Snap each
+                <a href="https://arxiv.org/abs/2108.08842" target="_blank" rel="noopener">Vargaftik et al.,
+                  ICML 2022</a>. <a href="https://arxiv.org/abs/2504.19874" target="_blank"
+                  rel="noopener">Zandieh et al., 2025</a>. Snap each
                 $(\boldsymbol{\Pi}\mathbf{x})_i$ to the nearest of $2^b$ centroids from the universal
                 codebook of <a href="#codebook">§5</a>, then apply $\boldsymbol{\Pi}^{\!\top}$ to recover
                 $\tilde{\mathbf{x}}$.
@@ -2462,13 +2504,18 @@
           <span class="lbl">Lineage</span>
           The shared encoder front end is &ldquo;rotate, then read $\mathrm{sign}(\boldsymbol{\Pi}\mathbf{x})$
           or $b$ centroid bits per coordinate.&rdquo; DRIVE introduced the rotated 1-bit shape with the
-          $\|\mathbf{x}\|^2/\|\boldsymbol{\Pi}\mathbf{x}\|_1$ scalar (Vargaftik et al., NeurIPS 2021).
-          RaBitQ uses the same sign-plus-norm encoding for inner-product retrieval (Gao &amp; Long,
-          SIGMOD 2024); QJL transports it to attention keys (Zandieh et al., 2024). EDEN replaces the
-          sign with a $b$-bit Lloyd&ndash;Max codebook for the post-rotation Beta marginal (Vargaftik et
-          al., ICML 2022). TurboQuant inherits EDEN&rsquo;s codebook with $S{=}1$ and adds the residual
-          chain that lets the MSE decoder run without a per-vector calibration scalar (Zandieh et al.,
-          2025). See <a href="#lineage">§0.9</a> for the full mapping.
+          $\|\mathbf{x}\|^2/\|\boldsymbol{\Pi}\mathbf{x}\|_1$ scalar
+          (<a href="https://arxiv.org/abs/2105.08339" target="_blank" rel="noopener">Vargaftik et al.,
+            NeurIPS 2021</a>). RaBitQ uses the same sign-plus-norm encoding for inner-product retrieval
+          (<a href="https://arxiv.org/abs/2405.12497" target="_blank" rel="noopener">Gao &amp; Long, SIGMOD
+            2024</a>); QJL transports it to attention keys
+          (<a href="https://arxiv.org/abs/2406.03482" target="_blank" rel="noopener">Zandieh et al.,
+            2024</a>). EDEN replaces the sign with a $b$-bit Lloyd&ndash;Max codebook for the post-rotation
+          Beta marginal (<a href="https://arxiv.org/abs/2108.08842" target="_blank" rel="noopener">Vargaftik
+            et al., ICML 2022</a>). TurboQuant inherits EDEN&rsquo;s codebook with $S{=}1$ and adds the
+          residual chain that lets the MSE decoder run without a per-vector calibration scalar
+          (<a href="https://arxiv.org/abs/2504.19874" target="_blank" rel="noopener">Zandieh et al.,
+            2025</a>). See <a href="#lineage">§0.9</a> for the full mapping.
         </div>
 
         <div class="card insight">
@@ -2709,7 +2756,8 @@
         <div class="lineage-mark">
           <span class="lbl">Lineage</span>
           The Lloyd&ndash;Max codebook for the post-rotation marginal is the codebook EDEN derives
-          (Vargaftik et al., ICML 2022, §3). The 1-bit and 2-bit landing values shown above
+          (<a href="https://arxiv.org/abs/2108.08842" target="_blank" rel="noopener">Vargaftik et al., ICML
+            2022, §3</a>). The 1-bit and 2-bit landing values shown above
           ($\pm\sqrt{2/\pi}$ and $\{\pm 0.453,\,\pm 1.510\}$) match the EDEN tables. See
           <a href="#lineage">§0.9</a> for the full mapping.
         </div>
