@@ -1428,7 +1428,7 @@
       <!-- ======================= HERO ======================= -->
       <header class="hero" id="hero">
         <div class="eyebrow">TurboQuant: A First-Principles Walkthrough</div>
-        <h1>Compressing AI vectors to&nbsp;<span class="accent">2&ndash;4 bits per number</span><br>without losing
+        <h1>Compressing vectors to&nbsp;<span class="accent">2&ndash;4 bits per number</span><br>without losing
           accuracy.</h1>
         <p class="lede">
           Modern language models store large tables of high-dimensional vectors: KV caches, embeddings, attention keys.
@@ -1492,8 +1492,8 @@
             rel="noopener">DRIVE (Vargaftik et al., NeurIPS 2021)</a> for one-bit federated mean
           estimation, and generalized to <code>b</code> bits per coordinate by
           <a href="https://arxiv.org/abs/2108.08842" target="_blank" rel="noopener">EDEN (Vargaftik et al.,
-            ICML 2022)</a>. <a href="https://arxiv.org/abs/2504.19874" target="_blank"
-            rel="noopener">TurboQuant (Zandieh et al., 2025)</a> is the same construction with the per-vector
+            ICML 2022)</a>. <a href="https://arxiv.org/abs/2504.19874" target="_blank" rel="noopener">TurboQuant
+            (Zandieh et al., 2025)</a> is the same construction with the per-vector
           scale parameter fixed to a constant, repackaged for KV-cache compression and inner-product
           retrieval. The mapping from each idea on this page to its source paper is in
           <a href="#lineage">§0.9</a>.
@@ -1785,9 +1785,8 @@
           and shares the random-rotation backbone with the DRIVE/EDEN line. The two lines reach
           comparable theoretical results from different framings (federated mean estimation versus
           ANN search), and the relationship between them is the subject of an ongoing public
-          discussion (<a href="https://arxiv.org/abs/2604.18555" target="_blank"
-            rel="noopener">arXiv:2604.18555</a> and <a href="https://arxiv.org/abs/2604.19528"
-            target="_blank" rel="noopener">arXiv:2604.19528</a>, both 2026).
+          discussion (<a href="https://arxiv.org/abs/2604.18555" target="_blank" rel="noopener">arXiv:2604.18555</a> and
+          <a href="https://arxiv.org/abs/2604.19528" target="_blank" rel="noopener">arXiv:2604.19528</a>, both 2026).
         </p>
 
         <details class="deriv">
@@ -1806,8 +1805,8 @@
               <tr>
                 <td>Randomized Hadamard transform as the practical rotation (§3)</td>
                 <td><a href="https://arxiv.org/abs/2105.08339" target="_blank" rel="noopener">DRIVE
-                    (2021)</a>, §6; <a href="https://arxiv.org/abs/2108.08842" target="_blank"
-                    rel="noopener">EDEN (2022)</a>, §5</td>
+                    (2021)</a>, §6; <a href="https://arxiv.org/abs/2108.08842" target="_blank" rel="noopener">EDEN
+                    (2022)</a>, §5</td>
               </tr>
               <tr>
                 <td>Lloyd-Max codebook on $\mathcal{N}(0,1)$, including the $\{\pm\sqrt{2/\pi}\}$ 1-bit and $\{\pm
@@ -1827,8 +1826,8 @@
               </tr>
               <tr>
                 <td>QJL residual unbiasing (§8)</td>
-                <td>One-bit unbiased <a href="https://arxiv.org/abs/2105.08339" target="_blank"
-                    rel="noopener">DRIVE</a> applied to the residual instead of the input</td>
+                <td>One-bit unbiased <a href="https://arxiv.org/abs/2105.08339" target="_blank" rel="noopener">DRIVE</a>
+                  applied to the residual instead of the input</td>
               </tr>
               <tr>
                 <td>Random rotation + 1-bit sign quantization for unbiased inner-product estimation in ANN
@@ -1837,8 +1836,8 @@
                     &amp; Long, SIGMOD 2024)</a></td>
               </tr>
               <tr>
-                <td>Asymptotic optimality matching the <a href="https://arxiv.org/abs/1610.00239"
-                    target="_blank" rel="noopener">Alon&ndash;Klartag (FOCS 2017)</a> inner-product bound
+                <td>Asymptotic optimality matching the <a href="https://arxiv.org/abs/1610.00239" target="_blank"
+                    rel="noopener">Alon&ndash;Klartag (FOCS 2017)</a> inner-product bound
                 </td>
                 <td><a href="https://arxiv.org/abs/2409.09913" target="_blank" rel="noopener">RaBitQ extended
                     (Gao et al., 2024, arXiv:2409.09913)</a></td>
@@ -1851,8 +1850,8 @@
               <tr>
                 <td>KV-cache and inner-product application framing</td>
                 <td><a href="https://arxiv.org/abs/2504.19874" target="_blank" rel="noopener">TurboQuant
-                    (2025)</a>; <a href="https://arxiv.org/abs/2406.03482" target="_blank"
-                    rel="noopener">QJL (2024)</a> for the 1-bit case</td>
+                    (2025)</a>; <a href="https://arxiv.org/abs/2406.03482" target="_blank" rel="noopener">QJL (2024)</a>
+                  for the 1-bit case</td>
               </tr>
             </table>
           </div>
@@ -1864,10 +1863,10 @@
         <div class="eyebrow">§1 · Vector quantization</div>
         <h2>What is vector quantization, really?</h2>
         <p>
-          You have a vector $\mathbf{x}\in\mathbb{R}^d$, say $d{=}1536$ floats from an OpenAI embedding.
-          You want to store it using $b$ bits per coordinate (total $b\cdot d$ bits), then later recover an
-          approximation
-          $\tilde{\mathbf{x}}$ close to $\mathbf{x}$. Closeness is measured by
+          Let's say you have a vector $\mathbf{x}\in\mathbb{R}^d$ of $d{=}1536$ dimesion ($d{=}1536$ floats).
+          Storing all these floats is quite space intensive and therefore, you want to store it using $b$ bits per
+          coordinate (with a total of $b\cdot d$ bits). Later, you would want to recover an approximation
+          $\tilde{\mathbf{x}}$ and this should be close to $\mathbf{x}$. Closeness is measured by
         </p>
         <div class="formula">
           <b>MSE distortion</b> &nbsp; $D_{\text{mse}} = \mathbb{E}\big[\,\|\mathbf{x} -
@@ -2305,8 +2304,8 @@
 
         <div class="card">
           <div class="controls">
-            <div class="ctrl"><label>Dimension&nbsp;<code>d</code></label><input id="r-d" type="range" min="8"
-                max="256" step="8" value="64"><span class="val" id="r-d-v">64</span></div>
+            <div class="ctrl"><label>Dimension&nbsp;<code>d</code></label><input id="r-d" type="range" min="8" max="256"
+                step="8" value="64"><span class="val" id="r-d-v">64</span></div>
             <div class="ctrl"><label>Input:</label>
               <select id="r-input">
                 <option value="spike" selected>spike (adversarial)</option>
@@ -2408,8 +2407,8 @@
             <!-- Card 1: Mean decoder · DRIVE -->
             <div>
               <div class="small" style="margin:0 0 4px"><b style="color:var(--accent)">Mean decoder ·
-                  <a href="https://arxiv.org/abs/2105.08339" target="_blank" rel="noopener"
-                    style="color:inherit">DRIVE (2021)</a></b></div>
+                  <a href="https://arxiv.org/abs/2105.08339" target="_blank" rel="noopener" style="color:inherit">DRIVE
+                    (2021)</a></b></div>
               <div class="small" style="color:var(--text-dim);margin:0 0 6px">
                 <a href="https://arxiv.org/abs/2105.08339" target="_blank" rel="noopener">Vargaftik et al.,
                   NeurIPS 2021</a>. Store $\mathrm{sign}(\boldsymbol{\Pi}\mathbf{x})$ and the
@@ -2437,10 +2436,10 @@
             <!-- Card 2: Inner-product decoder · RaBitQ + QJL -->
             <div>
               <div class="small" style="margin:0 0 4px"><b style="color:var(--accent)">Inner-product decoder ·
-                  <a href="https://arxiv.org/abs/2405.12497" target="_blank" rel="noopener"
-                    style="color:inherit">RaBitQ (2024)</a> /
-                  <a href="https://arxiv.org/abs/2406.03482" target="_blank" rel="noopener"
-                    style="color:inherit">QJL (2024)</a></b></div>
+                  <a href="https://arxiv.org/abs/2405.12497" target="_blank" rel="noopener" style="color:inherit">RaBitQ
+                    (2024)</a> /
+                  <a href="https://arxiv.org/abs/2406.03482" target="_blank" rel="noopener" style="color:inherit">QJL
+                    (2024)</a></b></div>
               <div class="small" style="color:var(--text-dim);margin:0 0 6px">
                 <a href="https://arxiv.org/abs/2405.12497" target="_blank" rel="noopener">Gao &amp; Long,
                   SIGMOD 2024</a> (database vectors).
@@ -2470,14 +2469,14 @@
             <!-- Card 3: MSE decoder · EDEN + TurboQuant -->
             <div>
               <div class="small" style="margin:0 0 4px"><b style="color:var(--accent)">MSE decoder ·
-                  <a href="https://arxiv.org/abs/2108.08842" target="_blank" rel="noopener"
-                    style="color:inherit">EDEN (2022)</a> /
+                  <a href="https://arxiv.org/abs/2108.08842" target="_blank" rel="noopener" style="color:inherit">EDEN
+                    (2022)</a> /
                   <a href="https://arxiv.org/abs/2504.19874" target="_blank" rel="noopener"
                     style="color:inherit">TurboQuant (2025)</a></b></div>
               <div class="small" style="color:var(--text-dim);margin:0 0 6px">
                 <a href="https://arxiv.org/abs/2108.08842" target="_blank" rel="noopener">Vargaftik et al.,
-                  ICML 2022</a>. <a href="https://arxiv.org/abs/2504.19874" target="_blank"
-                  rel="noopener">Zandieh et al., 2025</a>. Snap each
+                  ICML 2022</a>. <a href="https://arxiv.org/abs/2504.19874" target="_blank" rel="noopener">Zandieh et
+                  al., 2025</a>. Snap each
                 $(\boldsymbol{\Pi}\mathbf{x})_i$ to the nearest of $2^b$ centroids from the universal
                 codebook of <a href="#codebook">§5</a>, then apply $\boldsymbol{\Pi}^{\!\top}$ to recover
                 $\tilde{\mathbf{x}}$.
@@ -3321,44 +3320,44 @@
         <h2>Concrete wins in LLM inference.</h2>
         <div class="card">
           <h3 style="margin-top:0">KV cache compression</h3>
-            <p class="small">
-              Needle-in-a-Haystack recall on Llama-3.1-8B-Instruct, every compressed method evaluated at
-              a $4\times$ memory-compression target (paper Fig. 4):
-            </p>
-            <table>
-              <tr>
-                <th>Method</th>
-                <th>NiaH</th>
-              </tr>
-              <tr>
-                <td>Full cache (FP16)</td>
-                <td class="mono">0.997</td>
-              </tr>
-              <tr>
-                <td>SnapKV</td>
-                <td class="mono">0.858</td>
-              </tr>
-              <tr>
-                <td>PyramidKV</td>
-                <td class="mono">0.895</td>
-              </tr>
-              <tr>
-                <td>KIVI</td>
-                <td class="mono">0.981</td>
-              </tr>
-              <tr>
-                <td>PolarQuant</td>
-                <td class="mono">0.995</td>
-              </tr>
-              <tr>
-                <td><b>TurboQuant</b></td>
-                <td class="mono">0.997</td>
-              </tr>
-            </table>
-            <p class="small">
-              TurboQuant matches the full-precision NiaH score at $4\times$ compression. On LongBench-V1
-              (paper Table 1), TurboQuant at $3.5$ bits per channel matches the full-precision average
-              ($50.06$); at $2.5$ bits per channel it stays within $\approx 1\%$ of full precision
+          <p class="small">
+            Needle-in-a-Haystack recall on Llama-3.1-8B-Instruct, every compressed method evaluated at
+            a $4\times$ memory-compression target (paper Fig. 4):
+          </p>
+          <table>
+            <tr>
+              <th>Method</th>
+              <th>NiaH</th>
+            </tr>
+            <tr>
+              <td>Full cache (FP16)</td>
+              <td class="mono">0.997</td>
+            </tr>
+            <tr>
+              <td>SnapKV</td>
+              <td class="mono">0.858</td>
+            </tr>
+            <tr>
+              <td>PyramidKV</td>
+              <td class="mono">0.895</td>
+            </tr>
+            <tr>
+              <td>KIVI</td>
+              <td class="mono">0.981</td>
+            </tr>
+            <tr>
+              <td>PolarQuant</td>
+              <td class="mono">0.995</td>
+            </tr>
+            <tr>
+              <td><b>TurboQuant</b></td>
+              <td class="mono">0.997</td>
+            </tr>
+          </table>
+          <p class="small">
+            TurboQuant matches the full-precision NiaH score at $4\times$ compression. On LongBench-V1
+            (paper Table 1), TurboQuant at $3.5$ bits per channel matches the full-precision average
+            ($50.06$); at $2.5$ bits per channel it stays within $\approx 1\%$ of full precision
             ($49.44$ vs $50.06$), a $6.4\times$ compression.
           </p>
         </div>
