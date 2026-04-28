@@ -3116,10 +3116,9 @@
       <!-- ======================= SECTION: IMPACT ======================= -->
       <section id="impact">
         <div class="eyebrow">§10 · Why it matters</div>
-        <h2>Concrete wins in LLM inference and vector search.</h2>
-        <div class="plot-grid cols-2">
-          <div class="card">
-            <h3 style="margin-top:0">KV cache compression</h3>
+        <h2>Concrete wins in LLM inference.</h2>
+        <div class="card">
+          <h3 style="margin-top:0">KV cache compression</h3>
             <p class="small">
               Needle-in-a-Haystack recall on Llama-3.1-8B-Instruct, every compressed method evaluated at
               a $4\times$ memory-compression target (paper Fig. 4):
@@ -3158,45 +3157,8 @@
               TurboQuant matches the full-precision NiaH score at $4\times$ compression. On LongBench-V1
               (paper Table 1), TurboQuant at $3.5$ bits per channel matches the full-precision average
               ($50.06$); at $2.5$ bits per channel it stays within $\approx 1\%$ of full precision
-              ($49.44$ vs $50.06$), a $6.4\times$ compression.
-            </p>
-          </div>
-          <div class="card">
-            <h3 style="margin-top:0">Near-neighbor search</h3>
-            <p class="small">Quantization time on 100K vectors, 4-bit quantization (paper Table 2):</p>
-            <table>
-              <tr>
-                <th>Method</th>
-                <th>d=200</th>
-                <th>d=1536</th>
-                <th>d=3072</th>
-              </tr>
-              <tr>
-                <td>Product Quantization</td>
-                <td class="mono">37.04 s</td>
-                <td class="mono">239.75 s</td>
-                <td class="mono">494.42 s</td>
-              </tr>
-              <tr>
-                <td>RabitQ</td>
-                <td class="mono">597.25 s</td>
-                <td class="mono">2267.59 s</td>
-                <td class="mono">3957.19 s</td>
-              </tr>
-              <tr>
-                <td><b>TurboQuant</b></td>
-                <td class="mono">0.0007 s</td>
-                <td class="mono">0.0013 s</td>
-                <td class="mono">0.0021 s</td>
-              </tr>
-            </table>
-            <p class="small">
-              TurboQuant is between four and six orders of magnitude faster than the alternatives at
-              4-bit indexing, and the paper reports higher recall as well. The reason it is so fast is
-              that the encoder is a fixed rotation followed by a lookup against a precomputed table.
-              There is no codebook to learn from data and no per-block scales to fit at index time.
-            </p>
-          </div>
+            ($49.44$ vs $50.06$), a $6.4\times$ compression.
+          </p>
         </div>
         <div class="card insight">
           <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY</span><span class="stat">the whole trick, in one
