@@ -1863,9 +1863,11 @@
         <div class="eyebrow">§1 · Vector quantization</div>
         <h2>What is vector quantization, really?</h2>
         <p>
-          Let's say you have a vector $\mathbf{x}\in\mathbb{R}^d$ of $d{=}1536$ dimesion ($d{=}1536$ floats).
-          Storing all these floats is quite space intensive and therefore, you want to store it using $b$ bits per
-          coordinate (with a total of $b\cdot d$ bits). Later, you would want to recover an approximation
+          Let's say you have a vector $\mathbf{x}\in\mathbb{R}^d$ of $d{=}1536$ (1536 dimension vector stored as $1536$
+          floats).
+          Storing all these floats is quite space intensive and therefore, you might want to store it using only $b$
+          bits per
+          coordinate (with a total of $b\cdot d$ bits). Later, you want to recover an approximation
           $\tilde{\mathbf{x}}$ and this should be close to $\mathbf{x}$. Closeness is measured by
         </p>
         <div class="formula">
