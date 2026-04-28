@@ -1409,6 +1409,7 @@
         <li><a href="#problem"><span class="n">§1</span><span>Vector quantization</span></a></li>
         <li><a href="#naive"><span class="n">§2</span><span>Why naive fails</span></a></li>
         <li><a href="#rotation"><span class="n">§3</span><span>The rotation trick</span></a></li>
+        <li><a href="#targets"><span class="n">§3.5</span><span>One primitive, three targets</span></a></li>
         <li><a href="#concentration"><span class="n">§4</span><span>Why rotation works</span></a></li>
         <li><a href="#codebook"><span class="n">§5</span><span>The universal codebook</span></a></li>
         <li><a href="#pipeline"><span class="n">§6</span><span>TurboQuant-MSE</span></a></li>
@@ -2319,15 +2320,167 @@
         </div>
 
         <div class="card insight">
-          <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY · NEXT <a href="#concentration"
-                style="color:inherit">§4</a></span><span class="stat">no spike survives a random rotation</span></div>
+          <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY · NEXT <a href="#targets"
+                style="color:inherit">§3.5</a></span><span class="stat">no spike survives a random rotation</span></div>
           <p style="margin:0">
             Rotation preserves length and inner products. The only thing it changes is which coordinates
             contain the magnitude of the vector. A vector with all of its mass concentrated in one
             coordinate becomes, after rotation, a vector whose mass is spread across all $d$
-            coordinates. Because every input is rotated before quantization, every input that gets
-            quantized is of this spread-out kind. Next: <a href="#concentration">§4</a> explains why
-            rotation flattens spikes using the geometry of high-dimensional spheres.
+            coordinates. Every input that gets quantized is of this spread-out kind. Next:
+            <a href="#targets">§3.5</a> shows that the same rotated coordinates feed three different
+            decoders across the prior-work map of <a href="#lineage">§0.9</a>.
+          </p>
+        </div>
+      </section>
+
+      <!-- ======================= SECTION: TARGETS ======================= -->
+      <section id="targets">
+        <div class="eyebrow">§3.5 · One primitive, three targets</div>
+        <h2>The rotation step is shared. The decoder is what changes.</h2>
+        <p>
+          The random rotation of <a href="#rotation">§3</a> is the encoder front end shared by every
+          method on the prior-work map of <a href="#lineage">§0.9</a> (DRIVE 2021, EDEN 2022, RaBitQ
+          2024, QJL 2024, TurboQuant 2025). The methods differ on the decoder side: each one reads
+          the rotated coordinates and recovers a different quantity from them.
+        </p>
+        <p>
+          The demo below runs one rotated vector through three decoders in parallel. The mean
+          decoder from DRIVE returns an unbiased estimate of $\mathbf{x}$ itself. The inner-product
+          decoder from RaBitQ and QJL returns an estimate of $\langle\mathbf{q},\mathbf{x}\rangle$
+          against a query. The MSE decoder from EDEN and TurboQuant returns a low-distortion
+          reconstruction $\tilde{\mathbf{x}}$. Each panel reports its error against the true value
+          and the bits it stored per coordinate to get there.
+        </p>
+
+        <div class="card">
+          <div class="controls">
+            <div class="ctrl"><label>Dimension&nbsp;<code>d</code></label><input id="t3-d" type="range" min="16"
+                max="256" step="8" value="128"><span class="val" id="t3-d-v">128</span></div>
+            <div class="ctrl"><label>Bits&nbsp;<code>b</code> (MSE only)</label><input id="t3-b" type="range" min="1"
+                max="4" value="2"><span class="val" id="t3-b-v">2</span></div>
+            <div class="ctrl"><label>Input</label>
+              <select id="t3-input">
+                <option value="spike" selected>spike ($\mathbf{e}_1$)</option>
+                <option value="sparse">5 large coords</option>
+                <option value="gaussian">Gaussian</option>
+              </select>
+            </div>
+            <button id="t3-rotate">Draw fresh rotation Π</button>
+          </div>
+
+          <div class="small" style="margin:8px 0 4px;color:var(--text-dim)">
+            Rotated input $\boldsymbol{\Pi}\mathbf{x}$ (the shared front end)
+          </div>
+          <div class="plot" style="height:120px"><canvas id="t3-pi"></canvas></div>
+
+          <div class="plot-grid cols-3" style="margin-top:18px">
+            <!-- Card 1: Mean decoder · DRIVE -->
+            <div>
+              <div class="small" style="margin:0 0 4px"><b style="color:var(--accent)">Mean decoder · DRIVE
+                  (2021)</b></div>
+              <div class="small" style="color:var(--text-dim);margin:0 0 6px">
+                Vargaftik et al., NeurIPS 2021. Store $\mathrm{sign}(\boldsymbol{\Pi}\mathbf{x})$ and the
+                scalar $S=\|\mathbf{x}\|^2/\|\boldsymbol{\Pi}\mathbf{x}\|_1$. Decoder returns
+                $\hat{\mathbf{x}} = S\,\boldsymbol{\Pi}^{\!\top}\mathrm{sign}(\boldsymbol{\Pi}\mathbf{x})$,
+                an unbiased estimate of $\mathbf{x}$.
+              </div>
+              <div class="plot" style="height:160px"><canvas id="t3-mean"></canvas></div>
+              <div class="metrics" style="margin:8px 0 0">
+                <div class="metric">
+                  <div class="label">target</div>
+                  <div class="value">$\mathbf{x}$</div>
+                </div>
+                <div class="metric">
+                  <div class="label">$\|\mathbf{x}-\hat{\mathbf{x}}\|^2/\|\mathbf{x}\|^2$</div>
+                  <div class="value err" id="t3-mean-err">&ndash;</div>
+                </div>
+                <div class="metric">
+                  <div class="label">bits/coord</div>
+                  <div class="value" id="t3-mean-bits">1</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card 2: Inner-product decoder · RaBitQ + QJL -->
+            <div>
+              <div class="small" style="margin:0 0 4px"><b style="color:var(--accent)">Inner-product decoder · RaBitQ
+                  (2024) / QJL (2024)</b></div>
+              <div class="small" style="color:var(--text-dim);margin:0 0 6px">
+                Gao &amp; Long, SIGMOD 2024 (database vectors). Zandieh et al., 2024 (attention keys).
+                Store $\mathrm{sign}(\boldsymbol{\Pi}\mathbf{x})$ and $\|\mathbf{x}\|$. At query time
+                $\widehat{\langle\mathbf{q},\mathbf{x}\rangle}$ is read from
+                $\langle \boldsymbol{\Pi}\mathbf{q},\,\mathrm{sign}(\boldsymbol{\Pi}\mathbf{x})\rangle$
+                with a normalizing scalar.
+              </div>
+              <div class="plot" style="height:160px"><canvas id="t3-ip"></canvas></div>
+              <div class="metrics" style="margin:8px 0 0">
+                <div class="metric">
+                  <div class="label">target</div>
+                  <div class="value">$\langle\mathbf{q},\mathbf{x}\rangle$</div>
+                </div>
+                <div class="metric">
+                  <div class="label">RMS error</div>
+                  <div class="value err" id="t3-ip-err">&ndash;</div>
+                </div>
+                <div class="metric">
+                  <div class="label">bits/coord</div>
+                  <div class="value" id="t3-ip-bits">1</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card 3: MSE decoder · EDEN + TurboQuant -->
+            <div>
+              <div class="small" style="margin:0 0 4px"><b style="color:var(--accent)">MSE decoder · EDEN (2022) /
+                  TurboQuant (2025)</b></div>
+              <div class="small" style="color:var(--text-dim);margin:0 0 6px">
+                Vargaftik et al., ICML 2022. Zandieh et al., 2025. Snap each
+                $(\boldsymbol{\Pi}\mathbf{x})_i$ to the nearest of $2^b$ centroids from the universal
+                codebook of <a href="#codebook">§5</a>, then apply $\boldsymbol{\Pi}^{\!\top}$ to recover
+                $\tilde{\mathbf{x}}$.
+              </div>
+              <div class="plot" style="height:160px"><canvas id="t3-mse"></canvas></div>
+              <div class="metrics" style="margin:8px 0 0">
+                <div class="metric">
+                  <div class="label">target</div>
+                  <div class="value">$\tilde{\mathbf{x}}\approx\mathbf{x}$</div>
+                </div>
+                <div class="metric">
+                  <div class="label">$\|\mathbf{x}-\tilde{\mathbf{x}}\|^2/\|\mathbf{x}\|^2$</div>
+                  <div class="value err" id="t3-mse-err">&ndash;</div>
+                </div>
+                <div class="metric">
+                  <div class="label">bits/coord</div>
+                  <div class="value" id="t3-mse-bits">2</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="lineage-mark">
+          <span class="lbl">Lineage</span>
+          The shared encoder front end is &ldquo;rotate, then read $\mathrm{sign}(\boldsymbol{\Pi}\mathbf{x})$
+          or $b$ centroid bits per coordinate.&rdquo; DRIVE introduced the rotated 1-bit shape with the
+          $\|\mathbf{x}\|^2/\|\boldsymbol{\Pi}\mathbf{x}\|_1$ scalar (Vargaftik et al., NeurIPS 2021).
+          RaBitQ uses the same sign-plus-norm encoding for inner-product retrieval (Gao &amp; Long,
+          SIGMOD 2024); QJL transports it to attention keys (Zandieh et al., 2024). EDEN replaces the
+          sign with a $b$-bit Lloyd&ndash;Max codebook for the post-rotation Beta marginal (Vargaftik et
+          al., ICML 2022). TurboQuant inherits EDEN&rsquo;s codebook with $S{=}1$ and adds the residual
+          chain that lets the MSE decoder run without a per-vector calibration scalar (Zandieh et al.,
+          2025). See <a href="#lineage">§0.9</a> for the full mapping.
+        </div>
+
+        <div class="card insight">
+          <div class="panel-hd"><span class="tag">&#9632; TAKEAWAY · NEXT <a href="#concentration"
+                style="color:inherit">§4</a></span><span class="stat">same primitive, different decoders</span></div>
+          <p style="margin:0">
+            Random rotation plus a low-bit read of the rotated coordinates is the front end shared
+            across DRIVE, RaBitQ, QJL, EDEN, and TurboQuant. The methods differ on the decoder side
+            and on what each one is asked to recover: the input vector, an inner product against a
+            query, or an MSE-optimal reconstruction. The rest of this page follows the MSE branch
+            (EDEN and TurboQuant). Next: <a href="#concentration">§4</a> explains the result that
+            lets a single fixed codebook serve every input.
           </p>
         </div>
       </section>
