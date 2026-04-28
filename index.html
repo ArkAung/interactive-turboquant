@@ -2305,8 +2305,8 @@
 
         <div class="card">
           <div class="controls">
-            <div class="ctrl"><label>Dimension&nbsp;<code>d</code></label><input id="r-d" type="range" min="8" max="128"
-                step="4" value="64"><span class="val" id="r-d-v">64</span></div>
+            <div class="ctrl"><label>Dimension&nbsp;<code>d</code></label><input id="r-d" type="range" min="8"
+                max="256" step="8" value="64"><span class="val" id="r-d-v">64</span></div>
             <div class="ctrl"><label>Input:</label>
               <select id="r-input">
                 <option value="spike" selected>spike (adversarial)</option>
@@ -2384,15 +2384,16 @@
 
         <div class="card">
           <div class="controls">
-            <div class="ctrl"><label>Dimension&nbsp;<code>d</code></label><input id="t3-d" type="range" min="16"
-                max="256" step="8" value="128"><span class="val" id="t3-d-v">128</span></div>
+            <div class="ctrl"><label>Dimension&nbsp;<code>d</code></label><input id="t3-d" type="range" min="8"
+                max="256" step="8" value="64"><span class="val" id="t3-d-v">64</span></div>
             <div class="ctrl"><label>Bits&nbsp;<code>b</code> (MSE only)</label><input id="t3-b" type="range" min="1"
                 max="4" value="2"><span class="val" id="t3-b-v">2</span></div>
-            <div class="ctrl"><label>Input</label>
+            <div class="ctrl"><label>Input:</label>
               <select id="t3-input">
-                <option value="spike" selected>spike ($\mathbf{e}_1$)</option>
+                <option value="spike" selected>spike (adversarial)</option>
                 <option value="sparse">5 large coords</option>
-                <option value="gaussian">Gaussian</option>
+                <option value="outlier">1 outlier + bulk</option>
+                <option value="gaussian">Gaussian (already flat)</option>
               </select>
             </div>
             <button id="t3-rotate">Draw fresh rotation Π</button>
