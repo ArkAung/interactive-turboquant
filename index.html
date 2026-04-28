@@ -4069,6 +4069,163 @@
     })();
 
     /* ================================================================
+       §3.5 ONE PRIMITIVE, THREE TARGETS
+       Mean (DRIVE), inner product (RaBitQ/QJL), MSE (EDEN/TurboQuant)
+       all read the same Πx.
+       ================================================================ */
+    (function () {
+      const cD = document.getElementById("t3-d");
+      const cB = document.getElementById("t3-b");
+      const cI = document.getElementById("t3-input");
+      const btn = document.getElementById("t3-rotate");
+      const dV = document.getElementById("t3-d-v");
+      const bV = document.getElementById("t3-b-v");
+      const piCv = document.getElementById("t3-pi");
+      const meanCv = document.getElementById("t3-mean");
+      const ipCv = document.getElementById("t3-ip");
+      const mseCv = document.getElementById("t3-mse");
+      const meanErrEl = document.getElementById("t3-mean-err");
+      const ipErrEl = document.getElementById("t3-ip-err");
+      const mseErrEl = document.getElementById("t3-mse-err");
+      const meanBitsEl = document.getElementById("t3-mean-bits");
+      const ipBitsEl = document.getElementById("t3-ip-bits");
+      const mseBitsEl = document.getElementById("t3-mse-bits");
+
+      let R = null, x = null;
+
+      function drawScatterIP(canvas, points, lim) {
+        const { ctx, w, h } = setupCanvas(canvas);
+        ctx.clearRect(0, 0, w, h);
+        const pad = { l: 32, r: 12, t: 10, b: 22 };
+        const plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
+        // axes
+        ctx.strokeStyle = THEME.gridSoft;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        const cy = pad.t + plotH / 2, cx = pad.l + plotW / 2;
+        ctx.moveTo(pad.l, cy); ctx.lineTo(w - pad.r, cy);
+        ctx.moveTo(cx, pad.t); ctx.lineTo(cx, h - pad.b);
+        ctx.stroke();
+        // identity line (true == est)
+        ctx.strokeStyle = THEME.grid;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(pad.l, h - pad.b); ctx.lineTo(w - pad.r, pad.t);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        // points
+        ctx.fillStyle = "rgba(110,231,183,0.7)";
+        for (const [tr, est] of points) {
+          const px = pad.l + (tr + lim) / (2 * lim) * plotW;
+          const py = pad.t + (lim - est) / (2 * lim) * plotH;
+          ctx.beginPath(); ctx.arc(px, py, 1.8, 0, 2 * Math.PI); ctx.fill();
+        }
+        // labels
+        ctx.fillStyle = THEME.mute; ctx.font = "10px ui-monospace, Menlo, monospace";
+        ctx.fillText("true \u27E8q,x\u27E9", w - pad.r - 60, cy - 4);
+        ctx.fillText("estimate", pad.l + 4, pad.t + 10);
+      }
+
+      function refresh() {
+        const d = +cD.value;
+        dV.textContent = d;
+        bV.textContent = cB.value;
+        x = makeInput(cI.value, d);
+        R = randomRotation(d);
+        render();
+      }
+
+      function render() {
+        const d = +cD.value, b = +cB.value;
+        const y = matVec(R, x);
+
+        // Shared input panel: signed bars of Πx
+        const piMax = Math.max(1e-6, ...Array.from(y).map(v => Math.abs(v)));
+        drawBarsSigned(piCv, Array.from(y), {
+          ymax: piMax, color: "rgba(167,139,250,0.9)", label: "\u03A0x"
+        });
+
+        const xL2sq = dot(x, x);
+        const sgnY = new Float64Array(d);
+        for (let i = 0; i < d; i++) sgnY[i] = y[i] >= 0 ? 1 : -1;
+
+        // Decoder 1: DRIVE mean estimator
+        // x_hat = S * R^T sign(Rx),  S = ||x||^2 / ||Rx||_1
+        let yL1 = 0; for (let i = 0; i < d; i++) yL1 += Math.abs(y[i]);
+        const S = xL2sq / Math.max(1e-12, yL1);
+        const sgnScaled = new Float64Array(d);
+        for (let i = 0; i < d; i++) sgnScaled[i] = sgnY[i] * S;
+        const xhatDrive = matTVec(R, sgnScaled);
+        const errDrive = new Float64Array(d);
+        let driveSq = 0;
+        for (let i = 0; i < d; i++) {
+          errDrive[i] = x[i] - xhatDrive[i];
+          driveSq += errDrive[i] * errDrive[i];
+        }
+        const driveRel = driveSq / Math.max(1e-12, xL2sq);
+        const errMaxDrive = Math.max(...Array.from(errDrive).map(v => Math.abs(v)));
+        drawBarsSigned(meanCv, Array.from(errDrive), {
+          ymax: Math.max(1e-3, errMaxDrive * 1.1),
+          color: "rgba(244,114,182,0.85)",
+          label: "x \u2212 x\u0302"
+        });
+        meanErrEl.textContent = driveRel.toFixed(4);
+        meanBitsEl.textContent = "1";
+
+        // Decoder 2: RaBitQ/QJL inner product, scatter over random queries
+        // hat<q,x> = sqrt(pi/(2d)) * <Rq, sign(Rx)> for orthogonal R
+        const prefactor = Math.sqrt(Math.PI / (2 * d));
+        const Ntrials = 250;
+        const scatter = [];
+        let sumSq = 0, count = 0, lim = 0;
+        for (let t = 0; t < Ntrials; t++) {
+          const q = unitVec(d);
+          const trueIP = dot(q, x);
+          const Rq = matVec(R, q);
+          let acc = 0;
+          for (let i = 0; i < d; i++) acc += Rq[i] * sgnY[i];
+          const estIP = prefactor * acc;
+          scatter.push([trueIP, estIP]);
+          sumSq += (estIP - trueIP) * (estIP - trueIP);
+          count++;
+          lim = Math.max(lim, Math.abs(trueIP), Math.abs(estIP));
+        }
+        const ipRMS = Math.sqrt(sumSq / Math.max(1, count));
+        drawScatterIP(ipCv, scatter, Math.max(0.2, lim * 1.05));
+        ipErrEl.textContent = ipRMS.toFixed(4);
+        ipBitsEl.textContent = "1";
+
+        // Decoder 3: EDEN/TurboQuant MSE reconstruction
+        const sigma = 1 / Math.sqrt(d);
+        const centroids = lloydGauss(b, sigma, 20);
+        const qy = quantizeWithCodebook(y, centroids);
+        const xtilde = matTVec(R, qy);
+        const errMSE = new Float64Array(d);
+        let mseSq = 0;
+        for (let i = 0; i < d; i++) {
+          errMSE[i] = x[i] - xtilde[i];
+          mseSq += errMSE[i] * errMSE[i];
+        }
+        const mseRel = mseSq / Math.max(1e-12, xL2sq);
+        const errMaxMSE = Math.max(...Array.from(errMSE).map(v => Math.abs(v)));
+        drawBarsSigned(mseCv, Array.from(errMSE), {
+          ymax: Math.max(1e-3, errMaxMSE * 1.1),
+          color: "rgba(244,114,182,0.85)",
+          label: "x \u2212 x\u0303"
+        });
+        mseErrEl.textContent = mseRel.toFixed(4);
+        mseBitsEl.textContent = String(b);
+      }
+
+      cD.oninput = refresh;
+      cB.oninput = () => { bV.textContent = cB.value; render(); };
+      cI.onchange = refresh;
+      btn.onclick = () => { R = randomRotation(+cD.value); render(); };
+      refresh();
+      window.addEventListener("resize", () => render());
+    })();
+
+    /* ================================================================
        §4 CONCENTRATION, coord distribution on sphere
        ================================================================ */
     (function () {
