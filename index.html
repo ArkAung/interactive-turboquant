@@ -825,7 +825,7 @@
       position: absolute;
       top: 10px;
       right: 12px;
-      background: rgba(4, 8, 10, 0.88);
+      background: var(--canvas-legend-bg);
       padding: 6px 10px;
       border-radius: 1px;
       font-family: "JetBrains Mono", monospace;
@@ -1750,48 +1750,50 @@
           (EDEN, Theorem 2.1).
         </p>
 
-        <div class="card">
-          <div class="panel-hd"><span class="tag">&#9632; IDEA-TO-SOURCE MAP</span></div>
-          <table>
-            <tr>
-              <th>Idea on this page</th>
-              <th>First introduced in</th>
-            </tr>
-            <tr>
-              <td>Random rotation, post-rotation distribution analysis (§3, §4)</td>
-              <td>DRIVE (2021), §3</td>
-            </tr>
-            <tr>
-              <td>Randomized Hadamard transform as the practical rotation (§3)</td>
-              <td>DRIVE (2021), §6; EDEN (2022), §5</td>
-            </tr>
-            <tr>
-              <td>Lloyd-Max codebook on $\mathcal{N}(0,1)$, including the $\{\pm\sqrt{2/\pi}\}$ 1-bit and $\{\pm
-                0.453,\,\pm 1.510\}$ 2-bit codebooks (§5)</td>
-              <td>EDEN (2022), §3</td>
-            </tr>
-            <tr>
-              <td>Unbiased rotation-then-quantize via a per-vector scale (§7, §8 backbone)</td>
-              <td>DRIVE (2021), §4.2, Theorem 3</td>
-            </tr>
-            <tr>
-              <td>The $b$-bit pipeline (§6)</td>
-              <td>EDEN (2022) with the per-vector scale fixed to a constant</td>
-            </tr>
-            <tr>
-              <td>QJL residual unbiasing (§8)</td>
-              <td>One-bit unbiased DRIVE applied to the residual instead of the input</td>
-            </tr>
-            <tr>
-              <td>Residual chain: biased $(b{-}1)$-bit + unbiased 1-bit (§7 then §8)</td>
-              <td>TurboQuant (2025)</td>
-            </tr>
-            <tr>
-              <td>KV-cache and inner-product application framing</td>
-              <td>TurboQuant (2025); QJL (2024) for the 1-bit case</td>
-            </tr>
-          </table>
-        </div>
+        <details class="deriv">
+          <summary>Idea-to-source map</summary>
+          <div class="deriv-body">
+            <table>
+              <tr>
+                <th>Idea on this page</th>
+                <th>First introduced in</th>
+              </tr>
+              <tr>
+                <td>Random rotation, post-rotation distribution analysis (§3, §4)</td>
+                <td>DRIVE (2021), §3</td>
+              </tr>
+              <tr>
+                <td>Randomized Hadamard transform as the practical rotation (§3)</td>
+                <td>DRIVE (2021), §6; EDEN (2022), §5</td>
+              </tr>
+              <tr>
+                <td>Lloyd-Max codebook on $\mathcal{N}(0,1)$, including the $\{\pm\sqrt{2/\pi}\}$ 1-bit and $\{\pm
+                  0.453,\,\pm 1.510\}$ 2-bit codebooks (§5)</td>
+                <td>EDEN (2022), §3</td>
+              </tr>
+              <tr>
+                <td>Unbiased rotation-then-quantize via a per-vector scale (§7, §8 backbone)</td>
+                <td>DRIVE (2021), §4.2, Theorem 3</td>
+              </tr>
+              <tr>
+                <td>The $b$-bit pipeline (§6)</td>
+                <td>EDEN (2022) with the per-vector scale fixed to a constant</td>
+              </tr>
+              <tr>
+                <td>QJL residual unbiasing (§8)</td>
+                <td>One-bit unbiased DRIVE applied to the residual instead of the input</td>
+              </tr>
+              <tr>
+                <td>Residual chain: biased $(b{-}1)$-bit + unbiased 1-bit (§7 then §8)</td>
+                <td>TurboQuant (2025)</td>
+              </tr>
+              <tr>
+                <td>KV-cache and inner-product application framing</td>
+                <td>TurboQuant (2025); QJL (2024) for the 1-bit case</td>
+              </tr>
+            </table>
+          </div>
+        </details>
       </section>
 
       <!-- ======================= SECTION: PROBLEM ======================= -->
