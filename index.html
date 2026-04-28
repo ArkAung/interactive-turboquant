@@ -1766,6 +1766,19 @@
           (EDEN, Theorem 2.1).
         </p>
 
+        <p>
+          RaBitQ (Gao and Long, SIGMOD 2024) is a parallel line of work in approximate nearest-neighbor
+          search. The encoder rotates the input vector with a randomized rotation, stores the sign of
+          every rotated coordinate plus a per-vector normalization scalar, and the decoder estimates
+          inner products from the signs and the scalar. The extended paper (Gao et al., 2024,
+          arXiv:2409.09913) proves that this estimator achieves the asymptotic optimality bound of
+          Alon and Klartag (FOCS 2017) for inner-product quantization. RaBitQ predates TurboQuant
+          and shares the random-rotation backbone with the DRIVE/EDEN line. The two lines reach
+          comparable theoretical results from different framings (federated mean estimation versus
+          ANN search), and the relationship between them is the subject of an ongoing public
+          discussion (arXiv:2604.18555 and arXiv:2604.19528, both 2026).
+        </p>
+
         <details class="deriv">
           <summary>Idea-to-source map</summary>
           <div class="deriv-body">
@@ -1798,6 +1811,15 @@
               <tr>
                 <td>QJL residual unbiasing (§8)</td>
                 <td>One-bit unbiased DRIVE applied to the residual instead of the input</td>
+              </tr>
+              <tr>
+                <td>Random rotation + 1-bit sign quantization for unbiased inner-product estimation in ANN
+                  search</td>
+                <td>RaBitQ (Gao &amp; Long, SIGMOD 2024)</td>
+              </tr>
+              <tr>
+                <td>Asymptotic optimality matching the Alon&ndash;Klartag (FOCS 2017) inner-product bound</td>
+                <td>RaBitQ extended (Gao et al., 2024, arXiv:2409.09913)</td>
               </tr>
               <tr>
                 <td>Residual chain: biased $(b{-}1)$-bit + unbiased 1-bit (§7 then §8)</td>
