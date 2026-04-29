@@ -1690,11 +1690,14 @@
           <!-- 0.7 High-D concentration -->
           <div class="primer-cell" id="pr-hd">
             <div class="pt">§0.7 · Life in many dimensions</div>
-            <div class="ph">Coordinates of a random unit vector are all small.</div>
+            <div class="ph">Each coordinate has mean $0$ and standard deviation $1/\sqrt d$.</div>
             <div class="pb">
               Pick a random point on a unit sphere in $d$ dimensions. In 2-D any coordinate is possible.
-              In 100-D, almost every coordinate is close to $\pm 1/\sqrt{d}$. This is <b>measure
-                concentration</b>, and it is the core fact TurboQuant exploits.
+              In higher $d$, the unit-vector condition $\sum_i X_i^2 = 1$ together with rotational
+              symmetry gives $\mathbb{E}[X_i^2] = 1/d$ for every $i$, and $\mathbb{E}[X_i] = 0$ by
+              symmetry. So each coordinate has mean $0$ and standard deviation $1/\sqrt d$, with the
+              marginal of $X_i$ narrowing around zero as $d$ grows. This is <b>measure concentration</b>,
+              and it is the core fact TurboQuant exploits.
             </div>
             <div class="plot" style="height: 240px;"><canvas id="pr-hd-cv"></canvas></div>
             <div class="controls" style="margin-top:10px;">
@@ -1738,7 +1741,7 @@
             <b>MSE</b>: average squared error. <b>Unbiased</b>: the average of many estimates equals the truth.
             <b>Rotation</b>: change of basis that preserves lengths and angles.
             <b>CLT</b>: sum of many independent randoms converges to a Gaussian.
-            <b>High-D concentration</b>: coordinates of a random unit vector in $d$-space cluster near $\pm 1/\sqrt d$.
+            <b>High-D concentration</b>: each coordinate of a random unit vector has mean $0$ and standard deviation $1/\sqrt d$.
             <b>Quantization</b>: snap each number to one of $2^b$ levels; one extra bit quarters the squared error.
           </p>
         </div>
@@ -2203,7 +2206,7 @@
           The random-rotation step and the analysis of the post-rotation Beta density were introduced
           by <a href="https://arxiv.org/abs/2105.08339" target="_blank" rel="noopener">DRIVE (Vargaftik et
             al., NeurIPS 2021, §3)</a>. DRIVE also shows the density approaches
-          $\mathcal{N}(0,1)$ as $d$ grows, which is what makes a single fixed codebook work. See
+          $\mathcal{N}(0, 1/d)$ as $d$ grows, which is what makes a single fixed codebook work. See
           <a href="#lineage">§0.9</a> for the full mapping.
         </div>
 
