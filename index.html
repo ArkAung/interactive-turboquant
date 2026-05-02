@@ -1763,7 +1763,7 @@
               <span><span class="k">1/√d</span><b id="pr-hd-isqd">0.71</b></span>
             </div>
             <details class="intuition" id="pr-hd-int">
-              <summary>Intuition: walk through it slowly</summary>
+              <summary>Intuition</summary>
               <div class="intuition-body">
                 <p><b>Why coordinates shrink with $d$.</b> A unit vector has $\sum_i X_i^2 = 1$. With
                   $d$ coordinates sharing that fixed total, no single one can be large when $d$ is
@@ -1777,20 +1777,35 @@
                 <p><b>Sizes for specific $d$.</b></p>
                 <table>
                   <thead>
-                    <tr><th>$d$</th><th>std of one coord = $1/\sqrt d$</th></tr>
+                    <tr>
+                      <th>$d$</th>
+                      <th>std of one coord = $1/\sqrt d$</th>
+                    </tr>
                   </thead>
                   <tbody>
-                    <tr><td>$2$</td><td>$\approx 0.707$</td></tr>
-                    <tr><td>$10$</td><td>$\approx 0.316$</td></tr>
-                    <tr><td>$100$</td><td>$0.100$</td></tr>
-                    <tr><td>$1000$</td><td>$\approx 0.032$</td></tr>
+                    <tr>
+                      <td>$2$</td>
+                      <td>$\approx 0.707$</td>
+                    </tr>
+                    <tr>
+                      <td>$10$</td>
+                      <td>$\approx 0.316$</td>
+                    </tr>
+                    <tr>
+                      <td>$100$</td>
+                      <td>$0.100$</td>
+                    </tr>
+                    <tr>
+                      <td>$1000$</td>
+                      <td>$\approx 0.032$</td>
+                    </tr>
                   </tbody>
                 </table>
                 <p>At your current setting, $d = $ <b id="pr-hd-i-d">2</b>, the standard deviation is
-                  <b id="pr-hd-i-std">0.707</b>. A fresh sample at this $d$ (truncated when $d > 6$):</p>
-                <p class="mono" id="pr-hd-i-sample"
-                  style="color:var(--accent);margin-left:8px;font-size:12.5px">…</p>
-                <p><b>What "narrowing" means.</b> As $d$ grows the standard deviation $1/\sqrt d$
+                  <b id="pr-hd-i-std">0.707</b>. Some of the sample coordinates for this $d$ (truncated when $d > 6$):
+                </p>
+                <p class="mono" id="pr-hd-i-sample" style="color:var(--accent);margin-left:8px;font-size:12.5px">…</p>
+                <p>As $d$ grows the standard deviation $1/\sqrt d$
                   shrinks: $0.316$ at $d = 10$, $0.1$ at $d = 100$, $0.032$ at $d = 1000$. The
                   histogram in the plot above narrows accordingly, and the dashed gold lines mark
                   $\pm 1/\sqrt d$.</p>
