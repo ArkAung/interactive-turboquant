@@ -18,6 +18,3 @@ build/
 *.egg-info/
 
 *.mov
-
-# Local session handoff notes (not part of the published explainer)
-agents.md
