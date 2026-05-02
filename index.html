@@ -629,6 +629,61 @@
       margin-bottom: 0;
     }
 
+    /* Collapsible intuition: slow-paced explainer for readers who want hand-holding.
+       Solid border + sans-serif summary distinguishes from the dashed/monospace `deriv`. */
+    details.intuition {
+      margin: 18px 0;
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--accent);
+      border-radius: 2px;
+      background: rgba(var(--accent-rgb), 0.035);
+    }
+
+    details.intuition>summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 11px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-dim);
+    }
+
+    details.intuition>summary::-webkit-details-marker {
+      display: none;
+    }
+
+    details.intuition>summary::before {
+      content: "\25B8  ";
+      color: var(--accent);
+    }
+
+    details.intuition[open]>summary::before {
+      content: "\25BE  ";
+    }
+
+    details.intuition>summary:hover {
+      color: var(--accent);
+    }
+
+    details.intuition[open]>summary {
+      border-bottom: 1px solid var(--line);
+    }
+
+    details.intuition .intuition-body {
+      padding: 14px 16px 16px;
+      font-size: 13.5px;
+      line-height: 1.6;
+    }
+
+    details.intuition .intuition-body p:last-child {
+      margin-bottom: 0;
+    }
+
+    details.intuition .intuition-body table {
+      margin: 8px 0 12px;
+      font-size: 12.5px;
+    }
+
     /* Pills */
     .pill {
       display: inline-block;
@@ -1693,11 +1748,10 @@
             <div class="ph">Each coordinate has mean $0$ and standard deviation $1/\sqrt d$.</div>
             <div class="pb">
               Pick a random point on a unit sphere in $d$ dimensions. In 2-D any coordinate is possible.
-              In higher $d$, the unit-vector condition $\sum_i X_i^2 = 1$ together with rotational
-              symmetry gives $\mathbb{E}[X_i^2] = 1/d$ for every $i$, and $\mathbb{E}[X_i] = 0$ by
-              symmetry. So each coordinate has mean $0$ and standard deviation $1/\sqrt d$, with the
-              marginal of $X_i$ narrowing around zero as $d$ grows. This is <b>measure concentration</b>,
-              and it is the core fact TurboQuant exploits.
+              The unit-sphere constraint $\sum_i X_i^2 = 1$ and rotational symmetry imply that every
+              coordinate has mean $0$ and standard deviation $1/\sqrt d$. As $d$ grows, the marginal
+              of $X_i$ narrows around zero. This is <b>measure concentration</b>, and it is the core
+              fact TurboQuant exploits.
             </div>
             <div class="plot" style="height: 240px;"><canvas id="pr-hd-cv"></canvas></div>
             <div class="controls" style="margin-top:10px;">
@@ -1708,6 +1762,41 @@
               <span><span class="k">std of x₁</span><b id="pr-hd-typ">≈ 0.71</b></span>
               <span><span class="k">1/√d</span><b id="pr-hd-isqd">0.71</b></span>
             </div>
+            <details class="intuition" id="pr-hd-int">
+              <summary>Intuition: walk through it slowly</summary>
+              <div class="intuition-body">
+                <p><b>Why coordinates shrink with $d$.</b> A unit vector has $\sum_i X_i^2 = 1$. With
+                  $d$ coordinates sharing that fixed total, no single one can be large when $d$ is
+                  large. Think of $1$ as a length split across $d$ slots: more slots, smaller share
+                  per slot.</p>
+                <p><b>What symmetry implies.</b> No coordinate axis is special, so all the
+                  $\mathbb{E}[X_i^2]$ values are equal. With $d$ equal terms summing to $1$, each one
+                  is $1/d$. Positive and negative are equally likely for any single coordinate, so
+                  $\mathbb{E}[X_i] = 0$. Mean $0$ with second moment $1/d$ gives standard deviation
+                  $\sqrt{1/d} = 1/\sqrt d$.</p>
+                <p><b>Sizes for specific $d$.</b></p>
+                <table>
+                  <thead>
+                    <tr><th>$d$</th><th>std of one coord = $1/\sqrt d$</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>$2$</td><td>$\approx 0.707$</td></tr>
+                    <tr><td>$10$</td><td>$\approx 0.316$</td></tr>
+                    <tr><td>$100$</td><td>$0.100$</td></tr>
+                    <tr><td>$1000$</td><td>$\approx 0.032$</td></tr>
+                  </tbody>
+                </table>
+                <p>At your current setting, $d = $ <b id="pr-hd-i-d">2</b>, the standard deviation is
+                  <b id="pr-hd-i-std">0.707</b>. First six coordinates of a fresh sample at this $d$:
+                </p>
+                <p class="mono" id="pr-hd-i-sample"
+                  style="color:var(--accent);margin-left:8px;font-size:12.5px">…</p>
+                <p><b>What "narrowing" means.</b> As $d$ grows the standard deviation shrinks, so the
+                  histogram in the plot above gets narrower around zero. By $d = 100$ almost every
+                  coordinate is within $\pm 0.3$ of zero. By $d = 1000$ almost every coordinate is
+                  within $\pm 0.1$.</p>
+              </div>
+            </details>
           </div>
 
           <!-- 0.8 Quantization in one dim -->
@@ -5358,6 +5447,20 @@
       const dv = document.getElementById("pr-hd-dv");
       const typOut = document.getElementById("pr-hd-typ");
       const isqdOut = document.getElementById("pr-hd-isqd");
+      const intD = document.getElementById("pr-hd-i-d");
+      const intStd = document.getElementById("pr-hd-i-std");
+      const intSample = document.getElementById("pr-hd-i-sample");
+
+      function updateIntuition(dim) {
+        if (!intD) return;
+        intD.textContent = dim.toString();
+        intStd.textContent = (1 / Math.sqrt(dim)).toFixed(3);
+        const v = unitVec(dim);
+        const k = Math.min(6, dim);
+        const parts = [];
+        for (let i = 0; i < k; i++) parts.push(v[i].toFixed(3));
+        intSample.textContent = "(" + parts.join(", ") + (dim > k ? ", ..." : "") + ")";
+      }
 
       function sampleCoords(dim, N) {
         // first coordinate of a uniform point on S^{dim-1}
@@ -5418,6 +5521,7 @@
         typOut.textContent = "≈ " + sd.toFixed(3);
         isqdOut.textContent = s.toFixed(3);
         dv.textContent = dim.toString();
+        updateIntuition(dim);
       }
       d.addEventListener("input", draw);
       window.addEventListener("resize", draw);
