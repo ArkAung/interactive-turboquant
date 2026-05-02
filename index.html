@@ -1787,14 +1787,13 @@
                   </tbody>
                 </table>
                 <p>At your current setting, $d = $ <b id="pr-hd-i-d">2</b>, the standard deviation is
-                  <b id="pr-hd-i-std">0.707</b>. First six coordinates of a fresh sample at this $d$:
-                </p>
+                  <b id="pr-hd-i-std">0.707</b>. A fresh sample at this $d$ (truncated when $d > 6$):</p>
                 <p class="mono" id="pr-hd-i-sample"
                   style="color:var(--accent);margin-left:8px;font-size:12.5px">…</p>
-                <p><b>What "narrowing" means.</b> As $d$ grows the standard deviation shrinks, so the
-                  histogram in the plot above gets narrower around zero. By $d = 100$ almost every
-                  coordinate is within $\pm 0.3$ of zero. By $d = 1000$ almost every coordinate is
-                  within $\pm 0.1$.</p>
+                <p><b>What "narrowing" means.</b> As $d$ grows the standard deviation $1/\sqrt d$
+                  shrinks: $0.316$ at $d = 10$, $0.1$ at $d = 100$, $0.032$ at $d = 1000$. The
+                  histogram in the plot above narrows accordingly, and the dashed gold lines mark
+                  $\pm 1/\sqrt d$.</p>
               </div>
             </details>
           </div>
