@@ -4372,6 +4372,10 @@
       cI.onchange = refresh;
       btn.onclick = () => { R = randomRotation(+cD.value); render(); };
       refresh();
+      requestAnimationFrame(render);
+      if (window.MathJax?.startup?.promise) {
+        window.MathJax.startup.promise.then(render);
+      }
       window.addEventListener("resize", () => render());
     })();
 
